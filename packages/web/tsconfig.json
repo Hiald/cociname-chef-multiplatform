@@ -12,6 +12,7 @@
   },
   "include": [
     "public",
-    "src"
+    "src",
+    "../../custom.d.ts"
   ]
 }

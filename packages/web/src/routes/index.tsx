@@ -1,30 +1,25 @@
 import * as React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { View, Text, ActivityIndicator } from 'react-native';
 import LoginScreen from '@anilist-fe/app/src/screens/login';
-import RegisterScreen from '@anilist-fe/app/src/screens/register';
-import HomeScreen from '@anilist-fe/app/src/screens/home';
-import ReservationScreen from '@anilist-fe/app/src/screens/reservation';
-import ProfileScreen from '@anilist-fe/app/src/screens/profile';
-import { RootStackParamList } from '@anilist-fe/app/src/types';
+import { useAuth } from '@anilist-fe/app/src/hooks/useAuth';
 
-const Stack = createStackNavigator<RootStackParamList>();
+const Navigator: React.FC = () => {
+  const { loading } = useAuth();
 
-const Navigator = () => (
-  <NavigationContainer>
-    <Stack.Navigator 
-      initialRouteName="Login"
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-      <Stack.Screen name="Home" component={HomeScreen} />
-      <Stack.Screen name="Reservation" component={ReservationScreen} />
-      <Stack.Screen name="Profile" component={ProfileScreen} />
-    </Stack.Navigator>
-  </NavigationContainer>
-);
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF', minHeight: '100vh' }}>
+        <ActivityIndicator size="large" color="#FF5136" />
+        <Text style={{ marginTop: 16, color: '#6B7280' }}>Cargando...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, minHeight: '100vh' }}>
+      <LoginScreen />
+    </View>
+  );
+};
 
 export default Navigator;
