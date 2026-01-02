@@ -19,7 +19,7 @@ module.exports = (async () => {
       getTransformOptions: async () => ({
         transform: {
           experimentalImportSupport: false,
-          inlineRequires: false,
+          inlineRequires: true,
         },
       }),
     },
@@ -37,7 +37,7 @@ module.exports = (async () => {
       blockList: exclusionList(monorepoMetroTools.blockList),
       extraNodeModules: monorepoMetroTools.extraNodeModules,
       assetExts: assetExts.filter(ext => ext !== "svg"),
-      sourceExts: [...sourceExts, "svg", "cjs"]
+      sourceExts: [...sourceExts, "svg", "cjs", "tsx", "ts", "jsx", "js"]
     }
   };
 })();

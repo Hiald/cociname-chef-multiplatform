@@ -106,7 +106,7 @@ const LoginScreen: React.FC = () => {
     >
       <View style={styles.loginContainer}>
         <Image 
-          source={images.logo} 
+          source={images.logo}
           style={styles.logo}
           resizeMode="contain"
         />

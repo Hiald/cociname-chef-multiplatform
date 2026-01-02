@@ -1,3 +1,8 @@
+import { Platform } from 'react-native';
+
 export const images = {
-  logo: require('./logo.png')
-}
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  logo: Platform.OS === 'web' 
+    ? require('./logo.png').default || require('./logo.png')
+    : require('./logo.png')
+};

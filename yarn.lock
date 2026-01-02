@@ -58,7 +58,7 @@ __metadata:
     react-native-monorepo-tools: ^1.1.0
     react-native-safe-area-context: ^4.2.4
     react-native-safe-area-view: ^1.1.1
-    react-native-screens: ^4.19.0
+    react-native-screens: 3.10.2
     react-native-svg: ^12.3.0
     react-native-svg-transformer: ^1.0.0
     react-test-renderer: 17.0.2
@@ -18133,6 +18133,19 @@ __metadata:
     react-native: "*"
     react-native-safe-area-context: "*"
   checksum: 52631df89f53a339fe245b174b2d34945f2591a64fd676d27b5234f7cf15cb7140087574c0c0a7a638cfa336a48b70a4a3730dd3c8945464973f94332c2030a0
+  languageName: node
+  linkType: hard
+
+"react-native-screens@npm:3.10.2":
+  version: 3.10.2
+  resolution: "react-native-screens@npm:3.10.2"
+  dependencies:
+    react-freeze: ^1.0.0
+    warn-once: ^0.1.0
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 9b20b0c8ab6b9b03fb2bfdd9edbc5bdba93eec415095d121dd9444a930bc5c76774a4e169901f9fe3f3180cb7fb04fd9f66367f70e7a4397a1787bfd87b6e336
   languageName: node
   linkType: hard
 
