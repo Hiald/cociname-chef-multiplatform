@@ -2,12 +2,6 @@
 
 React-native + web monorepo with graph ql api from AniList
 
-# Demo
-
-![ezgif-5-b62e051049](https://user-images.githubusercontent.com/17568508/173612199-45950f73-f423-4bdc-b9af-d3515357a155.gif)
-
-![ezgif-5-6f1009c56a](https://user-images.githubusercontent.com/17568508/173612289-d6a311c5-a2a2-47fb-9b96-6eedafe0f156.gif)
-
 ## Setting up Yarn 2+
 
 1. Run `yarn set version berry` at the root of project. It will create a `.yarnrc.yml` file.
