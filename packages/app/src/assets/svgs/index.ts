@@ -1,6 +1,5 @@
 export {default as CalendarCheck} from "./calendar-check.svg"
 export {default as Home} from "./home.svg"
-export {default as Icon} from "./icon.svg"
 export {default as Profile} from "./profile.svg"
 export {default as Reservation} from "./reservation.svg"
 export {default as Restaurant} from "./restaurant.svg"
