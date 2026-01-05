@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import { spacing } from '../../styles';
 import { Home, Reservation, Profile } from '../../assets/svgs';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,8 +11,8 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentRoute, onNavigate }) => {
-  const { chefData, logout } = useAuth();
-  const sidebarWidth = isOpen ? 250 : 0;
+  const { logout } = useAuth();
+  const sidebarWidth = isOpen ? 280 : 0;
 
   const menuItems = [
     { id: 'Home', label: 'Inicio', Icon: Home },
@@ -29,17 +29,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentRoute, onNavigate }) =
   return (
     <View style={[styles.container, { width: sidebarWidth }]}>
       <ScrollView style={styles.scrollView}>
-        {/* User Info Section */}
         <View style={styles.userSection}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>👨‍🍳</Text>
+            <Text style={styles.avatarText}></Text>
           </View>
           <Text style={styles.userName} numberOfLines={1}>
             Chef
           </Text>
         </View>
 
-        {/* Navigation Menu */}
         <View style={styles.menuSection}>
           {menuItems.map((item) => {
             const isActive = currentRoute === item.id;
@@ -47,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentRoute, onNavigate }) =
               <TouchableOpacity
                 key={item.id}
                 style={[styles.menuItem, isActive && styles.menuItemActive]}
-                onPress={() => onNavigate(item.id as any)}
+                onPress={() => onNavigate(item.id as SidebarProps['currentRoute'])}
                 activeOpacity={0.7}
               >
                 <View style={styles.menuItemContent}>
@@ -63,14 +61,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentRoute, onNavigate }) =
           })}
         </View>
 
-        {/* Logout Button */}
         <View style={styles.logoutSection}>
           <TouchableOpacity 
             style={styles.logoutButton}
             onPress={handleLogout}
             activeOpacity={0.7}
           >
-            <Text style={styles.logoutText}>🚪 Cerrar sesión</Text>
+            <Text style={styles.logoutText}> Cerrar sesi�n</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -80,9 +77,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, currentRoute, onNavigate }) =
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#1A1F24',
-    height: '100vh',
+    backgroundColor: '#FFFFFF',
+    height: Platform.OS === 'web' ? '100vh' : '100%',
     overflow: 'hidden',
+    borderRightWidth: 1,
+    borderRightColor: '#E5E7EB',
   },
   scrollView: {
     flex: 1,
@@ -90,64 +89,70 @@ const styles = StyleSheet.create({
   userSection: {
     padding: spacing.large,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: '#E5E7EB',
     alignItems: 'center',
+    backgroundColor: '#FAFAFA',
   },
   avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#FF5136',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.small,
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 36,
   },
   userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1F24',
     textAlign: 'center',
   },
   menuSection: {
     paddingVertical: spacing.medium,
+    paddingHorizontal: spacing.small,
   },
   menuItem: {
     paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-    marginHorizontal: spacing.small,
-    marginBottom: spacing.tiny,
-    borderRadius: 8,
+    paddingVertical: 14,
+    marginBottom: 6,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
   },
   menuItemActive: {
-    backgroundColor: 'rgba(255, 81, 54, 0.15)',
+    backgroundColor: '#d9dbf1',
   },
   menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F5F7FA',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.small,
+    marginRight: spacing.medium,
   },
   iconContainerActive: {
-    backgroundColor: '#FF5136',
+    backgroundColor: '#FFFFFF',
+  },
+  iconEmoji: {
+    fontSize: 20,
   },
   menuItemText: {
-    fontSize: 14,
-    color: '#B8BFC4',
+    fontSize: 15,
+    color: '#56688a',
     fontWeight: '500',
+    letterSpacing: 0.2,
   },
   menuItemTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: '#1e2133',
+    fontWeight: '700',
   },
   logoutSection: {
     padding: spacing.medium,
@@ -155,14 +160,16 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     padding: spacing.medium,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
   },
   logoutText: {
     fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '500',
+    color: '#DC2626',
+    fontWeight: '600',
   },
 });
 

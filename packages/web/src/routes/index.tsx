@@ -7,6 +7,7 @@ import ProfileScreen from '@anilist-fe/app/src/screens/profile';
 import { useAuth } from '@anilist-fe/app/src/hooks/useAuth';
 import { Header } from '@anilist-fe/app/src/components/header';
 import { Sidebar } from '@anilist-fe/app/src/components/sidebar';
+import WebBottomTabs from '../components/web-bottom-tabs';
 
 type RouteType = 'Home' | 'Reservation' | 'Profile';
 
@@ -14,6 +15,17 @@ const Navigator: React.FC = () => {
   const { loading, isAuthenticated } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const [currentRoute, setCurrentRoute] = React.useState<RouteType>('Home');
+  const [windowWidth, setWindowWidth] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isMobile = windowWidth <= 768;
 
   if (loading) {
     return (
@@ -44,6 +56,18 @@ const Navigator: React.FC = () => {
         return <HomeScreen />;
     }
   };
+
+  if (isMobile) {
+    return (
+      <View style={styles.container}>
+        <Header showMenu={false} />
+        <View style={styles.contentContainer}>
+          {renderCurrentScreen()}
+        </View>
+        <WebBottomTabs currentRoute={currentRoute} onNavigate={setCurrentRoute} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -90,11 +114,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     overflow: 'hidden',
+    position: 'relative',
   },
   contentContainer: {
     flex: 1,
     backgroundColor: '#F5F7FA',
-    overflow: 'scroll',
   },
 });
 

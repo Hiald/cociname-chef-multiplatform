@@ -1,0 +1,203 @@
+/* Bottom Navigation Bar Animations */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 56px;
+  background: #ffffff;
+  filter: drop-shadow(0px 0px 6px rgba(0, 0, 0, 0.1));
+  display: flex;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.bottom-nav__list {
+  flex-basis: 32rem;
+  max-width: 512px;
+  width: 100%;
+  display: flex;
+  position: relative;
+  cursor: pointer;
+}
+
+.bottom-nav__active-indicator {
+  width: 20%;
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  transform: translate(0, -0.5rem);
+  pointer-events: none;
+  transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+  z-index: 1;
+}
+
+.bottom-nav__active-indicator::before {
+  content: "";
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: #d9dbf1;
+  border-radius: 1.5rem;
+  border: 4px solid white;
+}
+
+.bottom-nav__active-indicator.active--1::before {
+  animation: Stretch 0.18s linear;
+}
+
+.bottom-nav__active-indicator.active--2::before {
+  animation: Stretch2 0.2s linear;
+}
+
+.bottom-nav__active-indicator.active--3::before {
+  animation: Stretch3 0.2s linear;
+}
+
+.bottom-nav__active-indicator.active--4::before {
+  animation: Stretch4 0.225s linear;
+}
+
+.bottom-nav__active-indicator.active-left::before {
+  transform-origin: center right;
+}
+
+.bottom-nav__active-indicator.active-right::before {
+  transform-origin: center left;
+}
+
+.bottom-nav__link {
+  flex: 1;
+  font-size: 0.675rem;
+  font-weight: 300;
+  letter-spacing: 0.025rem;
+  font-family: "Roboto", sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  z-index: 2;
+  cursor: pointer;
+  color: #56688a;
+  transition: all 0.2s ease-in-out;
+}
+
+.bottom-nav__link:hover {
+  opacity: 0.8;
+}
+
+.bottom-nav__link.selected {
+  font-weight: 500;
+  letter-spacing: 0.0125rem;
+  color: #1e2133;
+}
+
+.bottom-nav__link .icon,
+.bottom-nav__link .emoji {
+  font-size: 24px;
+  transition: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1), color 0.2s 0.1s ease-in-out;
+}
+
+.bottom-nav__link.selected .icon,
+.bottom-nav__link.selected .emoji {
+  transform: translateY(-0.25rem);
+}
+
+@keyframes Stretch {
+  0% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(2.25, 0.65);
+    border-radius: 1.25rem;
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+@keyframes Stretch2 {
+  0% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(2.75, 0.625);
+    border-radius: 1.125rem;
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+@keyframes Stretch3 {
+  0% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(3.5, 0.6);
+    border-radius: 1.125rem;
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+@keyframes Stretch4 {
+  0% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(4.5, 0.55);
+    border-radius: 1.125rem;
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+
+/* Sidebar Styles */
+.sidebar {
+  transition: width 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+}
+
+.sidebar__menu-item {
+  transition: all 0.2s ease-in-out;
+}
+
+.sidebar__menu-item:hover {
+  transform: translateX(4px);
+}
+
+.sidebar__menu-item.active {
+  transform: translateX(0);
+}
+
+/* Responsive Styles */
+@media (max-width: 767px) {
+  .sidebar {
+    display: none !important;
+  }
+  
+  .bottom-nav {
+    display: flex !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none !important;
+  }
+  
+  .sidebar {
+    display: flex !important;
+  }
+}
+
+/* Mobile Menu Toggle Animation */
+@media (max-width: 767px) {
+  .header__menu-button {
+    display: none;
+  }
+}

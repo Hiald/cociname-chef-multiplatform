@@ -13,7 +13,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuPress, showMenu = true }) => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.leftSection}>
+      <View style={[styles.leftSection, !showMenu && styles.centerSection]}>
         {showMenu && onMenuPress && (
           <TouchableOpacity 
             onPress={onMenuPress} 
@@ -36,9 +36,11 @@ const Header: React.FC<HeaderProps> = ({ onMenuPress, showMenu = true }) => {
       </View>
 
       <View style={styles.rightSection}>
-        <TouchableOpacity style={styles.notificationButton}>
-          <Text style={styles.notificationIcon}>🔔</Text>
-        </TouchableOpacity>
+        {showMenu && (
+          <TouchableOpacity style={styles.notificationButton}>
+            <Text style={styles.notificationIcon}>🔔</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -70,6 +72,10 @@ const styles = StyleSheet.create({
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  centerSection: {
+    flex: 1,
+    justifyContent: 'center',
   },
   menuButton: {
     padding: spacing.small,
