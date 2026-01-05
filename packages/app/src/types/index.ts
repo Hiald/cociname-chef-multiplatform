@@ -59,6 +59,77 @@ export interface RegisterChefResponseDto {
   expirationDate: string;
 }
 
+export interface ListReservationChefResponse {
+  data: Datum[];
+  success: boolean;
+  errorMessage: string | null;
+}
+
+export interface Datum {
+  reservationCode: string;
+  securityCode: string;
+  diner: number;
+  preparationTime: number;
+  type: number;
+  totalPortion: number;
+  portionperDay: number;
+  puchaseIngredients: boolean;
+  costPerHour: number;
+  totalPrice: number;
+  commissiontoChef: number;
+  percentageCommision: number;
+  dateReservation: Date;
+  hourReservation: string;
+  reprogramated: number;
+  comments: string;
+  commentClient: string;
+  ubication: string;
+  latitude: string;
+  longitude: string;
+  province: number;
+  district: number;
+  city: number;
+  direction: string;
+  numberClient: string;
+  reference: string;
+  numberCustomer: string;
+  statusReservation: number;
+  payMethod: number;
+  isPayed: number;
+  searchStatus: number;
+  customerId: number;
+  customerName: string | null;
+  customerLastName: string | null;
+  customerPhone: string | null;
+  jsonPaymentChef: string;
+  chefId: number;
+  chefName: string | null;
+  chefLastName: string | null;
+  chefPhone: string | null;
+  couponId: number;
+  id: number;
+  status: boolean;
+  createdById: string;
+  createdAt: Date;
+  updatedById: string | null;
+  updatedAt: Date | null;
+}
+
+export enum StatusReservation {
+  Draft = 0,
+  Creada = 1,
+  Actualizada = 2,
+  Aceptada = 3,
+  EnCompra = 4,
+  EnTrayecto = 5,
+  EnCocina = 6,
+  Completada = 7,
+  Cancelada = 8,
+  Reprogramada = 9,
+  ReasignacionCocinera = 10,
+}
+
+
 // ═══════════════════════════════════════════════════════════════
 // Tipos de Navegación (5 vistas)
 // ═══════════════════════════════════════════════════════════════
