@@ -10,6 +10,9 @@ import {
   Dimensions,
   ScrollView
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../types';
 import { spacing } from '../styles';
 import { images } from '../assets/images';
 import { CalendarCheck, Restaurant, Verified } from '../assets/svgs';
@@ -19,7 +22,11 @@ const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 const isMobile = width < 768;
 
+type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
+
 const LoginScreen: React.FC = () => {
+  // Solo usar navigation si no estamos en web
+  const navigation = !isWeb ? useNavigation<LoginScreenNavigationProp>() : null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -35,7 +42,13 @@ const LoginScreen: React.FC = () => {
     try {
       const success = await login(email, password);
       
-      if (!success) {
+      if (success) {
+        // Redirigir a Home después de login exitoso (solo en mobile)
+        if (navigation) {
+          navigation.replace('Home');
+        }
+        // En web, el AuthProvider se encargará de mostrar el Home
+      } else {
         setError('Credenciales incorrectas. Por favor, intenta de nuevo.');
       }
     } catch (err) {

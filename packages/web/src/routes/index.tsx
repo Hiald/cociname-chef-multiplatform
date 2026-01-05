@@ -1,10 +1,11 @@
 import * as React from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import LoginScreen from '@anilist-fe/app/src/screens/login';
+import HomeScreen from '@anilist-fe/app/src/screens/home';
 import { useAuth } from '@anilist-fe/app/src/hooks/useAuth';
 
 const Navigator: React.FC = () => {
-  const { loading } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
 
   if (loading) {
     return (
@@ -17,7 +18,7 @@ const Navigator: React.FC = () => {
 
   return (
     <View style={{ flex: 1, minHeight: '100vh' }}>
-      <LoginScreen />
+      {isAuthenticated ? <HomeScreen /> : <LoginScreen />}
     </View>
   );
 };
