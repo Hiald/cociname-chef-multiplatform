@@ -69,4 +69,5 @@ export type RootStackParamList = {
   Home: undefined;
   Reservation: undefined;
   Profile: undefined;
+  MainTabs: undefined;
 };

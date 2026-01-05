@@ -43,9 +43,9 @@ const LoginScreen: React.FC = () => {
       const success = await login(email, password);
       
       if (success) {
-        // Redirigir a Home después de login exitoso (solo en mobile)
+        // Redirigir a MainTabs después de login exitoso (solo en mobile)
         if (navigation) {
-          navigation.replace('Home');
+          navigation.replace('MainTabs' as any);
         }
         // En web, el AuthProvider se encargará de mostrar el Home
       } else {
