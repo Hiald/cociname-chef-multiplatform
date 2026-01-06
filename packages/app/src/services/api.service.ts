@@ -7,6 +7,9 @@ import {
   RegisterChefResponseDto,
   ListReservationChefResponse,
   ChefResponse,
+  ReservationDetailResponse,
+  ReservationRecipeResponse,
+  IngredientResponse,
 } from '../types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -160,6 +163,153 @@ class ApiService {
       clearTimeout(timeoutId);
 
       const data: ListReservationChefResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: [],
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
+   * GET /api/Reservation/ListReservationById?id={reservationId}
+   * Obtiene el detalle de una reserva específica
+   */
+  async getReservationById(
+    reservationId: number
+  ): Promise<ReservationDetailResponse> {
+    const endpoint = `Reservation/ListReservationById?id=${reservationId}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data: ReservationDetailResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: {} as any,
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        data: {} as any,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
+   * GET /api/reservationMasterRecipe/ReservationMasterRecipeSearchId?ReservationId={reservationId}
+   * Obtiene las recetas/platos de una reserva
+   */
+  async getReservationRecipes(
+    reservationId: number
+  ): Promise<ReservationRecipeResponse> {
+    const endpoint = `reservationMasterRecipe/ReservationMasterRecipeSearchId?ReservationId=${reservationId}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data: ReservationRecipeResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: [],
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
+   * GET /api/ingredient/IngredientByMasterRecipeId?search={masterRecipeId}
+   * Obtiene los ingredientes de una receta
+   */
+  async getIngredientsByRecipeId(
+    masterRecipeId: number
+  ): Promise<IngredientResponse> {
+    const endpoint = `ingredient/IngredientByMasterRecipeId?search=${masterRecipeId}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data: IngredientResponse = await response.json();
 
       if (!response.ok) {
         return {

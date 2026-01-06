@@ -1,17 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
-import { Datum, StatusReservation, ChefData } from '../types';
+import { Datum, StatusReservation, ChefData, RootStackParamList } from '../types';
 import { Calendar, CalendarCheck, Chef, Clock, Profile, Time, Shopping, ArrowRight } from '../assets/svgs';
 
-const HomeScreen = () => {
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
+
+interface HomeScreenProps {
+  navigation?: HomeScreenNavigationProp;
+}
+
+const HomeScreen: React.FC<HomeScreenProps> = ({ navigation: navProp }) => {
   const [reservations, setReservations] = useState<Datum[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeReservation, setActiveReservation] = useState<Datum | null>(null);
   const [upcomingReservations, setUpcomingReservations] = useState<Datum[]>([]);
   const [chefData, setChefData] = useState<ChefData | null>(null);
   const chefId = 30; // TODO: Obtener del contexto de autenticación
+  
+  // Intentar obtener navigation del hook o usar el prop
+  let navigation: HomeScreenNavigationProp | undefined;
+  try {
+    navigation = navProp || useNavigation<HomeScreenNavigationProp>();
+  } catch (e) {
+    navigation = navProp;
+  }
 
   useEffect(() => {
     loadChefData();
@@ -77,6 +93,24 @@ const HomeScreen = () => {
     return { text: '', color: '#6B7280' };
   };
 
+  const handleViewActiveReservation = () => {
+    if (activeReservation && navigation) {
+      navigation.navigate('ReservationDetail', {
+        reservationId: activeReservation.id,
+        isActive: true,
+      });
+    }
+  };
+
+  const handleViewUpcomingReservation = (reservationId: number) => {
+    if (navigation) {
+      navigation.navigate('ReservationDetail', {
+        reservationId,
+        isActive: false,
+      });
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -138,7 +172,7 @@ const HomeScreen = () => {
               </View>
             </View>
 
-            <TouchableOpacity style={styles.viewDetailsButton}>
+            <TouchableOpacity style={styles.viewDetailsButton} onPress={handleViewActiveReservation}>
               <Text style={styles.viewDetailsButtonText}>Ver Detalles</Text>
             </TouchableOpacity>
           </View>
@@ -167,7 +201,11 @@ const HomeScreen = () => {
           </View>
         ) : (
           upcomingReservations.map((reservation) => (
-            <TouchableOpacity key={reservation.id} style={styles.reservationCard}>
+            <TouchableOpacity 
+              key={reservation.id} 
+              style={styles.reservationCard}
+              onPress={() => handleViewUpcomingReservation(reservation.id)}
+            >
               <View style={styles.reservationCardContent}>
                 <Text style={styles.reservationCardName}>
                   {reservation.customerName || 'Cliente'} | <Text style={styles.reservationCardLocation}>{reservation.district}</Text>

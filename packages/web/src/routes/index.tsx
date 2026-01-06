@@ -4,17 +4,30 @@ import LoginScreen from '@anilist-fe/app/src/screens/login';
 import HomeScreen from '@anilist-fe/app/src/screens/home';
 import ReservationScreen from '@anilist-fe/app/src/screens/reservation';
 import ProfileScreen from '@anilist-fe/app/src/screens/profile';
+import ReservationDetailScreen from '@anilist-fe/app/src/screens/reservationDetail';
 import { useAuth } from '@anilist-fe/app/src/hooks/useAuth';
 import { Header } from '@anilist-fe/app/src/components/header';
 import { Sidebar } from '@anilist-fe/app/src/components/sidebar';
 import WebBottomTabs from '../components/web-bottom-tabs';
 
-type RouteType = 'Home' | 'Reservation' | 'Profile';
+type MainRouteType = 'Home' | 'Reservation' | 'Profile';
+type RouteType = MainRouteType | 'ReservationDetail';
+
+interface ReservationDetailParams {
+  reservationId: number;
+  isActive?: boolean;
+}
+
+interface WebNavigation {
+  navigate: (routeName: string, params?: ReservationDetailParams) => void;
+  goBack: () => void;
+}
 
 const Navigator: React.FC = () => {
   const { loading, isAuthenticated } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const [currentRoute, setCurrentRoute] = React.useState<RouteType>('Home');
+  const [reservationDetailParams, setReservationDetailParams] = React.useState<ReservationDetailParams | null>(null);
   const [windowWidth, setWindowWidth] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
   React.useEffect(() => {
@@ -26,6 +39,22 @@ const Navigator: React.FC = () => {
   }, []);
 
   const isMobile = windowWidth <= 768;
+
+  // Crear objeto de navegación personalizado para web
+  const webNavigation: WebNavigation = React.useMemo(() => ({
+    navigate: (routeName: string, params?: ReservationDetailParams) => {
+      if (routeName === 'ReservationDetail') {
+        setReservationDetailParams(params || null);
+        setCurrentRoute('ReservationDetail');
+      } else {
+        setCurrentRoute(routeName as RouteType);
+      }
+    },
+    goBack: () => {
+      setCurrentRoute('Home');
+      setReservationDetailParams(null);
+    },
+  }), []);
 
   if (loading) {
     return (
@@ -47,13 +76,24 @@ const Navigator: React.FC = () => {
   const renderCurrentScreen = () => {
     switch (currentRoute) {
       case 'Home':
-        return <HomeScreen />;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return <HomeScreen navigation={webNavigation as unknown as any} />;
       case 'Reservation':
         return <ReservationScreen />;
       case 'Profile':
         return <ProfileScreen />;
+      case 'ReservationDetail':
+        return reservationDetailParams ? (
+          <ReservationDetailScreen 
+            route={{ params: reservationDetailParams }} 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            navigation={webNavigation as unknown as any}
+          />
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ) : <HomeScreen navigation={webNavigation as unknown as any} />;
       default:
-        return <HomeScreen />;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return <HomeScreen navigation={webNavigation as unknown as any} />;
     }
   };
 
@@ -64,7 +104,13 @@ const Navigator: React.FC = () => {
         <View style={styles.contentContainer}>
           {renderCurrentScreen()}
         </View>
-        <WebBottomTabs currentRoute={currentRoute} onNavigate={setCurrentRoute} />
+        <WebBottomTabs 
+          currentRoute={currentRoute === 'ReservationDetail' ? 'Home' : currentRoute as MainRouteType} 
+          onNavigate={(route) => {
+            setCurrentRoute(route);
+            setReservationDetailParams(null);
+          }} 
+        />
       </View>
     );
   }
@@ -78,8 +124,11 @@ const Navigator: React.FC = () => {
       <View style={styles.mainContainer}>
         <Sidebar 
           isOpen={isSidebarOpen}
-          currentRoute={currentRoute}
-          onNavigate={setCurrentRoute}
+          currentRoute={currentRoute === 'ReservationDetail' ? 'Home' : currentRoute as MainRouteType}
+          onNavigate={(route) => {
+            setCurrentRoute(route);
+            setReservationDetailParams(null);
+          }}
         />
         <View style={styles.contentContainer}>
           {renderCurrentScreen()}

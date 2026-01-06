@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import LoginScreen from '../screens/login';
 import RegisterScreen from '../screens/register';
+import ReservationDetailScreen from '../screens/reservationDetail';
 import { BottomTabs } from '../components/bottom-tabs';
 import { RootStackParamList } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -35,7 +36,10 @@ const Navigator = () => {
             <Stack.Screen name="Register" component={RegisterScreen} />
           </>
         ) : (
-          <Stack.Screen name="MainTabs" component={BottomTabs} />
+          <>
+            <Stack.Screen name="MainTabs" component={BottomTabs} />
+            <Stack.Screen name="ReservationDetail" component={ReservationDetailScreen} />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

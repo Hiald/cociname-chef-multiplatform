@@ -14,3 +14,19 @@ export {default as Time} from "./time.svg"
 export {default as TyC} from "./TyC.svg"
 export {default as Verified} from "./verified.svg"
 export {default as WhatsApp} from "./whatsapp.svg"
+
+// ═══════════════════════════════════════════════════════════════
+// RESERVATION DETAIL
+// ═══════════════════════════════════════════════════════════════
+export {default as ArrowLeftDetail} from "./detail/arrow-left.svg"
+export {default as ArrowRightDetail} from "./detail/arrow-right.svg"
+export {default as BuyingDetail} from "./detail/buying.svg"
+export {default as ChecklistDetail} from "./detail/checklist.svg"
+export {default as ClockDetail} from "./detail/clock.svg"
+export {default as HatblueDetail} from "./detail/hatblue.svg"
+export {default as HelpDetail} from "./detail/help.svg"
+export {default as ListDetail} from "./detail/list.svg"
+export {default as MoneyDetail} from "./detail/money.svg"
+export {default as OrderDetail} from "./detail/order.svg"
+export {default as RedhatDetail} from "./detail/redhat.svg"
+export {default as UbicationDetail} from "./detail/ubication.svg"
