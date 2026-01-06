@@ -129,6 +129,51 @@ export enum StatusReservation {
   ReasignacionCocinera = 10,
 }
 
+// ═══════════════════════════════════════════════════════════════
+// CHEF - GET /api/Chef/{id}
+// ═══════════════════════════════════════════════════════════════
+
+export interface ChefData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  dateOfBirth: string;
+  genderId: number;
+  experience: string;
+  processDetailtoCooking: string;
+  disponibilitytoWork: string;
+  imageFileName1: string;
+  imageFileName2: string;
+  imageFileName3: string;
+  description: string;
+  specialty: string;
+  rating: number;
+  nationality: number;
+  province: number;
+  district: number;
+  city: number;
+  address: string;
+  reference: string;
+  deviceToken: string | null;
+  baseLatitude: string | null;
+  baseLongitude: string | null;
+  coverageRadiusKm: number;
+  tags: string | null;
+  id: number;
+  status: boolean;
+  createdById: string | null;
+  createdAt: string | null;
+  updatedById: string | null;
+  updatedAt: string | null;
+  userUID: string;
+}
+
+export interface ChefResponse {
+  data: ChefData;
+  success: boolean;
+  errorMessage: string | null;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Tipos de Navegación (5 vistas)

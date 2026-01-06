@@ -2,19 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
-import { Datum, StatusReservation } from '../types';
-import { Calendar, CalendarCheck, Chef, Clock, Profile, Time, Shopping } from '../assets/svgs';
+import { Datum, StatusReservation, ChefData } from '../types';
+import { Calendar, CalendarCheck, Chef, Clock, Profile, Time, Shopping, ArrowRight } from '../assets/svgs';
 
 const HomeScreen = () => {
   const [reservations, setReservations] = useState<Datum[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeReservation, setActiveReservation] = useState<Datum | null>(null);
   const [upcomingReservations, setUpcomingReservations] = useState<Datum[]>([]);
+  const [chefData, setChefData] = useState<ChefData | null>(null);
   const chefId = 30; // TODO: Obtener del contexto de autenticación
 
   useEffect(() => {
+    loadChefData();
     loadReservations();
   }, []);
+
+  const loadChefData = async () => {
+    try {
+      const response = await apiService.getChef(chefId);
+      if (response.success && response.data) {
+        setChefData(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading chef data:', error);
+    }
+  };
 
   const loadReservations = async () => {
     try {
@@ -76,7 +89,7 @@ const HomeScreen = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>¡Hola, Mariel!</Text>
+        <Text style={styles.greeting}>¡Hola, {chefData?.firstName || 'Chef'}!</Text>
         <Text style={styles.message}>
           {upcomingReservations.length} hogar{upcomingReservations.length !== 1 ? 'es te esperan' : ' te espera'} hoy para comer rico y sano.
         </Text>
@@ -174,7 +187,9 @@ const HomeScreen = () => {
                   </View>
                 </View>
               </View>
-              <Text style={styles.arrowIcon}>›</Text>
+              <View style={styles.arrowIconContainer}>
+                <ArrowRight />
+              </View>
             </TouchableOpacity>
           ))
         )}
@@ -342,7 +357,7 @@ const styles = StyleSheet.create({
   viewDetailsButton: {
     backgroundColor: '#FF51361A',
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 30,
     alignItems: 'center',
   },
   viewDetailsButtonText: {
@@ -416,15 +431,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#6B7280',
   },
-  arrowIcon: {
-    fontSize: 24,
-    color: '#D1D5DB',
+  arrowIconContainer: {
     marginLeft: spacing.small,
   },
   availabilityButton: {
     backgroundColor: '#FF5136',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: 'center',
   },
   availabilityButtonText: {

@@ -6,6 +6,7 @@ import {
   RegisterRequestDto,
   RegisterChefResponseDto,
   ListReservationChefResponse,
+  ChefResponse,
 } from '../types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -172,6 +173,57 @@ class ApiService {
     } catch (error) {
       return {
         data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CHEF
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/Chef/{id}
+   * Obtiene los datos de un chef por ID
+   */
+  async getChef(chefId: number): Promise<ChefResponse> {
+    const endpoint = `Chef/${chefId}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data: ChefResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: {} as any,
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        data: {} as any,
         success: false,
         errorMessage: error instanceof Error ? error.message : 'Error de red',
       };
