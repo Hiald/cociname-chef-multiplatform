@@ -43,7 +43,9 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
   const [ingredients, setIngredients] = useState<IngredientData[]>([]);
   const [loading, setLoading] = useState(false);
   const slideAnimRef = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const [windowWidth, setWindowWidth] = useState(SCREEN_WIDTH);
+  const [windowWidth, setWindowWidth] = useState(
+    Platform.OS === 'web' ? (typeof window !== 'undefined' ? window.innerWidth : SCREEN_WIDTH) : SCREEN_WIDTH
+  );
 
   // Detectar si es mobile (incluye web responsive)
   const isMobile = Platform.OS !== 'web' || windowWidth <= 768;
@@ -143,7 +145,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
               {/* Ingredientes */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <View style={styles.iconCircle}>
+                  <View style={styles.sectionIconWrapper}>
                     <BuyingDetail />
                   </View>
                   <Text style={styles.sectionTitle}>Ingredientes</Text>
@@ -183,9 +185,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
               {recipeSteps && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <View style={styles.iconCircle}>
-                      <Text style={styles.sectionIcon}>👨‍🍳</Text>
-                    </View>
+                    <Text style={styles.sectionIcon}>👨‍🍳</Text>
                     <Text style={styles.sectionTitle}>Receta</Text>
                   </View>
 
@@ -230,9 +230,6 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.dragIndicator} />
-            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Recipe Title and Image */}
@@ -250,7 +247,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
             {/* Ingredientes */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <View style={styles.iconCircle}>
+                <View style={styles.sectionIconWrapper}>
                   <BuyingDetail />
                 </View>
                 <Text style={styles.sectionTitle}>Ingredientes</Text>
@@ -290,9 +287,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
             {recipeSteps && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <View style={styles.iconCircle}>
-                    <Text style={styles.sectionIcon}>👨‍🍳</Text>
-                  </View>
+                  <Text style={styles.sectionIcon}>👨‍🍳</Text>
                   <Text style={styles.sectionTitle}>Receta</Text>
                 </View>
 
@@ -460,17 +455,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.medium,
   },
-  iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FEE2E2',
-    justifyContent: 'center',
-    alignItems: 'center',
+  sectionIconWrapper: {
     marginRight: spacing.small,
   },
   sectionIcon: {
-    fontSize: 16,
+    fontSize: 20,
+    marginRight: spacing.small,
   },
   sectionTitle: {
     fontSize: 16,
