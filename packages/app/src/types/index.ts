@@ -250,6 +250,40 @@ export interface IngredientResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MASTER RECIPE - GET /api/masterRecipe/{id}
+// ═══════════════════════════════════════════════════════════════
+
+export interface MasterRecipeData {
+  id: number;
+  title: string;
+  description: string;
+  versionOfRecipe: number;
+  isOriginalVersion: boolean;
+  timePreparation: number;
+  tags: string | null;
+  lifeofTime: string | null;
+  lifeofTimeDescription: string | null;
+  type: string | null;
+  origin: string | null;
+  subTypeOrigin: string | null;
+  protein: string | null;
+  menuId: number;
+  menuTitle: string;
+  menuImg: string;
+  status: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedById: string | null;
+  updatedAt: string | null;
+}
+
+export interface MasterRecipeResponse {
+  data: MasterRecipeData;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // CHEF - GET /api/Chef/{id}
 // ═══════════════════════════════════════════════════════════════
 

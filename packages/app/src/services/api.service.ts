@@ -10,6 +10,7 @@ import {
   ReservationDetailResponse,
   ReservationRecipeResponse,
   IngredientResponse,
+  MasterRecipeResponse,
 } from '../types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -390,6 +391,20 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════════
   // AQUÍ AGREGAREMOS MÁS MÉTODOS PARA RECETAS, INGREDIENTES, ETC.
   // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/masterRecipe/{id}
+   * Obtiene el detalle de una receta maestra por ID
+   */
+  async getMasterRecipeById(id: number): Promise<MasterRecipeResponse> {
+    console.log(`Calling getMasterRecipeById with id: ${id}`);
+    const response = await this.request<MasterRecipeResponse['data']>(
+      `/masterRecipe/${id}`,
+      { method: 'GET' }
+    );
+    console.log('getMasterRecipeById response:', response);
+    return response as MasterRecipeResponse;
+  }
 }
 
 // Exporta una instancia única del servicio (Singleton)

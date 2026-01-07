@@ -10,12 +10,13 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  Image,
 } from 'react-native';
 import { spacing } from '../../styles';
 import { apiService } from '../../services/api.service';
-import { IngredientData } from '../../types';
+import { IngredientData, MasterRecipeData } from '../../types';
 import { getCategoryName, formatSize } from '../../utils/formatters';
-import { BuyingDetail } from '../../assets/svgs';
+import { BuyingDetail, RedhatDetail } from '../../assets/svgs';
 
 // Declaración global para window en web
 declare const window: any;
@@ -41,6 +42,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
   recipeSteps,
 }) => {
   const [ingredients, setIngredients] = useState<IngredientData[]>([]);
+  const [recipeData, setRecipeData] = useState<MasterRecipeData | null>(null);
   const [loading, setLoading] = useState(false);
   const slideAnimRef = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [windowWidth, setWindowWidth] = useState(
@@ -63,7 +65,7 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
   useEffect(() => {
     console.log('RecipeModal visible changed:', visible, 'isMobile:', isMobile);
     if (visible) {
-      loadIngredients();
+      loadRecipeData();
       // Animar entrada para mobile (incluye web responsive)
       if (isMobile) {
         slideAnimRef.setValue(SCREEN_HEIGHT);
@@ -86,15 +88,25 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
     }
   }, [visible, isMobile]);
 
-  const loadIngredients = async () => {
+  const loadRecipeData = async () => {
     try {
       setLoading(true);
-      const response = await apiService.getIngredientsByRecipeId(masterRecipeId);
-      if (response.success && response.data) {
-        setIngredients(response.data);
+      
+      // Cargar receta e ingredientes en paralelo
+      const [recipeResponse, ingredientsResponse] = await Promise.all([
+        apiService.getMasterRecipeById(masterRecipeId),
+        apiService.getIngredientsByRecipeId(masterRecipeId)
+      ]);
+      
+      if (recipeResponse.success && recipeResponse.data) {
+        setRecipeData(recipeResponse.data);
+      }
+      
+      if (ingredientsResponse.success && ingredientsResponse.data) {
+        setIngredients(ingredientsResponse.data);
       }
     } catch (error) {
-      console.error('Error loading ingredients:', error);
+      console.error('Error loading recipe data:', error);
     } finally {
       setLoading(false);
     }
@@ -133,11 +145,21 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
             {/* Recipe Title and Image */}
             <View style={styles.titleSection}>
               <View style={styles.titleContent}>
-                <Text style={styles.recipeTitle}>{recipeName}</Text>
+                <Text style={styles.recipeTitle}>
+                  {recipeData ? `${recipeData.menuTitle} - ${recipeData.title}` : recipeName}
+                </Text>
                 <Text style={styles.portions}>{portions} porciones</Text>
               </View>
               <View style={styles.recipePlaceholder}>
-                <Text style={styles.placeholderEmoji}>🍲</Text>
+                {recipeData?.menuImg ? (
+                  <Image
+                    source={{ uri: recipeData.menuImg }}
+                    style={styles.recipeImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Text style={styles.placeholderEmoji}>🍲</Text>
+                )}
               </View>
             </View>
 
@@ -182,15 +204,17 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
               </View>
 
               {/* Receta */}
-              {recipeSteps && (
+              {(recipeData?.description || recipeSteps) && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionIcon}>👨‍🍳</Text>
+                    <View style={styles.sectionIconWrapper}>
+                      <RedhatDetail />
+                    </View>
                     <Text style={styles.sectionTitle}>Receta</Text>
                   </View>
 
                   <View style={styles.recipeSteps}>
-                    {recipeSteps.split('\n').map((step, index) => {
+                    {(recipeData?.description || recipeSteps || '').split('\n').map((step, index) => {
                       const trimmedStep = step.trim();
                       if (!trimmedStep) return null;
                       return (
@@ -235,11 +259,21 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
           {/* Recipe Title and Image */}
           <View style={styles.titleSection}>
             <View style={styles.titleContent}>
-              <Text style={styles.recipeTitle}>{recipeName}</Text>
+              <Text style={styles.recipeTitle}>
+                {recipeData ? `${recipeData.menuTitle} - ${recipeData.title}` : recipeName}
+              </Text>
               <Text style={styles.portions}>{portions} porciones</Text>
             </View>
             <View style={styles.recipePlaceholder}>
-              <Text style={styles.placeholderEmoji}>🍲</Text>
+              {recipeData?.menuImg ? (
+                <Image
+                  source={{ uri: recipeData.menuImg }}
+                  style={styles.recipeImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Text style={styles.placeholderEmoji}>🍲</Text>
+              )}
             </View>
           </View>
 
@@ -284,22 +318,21 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
             </View>
 
             {/* Receta */}
-            {recipeSteps && (
+            {(recipeData?.description || recipeSteps) && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionIcon}>👨‍🍳</Text>
+                  <View style={styles.sectionIconWrapper}>
+                    <RedhatDetail />
+                  </View>
                   <Text style={styles.sectionTitle}>Receta</Text>
                 </View>
 
                 <View style={styles.recipeSteps}>
-                  {recipeSteps.split('\n').map((step, index) => {
+                  {(recipeData?.description || recipeSteps || '').split('\n').map((step, index) => {
                     const trimmedStep = step.trim();
                     if (!trimmedStep) return null;
                     return (
                       <View key={index} style={styles.stepItem}>
-                        <View style={styles.stepCheckbox}>
-                          <Text style={styles.stepCheckboxIcon}>☑️</Text>
-                        </View>
                         <Text style={styles.stepText}>{trimmedStep}</Text>
                       </View>
                     );
@@ -435,6 +468,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  recipeImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
   },
   placeholderEmoji: {
     fontSize: 40,
