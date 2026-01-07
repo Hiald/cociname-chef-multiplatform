@@ -135,13 +135,6 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
         <View style={styles.webModalOverlay}>
           <TouchableOpacity style={styles.webModalBackdrop} activeOpacity={1} onPress={handleClose} />
           <View style={styles.webModalContent}>
-            {/* Header */}
-            <View style={styles.header}>
-              <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
             {/* Recipe Title and Image */}
             <View style={styles.titleSection}>
               <View style={styles.titleContent}>

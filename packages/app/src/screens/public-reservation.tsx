@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { decryptToken } from '../utils/crypto';
 import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
 import { ReservationDetailData, RecipeMenuItem } from '../types';
 import { getDistrictName } from '../utils';
-import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail } from '../assets/svgs';
+import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail } from '../assets/svgs';
+import { RecipeModal } from '../components/recipe-modal';
 
 interface PublicReservationScreenProps {
   token: string;
@@ -20,6 +21,8 @@ export const PublicReservationScreen: React.FC<PublicReservationScreenProps> = (
   const [error, setError] = useState<string | null>(null);
   const [reservation, setReservation] = useState<ReservationDetailData | null>(null);
   const [recipes, setRecipes] = useState<RecipeMenuItem[]>([]);
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeMenuItem | null>(null);
+  const [recipeModalVisible, setRecipeModalVisible] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -101,6 +104,16 @@ export const PublicReservationScreen: React.FC<PublicReservationScreenProps> = (
     return d.toLocaleDateString('es-ES', options);
   };
 
+  const handleViewRecipe = (recipe: RecipeMenuItem) => {
+    setSelectedRecipe(recipe);
+    setRecipeModalVisible(true);
+  };
+
+  const handleCloseRecipeModal = () => {
+    setRecipeModalVisible(false);
+    setTimeout(() => setSelectedRecipe(null), 300);
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
@@ -161,7 +174,15 @@ export const PublicReservationScreen: React.FC<PublicReservationScreenProps> = (
                   <Text style={styles.dishName}>
                     {recipe.MenuNombre} - {recipe.MasterRecipeNombre}
                   </Text>
-                  <Text style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</Text>
+                  <View style={styles.dishFooter}>
+                    <Text style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</Text>
+                    <TouchableOpacity style={styles.viewRecipeButton} onPress={() => handleViewRecipe(recipe)}>
+                      <Text style={styles.viewRecipeText}>Ver receta</Text>
+                      <View style={styles.arrowIcon}>
+                        <ArrowRightDetail />
+                      </View>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
             </View>
@@ -223,6 +244,18 @@ export const PublicReservationScreen: React.FC<PublicReservationScreenProps> = (
           </Text>
         </View>
       </ScrollView>
+
+      {/* Recipe Modal */}
+      {selectedRecipe && (
+        <RecipeModal
+          visible={recipeModalVisible}
+          onClose={handleCloseRecipeModal}
+          recipeName={`${selectedRecipe.MenuNombre} - ${selectedRecipe.MasterRecipeNombre}`}
+          masterRecipeId={parseInt(selectedRecipe.MasterRecipeId)}
+          portions={selectedRecipe.iCantidadPlatos}
+          recipeSteps={selectedRecipe.sPasos}
+        />
+      )}
     </View>
   );
 };
@@ -388,9 +421,27 @@ const styles = StyleSheet.create({
     color: '#1A1F24',
     marginBottom: 4,
   },
+  dishFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   portionsText: {
     fontSize: 13,
     color: '#6B7280',
+  },
+  viewRecipeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewRecipeText: {
+    fontSize: 13,
+    color: '#3B82F6',
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  arrowIcon: {
+    marginTop: 5,
   },
   garantiaRow: {
     flexDirection: 'row',
