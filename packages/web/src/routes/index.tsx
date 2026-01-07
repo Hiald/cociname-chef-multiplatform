@@ -5,13 +5,14 @@ import HomeScreen from '@anilist-fe/app/src/screens/home';
 import ReservationScreen from '@anilist-fe/app/src/screens/reservation';
 import ProfileScreen from '@anilist-fe/app/src/screens/profile';
 import ReservationDetailScreen from '@anilist-fe/app/src/screens/reservationDetail';
+import { PublicReservationScreen } from '@anilist-fe/app/src/screens/public-reservation';
 import { useAuth } from '@anilist-fe/app/src/hooks/useAuth';
 import { Header } from '@anilist-fe/app/src/components/header';
 import { Sidebar } from '@anilist-fe/app/src/components/sidebar';
 import WebBottomTabs from '../components/web-bottom-tabs';
 
 type MainRouteType = 'Home' | 'Reservation' | 'Profile';
-type RouteType = MainRouteType | 'ReservationDetail';
+type RouteType = MainRouteType | 'ReservationDetail' | 'PublicReservation';
 
 interface ReservationDetailParams {
   reservationId: number;
@@ -28,7 +29,46 @@ const Navigator: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const [currentRoute, setCurrentRoute] = React.useState<RouteType>('Home');
   const [reservationDetailParams, setReservationDetailParams] = React.useState<ReservationDetailParams | null>(null);
+  const [publicToken, setPublicToken] = React.useState<string | null>(null);
   const [windowWidth, setWindowWidth] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  // Detectar ruta de URL al cargar
+  React.useEffect(() => {
+    const checkPublicRoute = () => {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      
+      // Detectar /reserva/:token en la URL
+      const reservaMatch = path.match(/\/reserva\/([^/]+)/);
+      if (reservaMatch) {
+        const token = reservaMatch[1];
+        console.log('Ruta pública detectada con token:', token);
+        setPublicToken(token);
+        setCurrentRoute('PublicReservation');
+        return;
+      }
+
+      // También soportar hash routing: #/reserva/:token
+      const hashReservaMatch = hash.match(/#\/reserva\/([^/]+)/);
+      if (hashReservaMatch) {
+        const token = hashReservaMatch[1];
+        console.log('Ruta pública detectada en hash con token:', token);
+        setPublicToken(token);
+        setCurrentRoute('PublicReservation');
+        return;
+      }
+    };
+
+    checkPublicRoute();
+
+    // Escuchar cambios en la URL
+    const handlePopState = () => {
+      checkPublicRoute();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   React.useEffect(() => {
     const handleResize = () => {
@@ -61,6 +101,15 @@ const Navigator: React.FC = () => {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FF5136" />
         <Text style={styles.loadingText}>Cargando...</Text>
+      </View>
+    );
+  }
+
+  // Permitir acceso a ruta pública sin autenticación
+  if (currentRoute === 'PublicReservation' && publicToken) {
+    return (
+      <View style={styles.fullScreen}>
+        <PublicReservationScreen token={publicToken} />
       </View>
     );
   }

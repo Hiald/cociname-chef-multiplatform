@@ -19,8 +19,10 @@ __metadata:
   resolution: "@anilist-fe/app@workspace:packages/app"
   dependencies:
     "@react-native-async-storage/async-storage": ^1.15.7
+    "@types/crypto-js": ^4.1.1
     "@types/react": ^17.0.19
     "@types/react-native": ^0.64.13
+    crypto-js: ^4.1.1
     typescript: ^4.4.2
   peerDependencies:
     "@react-native-async-storage/async-storage": "*"
@@ -4799,6 +4801,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/crypto-js@npm:^4.1.1":
+  version: 4.2.2
+  resolution: "@types/crypto-js@npm:4.2.2"
+  checksum: 727daa0d2db35f0abefbab865c23213b6ee6a270e27e177939bbe4b70d1e84c2202d9fac4ea84859c4b4d49a4ee50f948f601327a39b69ec013288018ba07ca5
+  languageName: node
+  linkType: hard
+
 "@types/eslint-visitor-keys@npm:^1.0.0":
   version: 1.0.0
   resolution: "@types/eslint-visitor-keys@npm:1.0.0"
@@ -8359,6 +8368,13 @@ __metadata:
     randombytes: ^2.0.0
     randomfill: ^1.0.3
   checksum: c1609af82605474262f3eaa07daa0b2140026bd264ab316d4bf1170272570dbe02f0c49e29407fe0d3634f96c507c27a19a6765fb856fed854a625f9d15618e2
+  languageName: node
+  linkType: hard
+
+"crypto-js@npm:^4.1.1":
+  version: 4.2.0
+  resolution: "crypto-js@npm:4.2.0"
+  checksum: f051666dbc077c8324777f44fbd3aaea2986f198fe85092535130d17026c7c2ccf2d23ee5b29b36f7a4a07312db2fae23c9094b644cc35f7858b1b4fcaf27774
   languageName: node
   linkType: hard
 

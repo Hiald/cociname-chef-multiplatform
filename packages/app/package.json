@@ -10,8 +10,12 @@
     "test:watch": "yarn jest --watch",
     "typecheck": "tsc"
   },
+  "dependencies": {
+    "crypto-js": "^4.1.1"
+  },
   "devDependencies": {
     "@react-native-async-storage/async-storage": "^1.15.7",
+    "@types/crypto-js": "^4.1.1",
     "@types/react": "^17.0.19",
     "@types/react-native": "^0.64.13",
     "typescript": "^4.4.2"

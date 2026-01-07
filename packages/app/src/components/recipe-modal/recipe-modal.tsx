@@ -219,9 +219,6 @@ const RecipeModal: React.FC<RecipeModalProps> = ({
                       if (!trimmedStep) return null;
                       return (
                         <View key={index} style={styles.stepItem}>
-                          <View style={styles.stepCheckbox}>
-                            <Text style={styles.stepCheckboxIcon}>☑️</Text>
-                          </View>
                           <Text style={styles.stepText}>{trimmedStep}</Text>
                         </View>
                       );
