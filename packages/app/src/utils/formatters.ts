@@ -92,6 +92,19 @@ export function formatSize(size: number, unit = 2): string {
 }
 
 /**
+ * Retorna el nombre del concepto de pago
+ */
+export function getConceptName(conceptId: number): string {
+  switch (conceptId) {
+    case 1: return "Cocina";
+    case 2: return "Compras";
+    case 3: return "Movilidad";
+    case 4: return "Otro";
+    default: return "-";
+  }
+}
+
+/**
  * Retorna el nombre del distrito por su ID
  */
 export function getDistrictName(districtId: number): string {

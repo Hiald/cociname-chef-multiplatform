@@ -5,6 +5,7 @@ import { apiService } from '../services/api.service';
 import { ReservationDetailData, RecipeMenuItem, StatusReservation } from '../types';
 import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ArrowRightDetail, ChecklistDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail, HatblueDetail } from '../assets/svgs';
 import { RecipeModal } from '../components/recipe-modal';
+import { getConceptName } from '../utils/formatters';
 
 interface ReservationDetailScreenProps {
   route?: {
@@ -290,18 +291,28 @@ const ReservationDetailScreen: React.FC<ReservationDetailScreenProps> = ({ route
             <Text style={styles.sectionTitle}>Mi ganancia</Text>
           </View>
           <View style={styles.card}>
-            <View style={styles.garantiaRow}>
-              <Text style={styles.garantiaLabel}>Costo por hora</Text>
-              <Text style={styles.garantiaValue}>S/ {reservation.costPerHour.toFixed(2)}</Text>
-            </View>
-            <View style={styles.garantiaRow}>
-              <Text style={styles.garantiaLabel}>Comisión chef ({reservation.percentageCommision}%)</Text>
-              <Text style={styles.garantiaValue}>S/ {reservation.commissiontoChef.toFixed(2)}</Text>
-            </View>
+            {(() => {
+              try {
+                const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
+                return paymentConcepts.map((concept: any, index: number) => (
+                  <View key={index} style={styles.garantiaRow}>
+                    <Text style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</Text>
+                    <Text style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</Text>
+                  </View>
+                ));
+              } catch (e) {
+                return (
+                  <View style={styles.garantiaRow}>
+                    <Text style={styles.garantiaLabel}>Comisión chef</Text>
+                    <Text style={styles.garantiaValue}>S/ {reservation.commissiontoChef.toFixed(2)}</Text>
+                  </View>
+                );
+              }
+            })()}
             <View style={styles.divider} />
             <View style={styles.garantiaRow}>
               <Text style={styles.garantiaTotal}>Total</Text>
-              <Text style={styles.garantiaTotalValue}>S/ {reservation.totalPrice.toFixed(2)}</Text>
+              <Text style={styles.garantiaTotalValue}>S/ {reservation.commissiontoChef.toFixed(2)}</Text>
             </View>
           </View>
         </View>
