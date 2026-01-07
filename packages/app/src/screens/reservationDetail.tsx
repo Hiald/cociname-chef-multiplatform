@@ -4,6 +4,7 @@ import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
 import { ReservationDetailData, RecipeMenuItem, StatusReservation } from '../types';
 import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ArrowRightDetail, ChecklistDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail, HatblueDetail } from '../assets/svgs';
+import { RecipeModal } from '../components/recipe-modal';
 
 interface ReservationDetailScreenProps {
   route?: {
@@ -19,6 +20,8 @@ const ReservationDetailScreen: React.FC<ReservationDetailScreenProps> = ({ route
   const [reservation, setReservation] = useState<ReservationDetailData | null>(null);
   const [recipes, setRecipes] = useState<RecipeMenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRecipe, setSelectedRecipe] = useState<RecipeMenuItem | null>(null);
+  const [recipeModalVisible, setRecipeModalVisible] = useState(false);
   const reservationId = route?.params?.reservationId;
   const isActive = route?.params?.isActive || false;
 
@@ -141,6 +144,18 @@ const ReservationDetailScreen: React.FC<ReservationDetailScreenProps> = ({ route
       Linking.openURL(url);
     }
   };
+
+  const handleViewRecipe = (recipe: RecipeMenuItem) => {
+    console.log('Opening recipe modal for:', recipe);
+    setSelectedRecipe(recipe);
+    setRecipeModalVisible(true);
+  };
+
+  const handleCloseRecipeModal = () => {
+    console.log('Closing recipe modal');
+    setRecipeModalVisible(false);
+    setTimeout(() => setSelectedRecipe(null), 300);
+  };
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -253,7 +268,7 @@ const ReservationDetailScreen: React.FC<ReservationDetailScreenProps> = ({ route
                   </Text>
                   <View style={styles.dishFooter}>
                     <Text style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</Text>
-                    <TouchableOpacity style={styles.viewRecipeButton}>
+                    <TouchableOpacity style={styles.viewRecipeButton} onPress={() => handleViewRecipe(recipe)}>
                       <Text style={styles.viewRecipeText}>Ver receta</Text>
                       <View style={styles.arrowIcon}>
                         <ArrowRightDetail />
@@ -303,6 +318,18 @@ const ReservationDetailScreen: React.FC<ReservationDetailScreenProps> = ({ route
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Recipe Modal */}
+      {selectedRecipe && (
+        <RecipeModal
+          visible={recipeModalVisible}
+          onClose={handleCloseRecipeModal}
+          recipeName={`${selectedRecipe.MenuNombre} - ${selectedRecipe.MasterRecipeNombre}`}
+          masterRecipeId={parseInt(selectedRecipe.MasterRecipeId)}
+          portions={selectedRecipe.iCantidadPlatos}
+          recipeSteps={selectedRecipe.sPasos}
+        />
+      )}
     </View>
   );
 };

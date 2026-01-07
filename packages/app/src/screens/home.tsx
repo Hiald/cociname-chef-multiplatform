@@ -6,6 +6,7 @@ import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
 import { Datum, StatusReservation, ChefData, RootStackParamList } from '../types';
 import { Calendar, CalendarCheck, Chef, Clock, Profile, Time, Shopping, ArrowRight } from '../assets/svgs';
+import { getDistrictName } from '../utils/formatters';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -208,7 +209,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation: navProp }) => {
             >
               <View style={styles.reservationCardContent}>
                 <Text style={styles.reservationCardName}>
-                  {reservation.customerName || 'Cliente'} | <Text style={styles.reservationCardLocation}>{reservation.district}</Text>
+                  {reservation.customerName || 'Cliente'} | <Text style={styles.reservationCardLocation}>{getDistrictName(reservation.district)}</Text>
                 </Text>
                 <View style={styles.reservationCardDetails}>
                   <View style={styles.cardDetailRow}>

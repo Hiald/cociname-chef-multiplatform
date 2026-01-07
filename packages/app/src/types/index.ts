@@ -217,6 +217,8 @@ export interface RecipeMenuItem {
   MasterRecipeId: string;
   MasterRecipeNombre: string;
   iCantidadPlatos: number;
+  iMasterRecipeId: number;
+  sPasos?: string;
   key: string;
 }
 

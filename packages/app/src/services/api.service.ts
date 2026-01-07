@@ -289,6 +289,8 @@ class ApiService {
   ): Promise<IngredientResponse> {
     const endpoint = `ingredient/IngredientByMasterRecipeId?search=${masterRecipeId}`;
     
+    console.log('Calling ingredients API:', endpoint);
+    
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
@@ -309,7 +311,11 @@ class ApiService {
 
       clearTimeout(timeoutId);
 
+      console.log('Ingredients API response status:', response.status);
+
       const data: IngredientResponse = await response.json();
+      
+      console.log('Ingredients API response data:', data);
 
       if (!response.ok) {
         return {
@@ -321,6 +327,7 @@ class ApiService {
 
       return data;
     } catch (error) {
+      console.error('Ingredients API error:', error);
       return {
         data: [],
         success: false,
