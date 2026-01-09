@@ -13,7 +13,16 @@ export const color = {
   /**
    * The palette is available to use, but prefer using the name.
    */
-  ...palette,
+  black: palette.black,
+  white: palette.white,
+  offWhite: palette.offWhite,
+  orange: palette.orange,
+  orangeDarker: palette.orangeDarker,
+  orangeLight: palette.orangeLight,
+  lightGrey: palette.lightGrey,
+  lighterGrey: palette.lighterGrey,
+  angry: palette.angry,
+  deepPurple: palette.deepPurple,
 
   /**
    * A helper for making something see-thru. Use sparingly as many layers of transparency
