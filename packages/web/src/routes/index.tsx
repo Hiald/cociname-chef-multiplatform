@@ -28,6 +28,7 @@ const Navigator: React.FC = () => {
   const { loading, isAuthenticated } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const [currentRoute, setCurrentRoute] = React.useState<RouteType>('Home');
+  const [previousRoute, setPreviousRoute] = React.useState<RouteType>('Home');
   const [reservationDetailParams, setReservationDetailParams] = React.useState<ReservationDetailParams | null>(null);
   const [publicToken, setPublicToken] = React.useState<string | null>(null);
   const [windowWidth, setWindowWidth] = React.useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -84,6 +85,7 @@ const Navigator: React.FC = () => {
   const webNavigation: WebNavigation = React.useMemo(() => ({
     navigate: (routeName: string, params?: ReservationDetailParams) => {
       if (routeName === 'ReservationDetail') {
+        setPreviousRoute(currentRoute);
         setReservationDetailParams(params || null);
         setCurrentRoute('ReservationDetail');
       } else {
@@ -91,10 +93,10 @@ const Navigator: React.FC = () => {
       }
     },
     goBack: () => {
-      setCurrentRoute('Home');
+      setCurrentRoute(previousRoute);
       setReservationDetailParams(null);
     },
-  }), []);
+  }), [currentRoute, previousRoute]);
 
   if (loading) {
     return (
@@ -128,7 +130,8 @@ const Navigator: React.FC = () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return <HomeScreen navigation={webNavigation as unknown as any} />;
       case 'Reservation':
-        return <ReservationScreen />;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return <ReservationScreen navigation={webNavigation as unknown as any} />;
       case 'Profile':
         return <ProfileScreen />;
       case 'ReservationDetail':
@@ -154,7 +157,7 @@ const Navigator: React.FC = () => {
           {renderCurrentScreen()}
         </View>
         <WebBottomTabs 
-          currentRoute={currentRoute === 'ReservationDetail' ? 'Home' : currentRoute as MainRouteType} 
+          currentRoute={currentRoute === 'ReservationDetail' ? previousRoute as MainRouteType : currentRoute as MainRouteType} 
           onNavigate={(route) => {
             setCurrentRoute(route);
             setReservationDetailParams(null);
@@ -173,7 +176,7 @@ const Navigator: React.FC = () => {
       <View style={styles.mainContainer}>
         <Sidebar 
           isOpen={isSidebarOpen}
-          currentRoute={currentRoute === 'ReservationDetail' ? 'Home' : currentRoute as MainRouteType}
+          currentRoute={currentRoute === 'ReservationDetail' ? previousRoute as MainRouteType : currentRoute as MainRouteType}
           onNavigate={(route) => {
             setCurrentRoute(route);
             setReservationDetailParams(null);

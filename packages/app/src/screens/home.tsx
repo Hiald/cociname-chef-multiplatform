@@ -56,15 +56,61 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation: navProp }) => {
         console.log('Status de cada reserva:', response.data.map(r => ({ id: r.id, status: r.statusReservation })));
         setReservations(response.data);
 
-        // Filtrar reserva activa (En Cocina o En Trayecto)
-        const active = response.data.find(r =>
+        // Obtener fecha actual (solo fecha, sin hora)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Filtrar reservas en cocina o en trayecto
+        const activeReservations = response.data.filter(r =>
           r.statusReservation === StatusReservation.EnCocina ||
           r.statusReservation === StatusReservation.EnTrayecto
         );
 
-        // Si no hay reserva en cocina o trayecto, mostrar la primera reserva que no esté cancelada
-        const firstActive = active || response.data.find(r => r.statusReservation !== StatusReservation.Cancelada);
-        setActiveReservation(firstActive || null);
+        let activeReservation = null;
+
+        if (activeReservations.length > 0) {
+          // Buscar reserva del día de hoy
+          const todayActive = activeReservations.find(r => {
+            const reservationDate = new Date(r.dateReservation);
+            reservationDate.setHours(0, 0, 0, 0);
+            return reservationDate.getTime() === today.getTime();
+          });
+
+          if (todayActive) {
+            activeReservation = todayActive;
+          } else {
+            // Si no hay del día de hoy, buscar la más cercana (próxima)
+            const sortedByDate = activeReservations
+              .map(r => ({
+                ...r,
+                date: new Date(r.dateReservation).getTime()
+              }))
+              .sort((a, b) => a.date - b.date);
+            
+            activeReservation = sortedByDate[0];
+          }
+        }
+
+        // Si no hay reserva en cocina/trayecto, buscar la próxima reserva confirmada
+        if (!activeReservation) {
+          const confirmedReservations = response.data.filter(r => 
+            r.statusReservation !== StatusReservation.Cancelada &&
+            r.statusReservation !== StatusReservation.Completada
+          );
+
+          if (confirmedReservations.length > 0) {
+            const sortedByDate = confirmedReservations
+              .map(r => ({
+                ...r,
+                date: new Date(r.dateReservation).getTime()
+              }))
+              .sort((a, b) => a.date - b.date);
+            
+            activeReservation = sortedByDate[0];
+          }
+        }
+
+        setActiveReservation(activeReservation);
 
         // Filtrar próximas reservas (Aceptadas, Creadas, Actualizadas)
         const upcoming = response.data.filter(r =>

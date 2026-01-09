@@ -65,6 +65,23 @@ export interface ListReservationChefResponse {
   errorMessage: string | null;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PENDING RESERVATIONS - GET /api/Reservation/GetPendingReservation
+// ═══════════════════════════════════════════════════════════════
+
+export interface GetPendingReservationParams {
+  dateFilter?: string;
+  timeFilter?: string;
+  Page?: number;
+  RecordsPerPage?: number;
+}
+
+export interface PendingReservationResponse {
+  data: Datum[];
+  success: boolean;
+  errorMessage: string | null;
+}
+
 export interface Datum {
   reservationCode: string;
   securityCode: string;

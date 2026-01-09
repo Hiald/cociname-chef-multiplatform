@@ -6,6 +6,8 @@ import {
   RegisterRequestDto,
   RegisterChefResponseDto,
   ListReservationChefResponse,
+  GetPendingReservationParams,
+  PendingReservationResponse,
   ChefResponse,
   ReservationDetailResponse,
   ReservationRecipeResponse,
@@ -233,6 +235,71 @@ class ApiService {
   }
 
   /**
+   * GET /api/Reservation/GetPendingReservation
+   * Obtiene las reservas pendientes con filtros opcionales
+   */
+  async getPendingReservations(
+    params?: GetPendingReservationParams
+  ): Promise<PendingReservationResponse> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.dateFilter) {
+      queryParams.append('dateFilter', params.dateFilter);
+    }
+    if (params?.timeFilter) {
+      queryParams.append('timeFilter', params.timeFilter);
+    }
+    if (params?.Page !== undefined) {
+      queryParams.append('Page', params.Page.toString());
+    }
+    if (params?.RecordsPerPage !== undefined) {
+      queryParams.append('RecordsPerPage', params.RecordsPerPage.toString());
+    }
+
+    const queryString = queryParams.toString();
+    const endpoint = `Reservation/GetPendingReservation${queryString ? `?${queryString}` : ''}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data: PendingReservationResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: [],
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
    * GET /api/reservationMasterRecipe/ReservationMasterRecipeSearchId?ReservationId={reservationId}
    * Obtiene las recetas/platos de una reserva
    */
@@ -409,3 +476,44 @@ class ApiService {
 
 // Exporta una instancia única del servicio (Singleton)
 export const apiService = new ApiService();
+
+// ═══════════════════════════════════════════════════════════════
+// EJEMPLO DE USO: GetPendingReservation
+// ═══════════════════════════════════════════════════════════════
+/*
+// Ejemplo 1: Sin filtros (obtiene todas las reservas pendientes)
+const response = await apiService.getPendingReservations();
+
+// Ejemplo 2: Con filtro de fecha
+const response = await apiService.getPendingReservations({
+  dateFilter: '2026-01-15'
+});
+
+// Ejemplo 3: Con filtros de fecha y hora
+const response = await apiService.getPendingReservations({
+  dateFilter: '2026-01-15',
+  timeFilter: '14:00'
+});
+
+// Ejemplo 4: Con paginación
+const response = await apiService.getPendingReservations({
+  Page: 1,
+  RecordsPerPage: 10
+});
+
+// Ejemplo 5: Con todos los parámetros
+const response = await apiService.getPendingReservations({
+  dateFilter: '2026-01-15',
+  timeFilter: '14:00',
+  Page: 1,
+  RecordsPerPage: 10
+});
+
+// Manejo de respuesta
+if (response.success && response.data) {
+  console.log('Reservas pendientes:', response.data);
+  // response.data es un array de tipo Datum[]
+} else {
+  console.error('Error:', response.errorMessage);
+}
+*/

@@ -30,3 +30,15 @@ export {default as MoneyDetail} from "./detail/money.svg"
 export {default as OrderDetail} from "./detail/order.svg"
 export {default as RedhatDetail} from "./detail/redhat.svg"
 export {default as UbicationDetail} from "./detail/ubication.svg"
+
+// ═══════════════════════════════════════════════════════════════
+// RESERVATION
+// ═══════════════════════════════════════════════════════════════
+export {default as AgentReservation} from "./reservation/agent.svg"
+export {default as ArrowRightReservation} from "./reservation/arrow-right.svg"
+export {default as CalendarReservation} from "./reservation/calendar.svg"
+export {default as CheckReservation} from "./reservation/check.svg"
+export {default as ChecklistReservation} from "./reservation/checklist.svg"
+export {default as ListReservation} from "./reservation/list.svg"
+export {default as MapReservation} from "./reservation/map.svg"
+export {default as NotificationReservation} from "./reservation/notification.svg"
