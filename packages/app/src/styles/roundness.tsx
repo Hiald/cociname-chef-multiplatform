@@ -1,4 +1,5 @@
-import { ms } from "react-native-size-matters"
+// Helper function for scaling (fallback for web)
+const ms = (size: number) => size;
 
 export const roundness = {
   none: 0,
