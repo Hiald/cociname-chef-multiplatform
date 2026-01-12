@@ -77,30 +77,30 @@ const RecipeModal = ({
       <div style={styles.webModalOverlay}>
         <div style={styles.webModalBackdrop} onClick={handleClose} />
         <div style={styles.webModalContent}>
-            {/* Recipe Title and Image */}
-            <div style={styles.titleSection}>
-              <div style={styles.titleContent}>
-                <h2 style={styles.recipeTitle}>
-                  {recipeData ? `${recipeData.menuTitle} - ${recipeData.title}` : recipeName}
-                </h2>
-                <p style={styles.portions}>{portions} porciones</p>
-              </div>
-              <div style={styles.recipePlaceholder}>
-                {recipeData?.menuImg ? (
-                  <img
-                    src={recipeData.menuImg}
-                    alt="recipe"
-                    style={styles.recipeImage}
-                  />
-                ) : (
-                  <span style={styles.placeholderEmoji}>🍲</span>
-                )}
-              </div>
+          {/* Recipe Title and Image */}
+          <div style={styles.titleSection}>
+            <div style={styles.recipePlaceholder}>
+              {recipeData?.menuImg ? (
+                <img
+                  src={recipeData.menuImg}
+                  alt="recipe"
+                  style={styles.recipeImage}
+                />
+              ) : (
+                <span style={styles.placeholderEmoji}>🍲</span>
+              )}
             </div>
+            <div style={styles.titleContent}>
+              <h2 style={styles.recipeTitle}>
+                {recipeData ? `${recipeData.menuTitle} - ${recipeData.title}` : recipeName}
+              </h2>
+              <p style={styles.portions}>{portions} porciones</p>
+            </div>
+          </div>
 
-            <div style={{...styles.scrollContent, overflowY: 'auto'}}>
-              {/* Ingredientes */}
-              <div style={styles.section}>
+        <div style={styles.scrollContent}>
+          {/* Ingredientes */}
+          <div style={styles.section}>
                 <div style={styles.sectionHeader}>
                   <div style={styles.sectionIconWrapper}>
                     <BuyingDetail />
@@ -185,12 +185,6 @@ const RecipeModal = ({
 
         {/* Recipe Title and Image */}
         <div style={styles.titleSection}>
-          <div style={styles.titleContent}>
-            <h2 style={styles.recipeTitle}>
-              {recipeData ? `${recipeData.menuTitle} - ${recipeData.title}` : recipeName}
-            </h2>
-            <p style={styles.portions}>{portions} porciones</p>
-          </div>
           <div style={styles.recipePlaceholder}>
             {recipeData?.menuImg ? (
               <img
@@ -202,9 +196,15 @@ const RecipeModal = ({
               <span style={styles.placeholderEmoji}>🍲</span>
             )}
           </div>
+          <div style={styles.titleContent}>
+            <h2 style={styles.recipeTitle}>
+              {recipeData ? `${recipeData.menuTitle} - ${recipeData.title}` : recipeName}
+            </h2>
+            <p style={styles.portions}>{portions} porciones</p>
+          </div>
         </div>
 
-        <div style={{...styles.scrollContent, overflowY: 'auto'}}>
+        <div style={styles.scrollContent}>
           {/* Ingredientes */}
           <div style={styles.section}>
             <div style={styles.sectionHeader}>
@@ -278,10 +278,16 @@ const RecipeModal = ({
 const styles = {
   // Web Modal Styles
   webModalOverlay: {
-    flex: 1,
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 9999,
   },
   webModalBackdrop: {
     position: 'absolute',
@@ -294,15 +300,28 @@ const styles = {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     width: '90%',
-    maxWidth: 500,
-    maxHeight: '85%',
+    maxWidth: 600,
+    maxHeight: '85vh',
     boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+    position: 'relative',
+    zIndex: 10000,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
   },
 
   // Mobile Bottom Sheet Styles
   mobileModalOverlay: {
-    flex: 1,
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
     justifyContent: 'flex-end',
+    zIndex: 9999,
   },
   mobileBackdrop: {
     position: 'absolute',
@@ -317,15 +336,25 @@ const styles = {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     width: '100%',
-    height: '85vh',
+    height: '65vh',
+    maxHeight: '65vh',
     boxShadow: '0 -4px 8px rgba(0, 0, 0, 0.1)',
+    position: 'relative',
+    zIndex: 10000,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
   },
 
   // Header
   header: {
     paddingTop: spacing.medium,
-    paddingHorizontal: spacing.medium,
+    paddingLeft: spacing.medium,
+    paddingRight: spacing.medium,
     alignItems: 'center',
+    display: 'flex',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   dragIndicator: {
     width: 40,
@@ -333,6 +362,27 @@ const styles = {
     backgroundColor: '#D1D5DB',
     borderRadius: 2,
     marginBottom: spacing.small,
+  },
+  webCloseButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  webCloseButtonText: {
+    fontSize: 20,
+    color: '#6B7280',
+    fontWeight: '600',
+    lineHeight: 1,
   },
   closeButton: {
     position: 'absolute',
@@ -354,38 +404,44 @@ const styles = {
 
   // Title Section
   titleSection: {
+    display: 'flex',
     flexDirection: 'row',
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.medium,
+    padding: `${spacing.medium}px`,
     alignItems: 'center',
+    gap: spacing.medium,
+    flexShrink: 0,
   },
   titleContent: {
     flex: 1,
-    marginRight: spacing.medium,
   },
   recipeTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: '#FF5136',
-    marginBottom: 4,
+    marginBottom: 8,
+    margin: '0 0 8px 0',
   },
   portions: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#6B7280',
+    margin: 0,
   },
   recipePlaceholder: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     borderRadius: 12,
     backgroundColor: '#FEF3C7',
+    display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    flexShrink: 0,
   },
   recipeImage: {
-    width: 80,
-    height: 80,
+    width: 100,
+    height: 100,
     borderRadius: 12,
+    objectFit: 'cover',
   },
   placeholderEmoji: {
     fontSize: 40,
@@ -394,7 +450,8 @@ const styles = {
   // Scroll Content
   scrollContent: {
     flex: 1,
-    paddingHorizontal: spacing.medium,
+    padding: `0 ${spacing.medium}px`,
+    overflowY: 'auto',
   },
 
   // Section
@@ -402,6 +459,7 @@ const styles = {
     marginBottom: spacing.large,
   },
   sectionHeader: {
+    display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.medium,
@@ -414,9 +472,10 @@ const styles = {
     marginRight: spacing.small,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     color: '#1A1F24',
+    margin: 0,
   },
 
   // Ingredients
@@ -426,12 +485,12 @@ const styles = {
     padding: spacing.medium,
   },
   ingredientItem: {
+    display: 'flex',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    padding: '10px 0',
+    borderBottom: '1px solid #E5E7EB',
   },
   ingredientNameContainer: {
     flex: 1,
@@ -442,15 +501,18 @@ const styles = {
     color: '#1A1F24',
     fontWeight: '600',
     marginBottom: 2,
+    margin: '0 0 2px 0',
   },
   ingredientCategory: {
     fontSize: 12,
     color: '#6B7280',
+    margin: 0,
   },
   ingredientQuantity: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FF5136',
+    margin: 0,
   },
 
   // Optionals
@@ -462,6 +524,7 @@ const styles = {
     fontWeight: '700',
     color: '#6B7280',
     marginBottom: spacing.small,
+    margin: `0 0 ${spacing.small}px 0`,
   },
 
   // Recipe Steps
@@ -471,29 +534,23 @@ const styles = {
     padding: spacing.medium,
   },
   stepItem: {
+    display: 'flex',
     flexDirection: 'row',
-    marginBottom: spacing.medium,
-  },
-  stepCheckbox: {
-    marginRight: spacing.small,
-    marginTop: 2,
-  },
-  stepCheckboxIcon: {
-    fontSize: 16,
+    marginBottom: spacing.small,
   },
   stepText: {
-    flex: 1,
     fontSize: 14,
-    color: '#1A1F24',
-    lineHeight: 20,
+    color: '#374151',
+    lineHeight: '22px',
+    margin: 0,
   },
 
+  // Empty State
   emptyText: {
     fontSize: 14,
     color: '#9CA3AF',
     textAlign: 'center',
-    paddingTop: spacing.large,
-    paddingBottom: spacing.large,
+    padding: `${spacing.medium}px 0`,
     margin: 0,
   },
 };

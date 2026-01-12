@@ -32,9 +32,9 @@ const BottomTabs = () => {
   const getActiveIndex = () => {
     const currentPath = location.pathname;
     if (currentPath === '/' || currentPath === '/home') return 0;
-    if (currentPath === '/reservation') return 1;
+    if (currentPath === '/reservation' || currentPath.startsWith('/reservation/')) return 1;
     if (currentPath === '/profile') return 2;
-    return 0;
+    return -1; // No active tab for other routes
   };
 
   const activeIndex = getActiveIndex();

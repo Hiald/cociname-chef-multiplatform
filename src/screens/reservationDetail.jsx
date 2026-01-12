@@ -464,6 +464,7 @@ const styles = {
     marginBottom: `${spacing.small}px`,
     border: 'none',
     cursor: 'pointer',
+    width: '100%',
   },
   arriveButtonContent: {
     display: 'flex',
@@ -524,6 +525,7 @@ const styles = {
     justifyContent: 'center',
     border: 'none',
     cursor: 'pointer',
+    width: '100%',
   },
   mapButtonText: {
     fontSize: '14px',

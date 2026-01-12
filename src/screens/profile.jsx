@@ -284,6 +284,7 @@ const styles = {
     marginBottom: `${spacing.small}px`,
     border: 'none',
     cursor: 'pointer',
+    width: '100%',
   },
   primaryButtonText: {
     fontSize: '16px',
@@ -299,6 +300,7 @@ const styles = {
     justifyContent: 'center',
     border: 'none',
     cursor: 'pointer',
+    width: '100%',
   },
   secondaryButtonText: {
     fontSize: '16px',

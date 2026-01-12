@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LoginScreen from '../screens/login';
 import ReservationDetailScreen from '../screens/reservationDetail';
 import HomeScreen from '../screens/home';
@@ -14,7 +14,15 @@ import './routes.css';
 const Navigator = () => {
   const { isAuthenticated, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
-  const [currentRoute, setCurrentRoute] = React.useState('Home');
+  const location = useLocation();
+
+  const getCurrentRoute = () => {
+    const path = location.pathname;
+    if (path === '/' || path === '/home') return 'Home';
+    if (path === '/reservation' || path.startsWith('/reservation/')) return 'Reservation';
+    if (path === '/profile') return 'Profile';
+    return 'Home';
+  };
 
   if (loading) {
     return (
@@ -43,9 +51,8 @@ const Navigator = () => {
       <div className="app-content">
         <Sidebar 
           isOpen={isSidebarOpen} 
-          currentRoute={currentRoute}
-          onNavigate={(route) => {
-            setCurrentRoute(route);
+          currentRoute={getCurrentRoute()}
+          onNavigate={() => {
             setIsSidebarOpen(false);
           }}
         />

@@ -160,7 +160,7 @@ const ReservationScreen = () => {
   };
 
   const handleViewReservation = (reservationId, isActive) => {
-    navigate(`/reservation-detail/${reservationId}`, {
+    navigate(`/reservation/${reservationId}`, {
       state: { reservationId, isActive }
     });
   };

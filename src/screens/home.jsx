@@ -139,14 +139,14 @@ const HomeScreen = () => {
 
   const handleViewActiveReservation = () => {
     if (activeReservation) {
-      navigate(`/reservation-detail/${activeReservation.id}`, {
+      navigate(`/reservation/${activeReservation.id}`, {
         state: { isActive: true }
       });
     }
   };
 
   const handleViewUpcomingReservation = (reservationId) => {
-    navigate(`/reservation-detail/${reservationId}`, {
+    navigate(`/reservation/${reservationId}`, {
       state: { isActive: false }
     });
   };

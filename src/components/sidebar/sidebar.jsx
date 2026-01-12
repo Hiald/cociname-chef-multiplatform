@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { spacing } from '../../styles';
 import { Home, Reservation, Profile } from '../../assets/svgs';
 import { useAuth } from '../../hooks/useAuth';
@@ -22,16 +23,22 @@ if (!document.getElementById('sidebar-responsive-styles')) {
 
 const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
   const { logout } = useAuth();
+  const navigate = useNavigate();
   const sidebarWidth = isOpen ? 280 : 0;
 
   const menuItems = [
-    { id: 'Home', label: 'Inicio', Icon: Home },
-    { id: 'Reservation', label: 'Reservas', Icon: Reservation },
-    { id: 'Profile', label: 'Perfil', Icon: Profile },
+    { id: 'Home', label: 'Inicio', Icon: Home, path: '/' },
+    { id: 'Reservation', label: 'Reservas', Icon: Reservation, path: '/reservation' },
+    { id: 'Profile', label: 'Perfil', Icon: Profile, path: '/profile' },
   ];
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  const handleNavigate = (item) => {
+    navigate(item.path);
+    if (onNavigate) onNavigate(item.id);
   };
 
   if (!isOpen) return null;
@@ -55,7 +62,7 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
               <button
                 key={item.id}
                 style={{...styles.menuItem, ...(isActive && styles.menuItemActive)}}
-                onClick={() => onNavigate(item.id)}
+                onClick={() => handleNavigate(item)}
               >
                 <div style={styles.menuItemContent}>
                   <div style={{...styles.iconContainer, ...(isActive && styles.iconContainerActive)}}>
