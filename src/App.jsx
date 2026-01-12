@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter } from "react-router-dom";
+import { HashRouter } from "react-router-dom";
 import Navigator from "./routes";
 import { AuthProvider } from "./hooks/useAuth";
 import "./App.css";
@@ -7,11 +7,11 @@ import "./App.css";
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <HashRouter>
         <div style={{ minHeight: '100vh', backgroundColor: '#FAFAFA' }}>
           <Navigator />
         </div>
-      </BrowserRouter>
+      </HashRouter>
     </AuthProvider>
   );
 }

@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { decryptToken } from '../utils/crypto';
 import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
 import { getDistrictName, getConceptName } from '../utils';
 import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail } from '../assets/svgs';
-import { RecipeModal } from '../components/recipe-modal';
+import RecipeModal from '../components/recipe-modal/recipe-modal';
 
 /**
  * Vista pública de reserva - accesible sin login mediante token encriptado
@@ -74,22 +73,22 @@ export const PublicReservationScreen = ({ token }) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF5136" />
-        <Text style={styles.loadingText}>Cargando reserva...</Text>
-      </View>
+      <div style={styles.loadingContainer}>
+        <div style={styles.loader}></div>
+        <p style={styles.loadingText}>Cargando reserva...</p>
+      </div>
     );
   }
 
   if (error || !reservation) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>⚠️</Text>
-        <Text style={styles.errorText}>{error || 'Reserva no encontrada'}</Text>
-        <Text style={styles.errorHint}>
+      <div style={styles.errorContainer}>
+        <span style={styles.errorTitle}>⚠️</span>
+        <p style={styles.errorText}>{error || 'Reserva no encontrada'}</p>
+        <p style={styles.errorHint}>
           El enlace puede ser inválido o haber expirado.
-        </Text>
-      </View>
+        </p>
+      </div>
     );
   }
 
@@ -110,145 +109,147 @@ export const PublicReservationScreen = ({ token }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
-        {/* Header */}
-        <View style={styles.customerHeader}>
-          <Text style={styles.customerName}>
-            {reservation.customerName} {reservation.customerLastName}
-          </Text>
-          <Text style={styles.publicBadge}>Vista pública</Text>
-        </View>
+    <div style={styles.container}>
+      <div style={styles.scrollView}>
+        <div style={styles.contentContainer}>
+          {/* Header */}
+          <div style={styles.customerHeader}>
+            <h1 style={styles.customerName}>
+              {reservation.customerName} {reservation.customerLastName}
+            </h1>
+            <p style={styles.publicBadge}>Vista pública</p>
+          </div>
 
-        {/* Info Cards */}
-        <View style={styles.infoCardContainer}>
-          <View style={styles.infoRow}>
-            <OrderDetail />
-            <Text style={styles.infoRowLabel}>{formatDate(reservation.dateReservation).split(',')[0]}</Text>
-            <Text style={styles.infoRowValue}>{formatDate(reservation.dateReservation).split(', ')[1]}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <ClockDetail />
-            <Text style={styles.infoRowLabel}>{reservation.hourReservation}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <ListDetail />
-            <Text style={styles.infoRowLabel}>{reservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <HatblueDetail />
-            <Text style={styles.infoRowLabel}>{reservation.totalPortion} porciones totales</Text>
-          </View>
-        </View>
+          {/* Info Cards */}
+          <div style={styles.infoCardContainer}>
+            <div style={styles.infoRow}>
+              <OrderDetail />
+              <span style={styles.infoRowLabel}>{formatDate(reservation.dateReservation).split(',')[0]}</span>
+              <span style={styles.infoRowValue}>{formatDate(reservation.dateReservation).split(', ')[1]}</span>
+            </div>
+            <div style={styles.infoRow}>
+              <ClockDetail />
+              <span style={styles.infoRowLabel}>{reservation.hourReservation}</span>
+            </div>
+            <div style={styles.infoRow}>
+              <ListDetail />
+              <span style={styles.infoRowLabel}>{reservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}</span>
+            </div>
+            <div style={styles.infoRow}>
+              <HatblueDetail />
+              <span style={styles.infoRowLabel}>{reservation.totalPortion} porciones totales</span>
+            </div>
+          </div>
 
-        {/* Ubicación */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <UbicationDetail />
-            <Text style={styles.sectionTitle}>Ubicación</Text>
-          </View>
-          <View style={styles.card}>
-            <Text style={styles.addressText}>{reservation.direction}</Text>
-            <Text style={styles.districtText}>{getDistrictName(reservation.district)}</Text>
-            {reservation.reference && (
-              <Text style={styles.referenceText}>{reservation.reference}</Text>
-            )}
-          </View>
-        </View>
-
-        {/* Platos Elegidos */}
-        {recipes.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <RedhatDetail />
-              <Text style={styles.sectionTitle}>Platos elegidos</Text>
-            </View>
-            <View style={styles.card}>
-              {recipes.map((recipe, index) => (
-                <View key={recipe.key || index} style={styles.dishItem}>
-                  <Text style={styles.dishName}>
-                    {recipe.MenuNombre} - {recipe.MasterRecipeNombre}
-                  </Text>
-                  <View style={styles.dishFooter}>
-                    <Text style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</Text>
-                    <TouchableOpacity style={styles.viewRecipeButton} onPress={() => handleViewRecipe(recipe)}>
-                      <Text style={styles.viewRecipeText}>Ver receta</Text>
-                      <View style={styles.arrowIcon}>
-                        <ArrowRightDetail />
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Mi garantía */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MoneyDetail />
-            <Text style={styles.sectionTitle}>Detalle del servicio</Text>
-          </View>
-          <View style={styles.card}>
-            {(() => {
-              try {
-                const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
-                return paymentConcepts.map((concept, index) => (
-                  <View key={index} style={styles.garantiaRow}>
-                    <Text style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</Text>
-                    <Text style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</Text>
-                  </View>
-                ));
-              } catch {
-                return (
-                  <View style={styles.garantiaRow}>
-                    <Text style={styles.garantiaLabel}>Servicio</Text>
-                    <Text style={styles.garantiaValue}>S/ {reservation.commissiontoChef.toFixed(2)}</Text>
-                  </View>
-                );
-              }
-            })()}
-            <View style={styles.divider} />
-            <View style={styles.garantiaRow}>
-              <Text style={styles.garantiaTotal}>Total</Text>
-              <Text style={styles.garantiaTotalValue}>S/ {reservation.commissiontoChef.toFixed(2)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Comentarios */}
-        {(reservation.comments || reservation.commentClient) && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>💬</Text>
-              <Text style={styles.sectionTitle}>Comentarios</Text>
-            </View>
-            <View style={styles.card}>
-              {reservation.commentClient && (
-                <View style={styles.commentSection}>
-                  <Text style={styles.commentLabel}>Del cliente:</Text>
-                  <Text style={styles.commentText}>{reservation.commentClient}</Text>
-                </View>
+          {/* Ubicación */}
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <UbicationDetail />
+              <h2 style={styles.sectionTitle}>Ubicación</h2>
+            </div>
+            <div style={styles.card}>
+              <p style={styles.addressText}>{reservation.direction}</p>
+              <p style={styles.districtText}>{getDistrictName(reservation.district)}</p>
+              {reservation.reference && (
+                <p style={styles.referenceText}>{reservation.reference}</p>
               )}
-              {reservation.comments && (
-                <View style={styles.commentSection}>
-                  <Text style={styles.commentLabel}>Notas adicionales:</Text>
-                  <Text style={styles.commentText}>{reservation.comments}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        )}
+            </div>
+          </div>
 
-        {/* Nota de Privacidad */}
-        <View style={styles.helpSection}>
-          <Text style={styles.helpTitle}>Vista de solo lectura</Text>
-          <Text style={styles.helpText}>
-            Para modificaciones, contacte con el servicio al cliente.
-          </Text>
-        </View>
-      </ScrollView>
+          {/* Platos Elegidos */}
+          {recipes.length > 0 && (
+            <div style={styles.section}>
+              <div style={styles.sectionHeader}>
+                <RedhatDetail />
+                <h2 style={styles.sectionTitle}>Platos elegidos</h2>
+              </div>
+              <div style={styles.card}>
+                {recipes.map((recipe, index) => (
+                  <div key={recipe.key || index} style={styles.dishItem}>
+                    <p style={styles.dishName}>
+                      {recipe.MenuNombre} - {recipe.MasterRecipeNombre}
+                    </p>
+                    <div style={styles.dishFooter}>
+                      <span style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</span>
+                      <button style={styles.viewRecipeButton} onClick={() => handleViewRecipe(recipe)}>
+                        <span style={styles.viewRecipeText}>Ver receta</span>
+                        <div style={styles.arrowIcon}>
+                          <ArrowRightDetail />
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mi garantía */}
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>
+              <MoneyDetail />
+              <h2 style={styles.sectionTitle}>Detalle del servicio</h2>
+            </div>
+            <div style={styles.card}>
+              {(() => {
+                try {
+                  const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
+                  return paymentConcepts.map((concept, index) => (
+                    <div key={index} style={styles.garantiaRow}>
+                      <span style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</span>
+                      <span style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</span>
+                    </div>
+                  ));
+                } catch {
+                  return (
+                    <div style={styles.garantiaRow}>
+                      <span style={styles.garantiaLabel}>Servicio</span>
+                      <span style={styles.garantiaValue}>S/ {reservation.commissiontoChef.toFixed(2)}</span>
+                    </div>
+                  );
+                }
+              })()}
+              <div style={styles.divider} />
+              <div style={styles.garantiaRow}>
+                <span style={styles.garantiaTotal}>Total</span>
+                <span style={styles.garantiaTotalValue}>S/ {reservation.commissiontoChef.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Comentarios */}
+          {(reservation.comments || reservation.commentClient) && (
+            <div style={styles.section}>
+              <div style={styles.sectionHeader}>
+                <span style={styles.sectionIcon}>💬</span>
+                <h2 style={styles.sectionTitle}>Comentarios</h2>
+              </div>
+              <div style={styles.card}>
+                {reservation.commentClient && (
+                  <div style={styles.commentSection}>
+                    <p style={styles.commentLabel}>Del cliente:</p>
+                    <p style={styles.commentText}>{reservation.commentClient}</p>
+                  </div>
+                )}
+                {reservation.comments && (
+                  <div style={styles.commentSection}>
+                    <p style={styles.commentLabel}>Notas adicionales:</p>
+                    <p style={styles.commentText}>{reservation.comments}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Nota de Privacidad */}
+          <div style={styles.helpSection}>
+            <p style={styles.helpTitle}>Vista de solo lectura</p>
+            <p style={styles.helpText}>
+              Para modificaciones, contacte con el servicio al cliente.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Recipe Modal */}
       {selectedRecipe && (
@@ -261,28 +262,45 @@ export const PublicReservationScreen = ({ token }) => {
           recipeSteps={selectedRecipe.sPasos}
         />
       )}
-    </View>
+    </div>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = {
   container: {
-    flex: 1,
+    minHeight: '100%',
     backgroundColor: '#F5F7FA',
+    width: '100%',
+    maxWidth: '100%',
+    boxSizing: 'border-box',
+    overflowX: 'hidden',
   },
   loadingContainer: {
-    flex: 1,
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F5F7FA',
+  },
+  loader: {
+    width: 48,
+    height: 48,
+    border: '4px solid #FEE2E2',
+    borderTopColor: '#FF5136',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
     color: '#6B7280',
+    margin: '16px 0 0 0',
   },
   errorContainer: {
-    flex: 1,
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F5F7FA',
@@ -298,18 +316,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: spacing.small,
+    margin: `0 0 ${spacing.small}px 0`,
   },
   errorHint: {
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
+    margin: 0,
   },
   scrollView: {
-    flex: 1,
+    width: '100%',
+    overflowY: 'auto',
   },
   contentContainer: {
-    paddingTop: Platform.OS === 'web' ? spacing.medium : 50,
-    paddingHorizontal: spacing.medium,
+    paddingTop: spacing.medium,
+    paddingLeft: spacing.medium,
+    paddingRight: spacing.medium,
     paddingBottom: 100,
   },
   customerHeader: {
@@ -321,38 +343,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FF5136',
     marginBottom: 4,
+    margin: '0 0 4px 0',
   },
   publicBadge: {
     fontSize: 12,
     color: '#6B7280',
     fontStyle: 'italic',
+    margin: 0,
   },
   infoCardContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: spacing.medium,
     marginBottom: spacing.medium,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-      web: {
-        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-      },
-    }),
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
   },
   infoRow: {
+    display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    paddingTop: 8,
+    paddingBottom: 8,
+    borderBottom: '1px solid #F3F4F6',
   },
   infoRowLabel: {
     fontSize: 13,
@@ -369,6 +381,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.large,
   },
   sectionHeader: {
+    display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.small,
@@ -378,6 +391,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1F24',
     marginLeft: spacing.small,
+    margin: `0 0 0 ${spacing.small}px`,
   },
   sectionIcon: {
     fontSize: 20,
@@ -386,36 +400,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: spacing.medium,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-      web: {
-        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
-      },
-    }),
+    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
   },
   addressText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#1A1F24',
     marginBottom: 4,
+    margin: '0 0 4px 0',
   },
   districtText: {
     fontSize: 14,
     color: '#6B7280',
     marginBottom: spacing.small,
+    margin: `0 0 ${spacing.small}px 0`,
   },
   referenceText: {
     fontSize: 13,
     color: '#6B7280',
-    lineHeight: 20,
+    lineHeight: '20px',
+    margin: 0,
   },
   dishItem: {
     marginBottom: spacing.medium,
@@ -425,8 +429,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1A1F24',
     marginBottom: 4,
+    margin: '0 0 4px 0',
   },
   dishFooter: {
+    display: 'flex',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -436,8 +442,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   viewRecipeButton: {
+    display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
   },
   viewRecipeText: {
     fontSize: 13,
@@ -447,8 +458,10 @@ const styles = StyleSheet.create({
   },
   arrowIcon: {
     marginTop: 5,
+    display: 'flex',
   },
   garantiaRow: {
+    display: 'flex',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -466,7 +479,8 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: '#E5E7EB',
-    marginVertical: spacing.small,
+    marginTop: spacing.small,
+    marginBottom: spacing.small,
   },
   garantiaTotal: {
     fontSize: 16,
@@ -478,16 +492,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1A1F24',
   },
-  chefName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1F24',
-    marginBottom: 4,
-  },
-  chefPhone: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
   commentSection: {
     marginBottom: spacing.medium,
   },
@@ -495,13 +499,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
+    margin: '0 0 4px 0',
   },
   commentText: {
     fontSize: 14,
     color: '#1A1F24',
-    lineHeight: 20,
+    lineHeight: '20px',
+    margin: 0,
   },
   helpSection: {
+    display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     marginTop: spacing.medium,
   },
@@ -510,12 +518,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1A1F24',
     marginBottom: 4,
+    margin: '0 0 4px 0',
   },
   helpText: {
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
+    margin: 0,
   },
-});
+};
+
+// Inyectar animación del loader
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 
