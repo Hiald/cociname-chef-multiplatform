@@ -123,15 +123,6 @@ const RecipeModal = ({
                         </p>
                       </div>
                     ))}
-                    
-                    {/* Opcionales - Si existen */}
-                    <div style={styles.optionalsSection}>
-                      <p style={styles.optionalsTitle}>Opcionales</p>
-                      <div style={styles.ingredientItem}>
-                        <p style={styles.ingredientName}>Maicena</p>
-                        <p style={styles.ingredientQuantity}>2 cdtas.</p>
-                      </div>
-                    </div>
                   </div>
                 ) : (
                   <p style={styles.emptyText}>No hay ingredientes registrados</p>
@@ -229,15 +220,6 @@ const RecipeModal = ({
                     </p>
                   </div>
                 ))}
-                
-                {/* Opcionales - Si existen */}
-                <div style={styles.optionalsSection}>
-                  <p style={styles.optionalsTitle}>Opcionales</p>
-                  <div style={styles.ingredientItem}>
-                    <p style={styles.ingredientName}>Maicena</p>
-                    <p style={styles.ingredientQuantity}>2 cdtas.</p>
-                  </div>
-                </div>
               </div>
             ) : (
               <p style={styles.emptyText}>No hay ingredientes registrados</p>
