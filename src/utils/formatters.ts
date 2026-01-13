@@ -56,39 +56,64 @@ export function getUnitAbbreviation(unitId: number): string {
 }
 
 /**
- * Formatea el tamaño/cantidad en kg a una representación más legible
- * Si es menor a 1 kg, muestra en gramos o fracciones
+ * Formatea el tamaño/cantidad según la unidad
+ * - kg: convierte a gramos si es < 1kg
+ * - litros: convierte a ml si es < 1lt
+ * - otras unidades: muestra el valor con la abreviatura
  */
 export function formatSize(size: number, unit = 2): string {
-  const kilo = 1000;
-  let description = "";
-
-  // Si la unidad no es kg (id 2), retornar el valor tal cual
-  if (unit !== 2) {
-    return size.toFixed(2);
-  }
-
-  if (size < 1) {
-    // Si es menor a 1 kg, mostrar en gramos o fracciones
-    const fraccion = size;
-    
-    if (fraccion === 0.25) {
-      description = "1/4 kg";
-    } else if (fraccion === 0.5) {
-      description = "1/2 kg";
-    } else if (fraccion === 0.75) {
-      description = "3/4 kg";
-    } else if (fraccion === 1) {
-      description = size.toFixed(2) + " kg";
+  const value = parseFloat(size.toString());
+  
+  // Kilogramos (unit = 2)
+  if (unit === 2) {
+    if (value < 1) {
+      const fraccion = value;
+      
+      if (fraccion === 0.25) {
+        return "1/4 kg";
+      } else if (fraccion === 0.5) {
+        return "1/2 kg";
+      } else if (fraccion === 0.75) {
+        return "3/4 kg";
+      } else {
+        const gramos = Math.round(value * 1000);
+        return gramos + " gr";
+      }
     } else {
-      const gramos = Math.round(size * kilo);
-      description = gramos + " gr";
+      return value.toFixed(2) + " kg";
     }
-  } else if (size >= 1) {
-    description = size.toFixed(2) + " kg";
   }
+  
+  // Litros (unit = 4)
+  if (unit === 4) {
+    if (value < 1) {
+      const mililitros = Math.round(value * 1000);
+      return mililitros + " ml";
+    } else {
+      return value.toFixed(2) + " lt";
+    }
+  }
+  
+  // Otras unidades: mostrar valor + abreviatura
+  const abbreviation = getUnitAbbreviation(unit);
+  
+  // Para unidades, mostrar número entero si es entero
+  if (unit === 1 && Number.isInteger(value)) {
+    return value + " " + abbreviation;
+  }
+  
+  return value.toFixed(2) + " " + abbreviation;
+}
 
-  return description;
+/**
+ * Formatea la cantidad de un ingrediente (usa size si uM_value es 0)
+ */
+export function formatIngredientQuantity(ingredient: any): string {
+  const value = ingredient.uM_value && ingredient.uM_value > 0 
+    ? ingredient.uM_value 
+    : parseFloat(ingredient.size || 0);
+  
+  return formatSize(value, ingredient.unit);
 }
 
 /**
