@@ -6,6 +6,7 @@ import HomeScreen from '../screens/home';
 import ReservationScreen from '../screens/reservation';
 import ProfileScreen from '../screens/profile';
 import { PublicReservationScreen } from '../screens/public-reservation';
+import { PublicSuscriptionScreen } from '../screens/public-suscription';
 import { Header } from '../components/header';
 import { Sidebar } from '../components/sidebar';
 import BottomTabs from '../components/bottom-tabs/bottom-tabs';
@@ -23,12 +24,25 @@ const Navigator = () => {
     return <PublicReservationScreen token={token} />;
   };
 
+  const PublicSuscriptionWrapper = () => {
+    const { token } = useParams();
+    return <PublicSuscriptionScreen token={token} />;
+  };
+
   // Ruta pública independiente - NO requiere autenticación
   // Se verifica DESPUÉS de los hooks pero ANTES de verificar auth
   if (location.pathname.startsWith('/reserva/')) {
     return (
       <Routes>
         <Route path="/reserva/:token" element={<PublicReservationWrapper />} />
+      </Routes>
+    );
+  }
+
+  if (location.pathname.startsWith('/suscripcion/')) {
+    return (
+      <Routes>
+        <Route path="/suscripcion/:token" element={<PublicSuscriptionWrapper />} />
       </Routes>
     );
   }

@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../../services/api.service';
-import { getCategoryName, formatSize } from '../../utils/formatters';
+import { getCategoryName, formatIngredientQuantity } from '../../utils/formatters';
 import { BuyingDetail, RedhatDetail } from '../../assets/svgs';
 import { spacing } from '../../styles';
 
@@ -119,7 +119,7 @@ const RecipeModal = ({
                           <p style={styles.ingredientCategory}>{getCategoryName(ingredient.category)}</p>
                         </div>
                         <p style={styles.ingredientQuantity}>
-                          {formatSize(ingredient.uM_value, ingredient.unit)}
+                          {formatIngredientQuantity(ingredient)}
                         </p>
                       </div>
                     ))}
@@ -225,7 +225,7 @@ const RecipeModal = ({
                       <p style={styles.ingredientCategory}>{getCategoryName(ingredient.category)}</p>
                     </div>
                     <p style={styles.ingredientQuantity}>
-                      {formatSize(ingredient.uM_value, ingredient.unit)}
+                      {formatIngredientQuantity(ingredient)}
                     </p>
                   </div>
                 ))}

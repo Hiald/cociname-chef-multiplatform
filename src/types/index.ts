@@ -347,6 +347,138 @@ export interface ChefResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// SUSCRIPTION - GET /api/suscription/ListSuscriptionById
+// ═══════════════════════════════════════════════════════════════
+
+export interface SuscriptionData {
+  suscriptionCode: string;
+  autoRenew: boolean;
+  visitsPerMonth: number;
+  visitWeekday: number;
+  startDate: string;
+  endDate: string;
+  diner: number;
+  type: number;
+  totalPortion: number;
+  portionperDay: number;
+  puchaseIngredients: boolean;
+  pricePurchaseIngredients: number;
+  preparationTime: number;
+  costPerHour: number;
+  totalPrice: number;
+  commissiontoChef: number;
+  percentageCommision: number;
+  reprogramated: number;
+  comments: string;
+  ubication: string;
+  latitude: string;
+  longitude: string;
+  province: number;
+  district: number;
+  city: number;
+  direction: string;
+  numberClient: string;
+  reference: string;
+  numberCustomer: string;
+  statusSuscription: number;
+  payMethod: number;
+  isPayed: number;
+  searchStatus: number;
+  customerId: number;
+  customerName: string;
+  customerLastName: string;
+  customerPhone: string;
+  chefId: number;
+  chefName: string;
+  chefLastName: string;
+  chefPhone: string;
+  couponId: number;
+  id: number;
+  status: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedById: string | null;
+  updatedAt: string | null;
+}
+
+export interface SuscriptionResponse {
+  data: SuscriptionData;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESERVATION SUSCRIPTION - GET /api/reservationSuscription/ListReservationSuscriptionById
+// ═══════════════════════════════════════════════════════════════
+
+export interface ReservationSuscriptionData {
+  comment: string;
+  jsonRequest: string;
+  jsonOptional: string;
+  suscriptionStatus: number;
+  suscriptionCount: number;
+  reservationSuscriptionCode: string;
+  securityCode: string;
+  isAdditionalReservation: boolean;
+  additionalReservationPrice: number;
+  diner: number;
+  type: number;
+  totalPortion: number;
+  portionperDay: number;
+  puchaseIngredients: boolean;
+  preparationTime: number;
+  dateReservation: string;
+  hourReservation: string;
+  reprogramated: number;
+  comments: string;
+  commentClient: string;
+  ubication: string;
+  latitude: string;
+  longitude: string;
+  province: number;
+  district: number;
+  city: number;
+  direction: string;
+  numberClient: string;
+  reference: string;
+  numberCustomer: string;
+  suscriptionId: number;
+  suscriptionCode: string;
+  autoRenew: boolean;
+  visitsPerMonth: number;
+  visitWeekday: number;
+  startDate: string;
+  endDate: string;
+  suscriptiondiner: number;
+  suscriptionType: number;
+  suscriptionTotalPortion: number;
+  suscriptionPortionperDay: number;
+  suscriptionUbication: string;
+  suscriptionLatitude: string;
+  suscriptionLongitude: string;
+  suscriptionProvince: number;
+  suscriptionDistrict: number;
+  suscriptionCity: number;
+  suscriptionDirection: string;
+  suscriptionNumberClient: string;
+  suscriptionReference: string;
+  suscriptionNumberCustomer: string;
+  jsonPaymentChef: string;
+  id: number;
+  status: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedById: string | null;
+  updatedAt: string | null;
+}
+
+export interface ReservationSuscriptionResponse {
+  data: ReservationSuscriptionData;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Tipos de Navegación (5 vistas)
 // ═══════════════════════════════════════════════════════════════
 

@@ -13,6 +13,8 @@ import {
   ReservationRecipeResponse,
   IngredientResponse,
   MasterRecipeResponse,
+  SuscriptionResponse,
+  ReservationSuscriptionResponse,
 } from '../types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -471,6 +473,120 @@ class ApiService {
     );
     console.log('getMasterRecipeById response:', response);
     return response as MasterRecipeResponse;
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // SUSCRIPCIONES
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/suscription/ListSuscriptionById?id={id}&Page={page}&RecordsPerPage={records}
+   * Obtiene los datos de una suscripción por ID
+   */
+  async getSuscriptionById(
+    id: number,
+    page: number = 1,
+    recordsPerPage: number = 1
+  ): Promise<SuscriptionResponse> {
+    const endpoint = `suscription/ListSuscriptionById?id=${id}&Page=${page}&RecordsPerPage=${recordsPerPage}`;
+    
+    console.log('Calling getSuscriptionById:', endpoint);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      console.log('getSuscriptionById response status:', response.status);
+
+      const data: SuscriptionResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: {} as any,
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error('getSuscriptionById error:', error);
+      return {
+        data: {} as any,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
+   * GET /api/reservationSuscription/ListReservationSuscriptionById?id={id}
+   * Obtiene el detalle de una reserva de suscripción por ID
+   */
+  async getReservationSuscriptionById(
+    id: number
+  ): Promise<ReservationSuscriptionResponse> {
+    const endpoint = `reservationSuscription/ListReservationSuscriptionById?id=${id}`;
+    
+    console.log('Calling getReservationSuscriptionById:', endpoint);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      console.log('getReservationSuscriptionById response status:', response.status);
+
+      const data: ReservationSuscriptionResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: {} as any,
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error('getReservationSuscriptionById error:', error);
+      return {
+        data: {} as any,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
   }
 }
 
