@@ -3,7 +3,7 @@ import { decryptToken } from '../utils/crypto';
 import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
 import { getDistrictName, getConceptName } from '../utils';
-import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail } from '../assets/svgs';
+import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail, BuyingDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
 
 /**
@@ -17,6 +17,70 @@ export const PublicReservationScreen = ({ token }) => {
   const [recipes, setRecipes] = useState([]);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [recipeModalVisible, setRecipeModalVisible] = useState(false);
+  const [ingredients, setIngredients] = useState([]);
+  const [checkedIngredients, setCheckedIngredients] = useState({});
+
+  // Función para mapear números de unidad a texto (según el backend)
+  const getUnitName = (unitNumber) => {
+    const units = {
+      1: 'un',        // Unidad
+      2: 'kg',        // Kilogramos
+      4: 'lt',        // Litros
+      6: 'cda',       // Cucharada
+      7: 'cdta',      // Cucharadita
+      8: 'atado',     // Atado
+      9: 'hojas',     // Hojas
+      10: 'ramita'    // Ramita
+    };
+    return units[unitNumber] || 'un';
+  };
+
+  // Función para formatear cantidades con fracciones
+  const formatQuantity = (size, unit) => {
+    const kilo = 1000;
+    let description = '';
+    
+    // unit 1 = Unidad (mostrar solo el número)
+    if (unit === 1) {
+      const cantidad = Math.round(size);
+      return `${cantidad} un`;
+    }
+    
+    // unit 2 = Kilogramos (aplicar lógica de fracciones para kg/gr)
+    if (unit === 2) {
+      if (size < 1) {
+        const fraccion = size;
+        if (fraccion === 0.25) {
+          description = "1/4 kg";
+        } else if (fraccion === 0.5) {
+          description = "1/2 kg";
+        } else if (fraccion === 0.75) {
+          description = "3/4 kg";
+        } else {
+          // Convertir a gramos
+          const gramos = (size * kilo).toFixed(0);
+          description = gramos + " gr";
+        }
+      } else {
+        description = size.toFixed(2) + " kg";
+      }
+      return description;
+    }
+    
+    // unit 4 = Litros (aplicar lógica similar a kg)
+    if (unit === 4) {
+      if (size < 1) {
+        // Convertir a mililitros
+        const mililitros = (size * 1000).toFixed(0);
+        return mililitros + " ml";
+      } else {
+        return size.toFixed(2) + " lt";
+      }
+    }
+    
+    // Para otras unidades, retornar con formato estándar
+    return size.toFixed(2) + ' ' + getUnitName(unit);
+  };
 
   useEffect(() => {
     if (!token) {
@@ -41,6 +105,69 @@ export const PublicReservationScreen = ({ token }) => {
         if (response.success && response.data) {
           setReservation(response.data);
           
+          // Cargar ingredientes si tiene compras
+          if (response.data.puchaseIngredients) {
+            const ingredientsResponse = await apiService.getIngredientChecklistByReservation(id);
+            
+            if (ingredientsResponse.success && ingredientsResponse.data && ingredientsResponse.data.length > 0) {
+              const checklistData = ingredientsResponse.data[0];
+              
+              // Parsear jsonIngredientsCheckList
+              if (checklistData.jsonIngredientsCheckList) {
+                try {
+                  const parsedIngredients = JSON.parse(checklistData.jsonIngredientsCheckList);
+                  
+                  // Cargar detalles de cada ingrediente
+                  const ingredientsDetails = await Promise.all(
+                    parsedIngredients.map(async (item) => {
+                      try {
+                        const details = await apiService.getIngredientById(item.IngredientId);
+                        if (details.success && details.data) {
+                          const size = parseFloat(item.TotalSize);
+                          return {
+                            id: item.IngredientId,
+                            ingredientId: item.IngredientId,
+                            ingredientName: details.data.name,
+                            quantity: formatQuantity(size, details.data.unit),
+                            unit: details.data.unit,
+                            rawSize: item.TotalSize
+                          };
+                        }
+                      } catch (e) {
+                        console.error(`Error cargando ingrediente ${item.IngredientId}:`, e);
+                      }
+                      
+                      // Fallback si no se puede cargar el detalle
+                      return {
+                        id: item.IngredientId,
+                        ingredientId: item.IngredientId,
+                        ingredientName: `Ingrediente #${item.IngredientId}`,
+                        quantity: parseFloat(item.TotalSize).toFixed(2),
+                        unit: 'kg',
+                        rawSize: item.TotalSize
+                      };
+                    })
+                  );
+                  
+                  setIngredients(ingredientsDetails);
+                  
+                  // Cargar estado de checkboxes desde localStorage
+                  const storageKey = `ingredients_reservation_${id}`;
+                  const savedChecks = localStorage.getItem(storageKey);
+                  if (savedChecks) {
+                    try {
+                      setCheckedIngredients(JSON.parse(savedChecks));
+                    } catch (e) {
+                      console.error('Error parsing saved checks:', e);
+                    }
+                  }
+                } catch (e) {
+                  console.error('❌ Error parsing jsonIngredientsCheckList:', e);
+                }
+              }
+            }
+          }
+          
           // Cargar recetas de la reserva
           const recipesResponse = await apiService.getReservationRecipes(id);
           
@@ -51,7 +178,9 @@ export const PublicReservationScreen = ({ token }) => {
               const optionalDishes = firstRecipe.jsonOptional 
                 ? JSON.parse(firstRecipe.jsonOptional) 
                 : [];
-              setRecipes([...requestedDishes, ...optionalDishes]);
+              const allRecipes = [...requestedDishes, ...optionalDishes];
+              setRecipes(allRecipes);
+              
             } catch (e) {
               console.error('Error parsing recipes:', e);
             }
@@ -108,6 +237,20 @@ export const PublicReservationScreen = ({ token }) => {
     setTimeout(() => setSelectedRecipe(null), 300);
   };
 
+  const handleIngredientCheck = (ingredientId) => {
+    const newChecked = {
+      ...checkedIngredients,
+      [ingredientId]: !checkedIngredients[ingredientId]
+    };
+    setCheckedIngredients(newChecked);
+    
+    // Guardar en localStorage
+    if (reservation?.id) {
+      const storageKey = `ingredients_reservation_${reservation.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(newChecked));
+    }
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.scrollView}>
@@ -140,6 +283,41 @@ export const PublicReservationScreen = ({ token }) => {
               <span style={styles.infoRowLabel}>{reservation.totalPortion} porciones totales</span>
             </div>
           </div>
+
+          {/* Lista de compra */}
+          {reservation.puchaseIngredients && ingredients.length > 0 && (
+            <div style={styles.section}>
+              <div style={styles.sectionHeader}>
+                <BuyingDetail />
+                <h2 style={styles.sectionTitle}>Lista de compra</h2>
+              </div>
+              <div style={styles.card}>
+                <p style={styles.shoppingListSubtitle}>Debes comprar todos estos ingredientes.</p>
+                {ingredients.map((ingredient) => (
+                  <div key={ingredient.id} style={styles.ingredientRow}>
+                    <input
+                      type="checkbox"
+                      checked={checkedIngredients[ingredient.id] || false}
+                      onChange={() => handleIngredientCheck(ingredient.id)}
+                      style={styles.checkbox}
+                    />
+                    <div style={styles.ingredientInfo}>
+                      <span style={styles.ingredientName}>{ingredient.ingredientName}</span>
+                      <span style={styles.ingredientQuantity}>
+                        {ingredient.quantity}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {reservation.commentClient && (
+                  <div style={styles.clientCommentBox}>
+                    <p style={styles.commentBoxTitle}>Comentarios del cliente</p>
+                    <p style={styles.commentBoxText}>{reservation.commentClient}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Ubicación */}
           <div style={styles.section}>
@@ -524,6 +702,62 @@ const styles = {
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
+    margin: 0,
+  },
+  shoppingListSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginBottom: spacing.medium,
+    margin: `0 0 ${spacing.medium}px 0`,
+  },
+  ingredientRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 10,
+    paddingBottom: 10,
+    borderBottom: '1px solid #F3F4F6',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    marginRight: spacing.small,
+    cursor: 'pointer',
+    accentColor: '#FF5136',
+  },
+  ingredientInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+  },
+  ingredientName: {
+    fontSize: 14,
+    color: '#1A1F24',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  ingredientQuantity: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  clientCommentBox: {
+    marginTop: spacing.medium,
+    padding: spacing.small,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    borderLeft: '3px solid #F59E0B',
+  },
+  commentBoxTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 4,
+    margin: '0 0 4px 0',
+  },
+  commentBoxText: {
+    fontSize: 13,
+    color: '#78350F',
+    lineHeight: '18px',
     margin: 0,
   },
 };
