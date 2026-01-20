@@ -15,6 +15,8 @@ import {
   MasterRecipeResponse,
   SuscriptionResponse,
   ReservationSuscriptionResponse,
+  IngredientChecklistResponse,
+  IngredientData,
 } from '../types';
 
 // ═══════════════════════════════════════════════════════════════
@@ -406,6 +408,58 @@ class ApiService {
     }
   }
 
+  /**
+   * GET /api/ingredient/{id}
+   * Obtiene los detalles de un ingrediente por ID
+   */
+  async getIngredientById(
+    ingredientId: number
+  ): Promise<BaseResponseGeneric<IngredientData>> {
+    const endpoint = `ingredient/${ingredientId}`;
+    
+    console.log('Calling getIngredientById:', endpoint);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: null,
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error('getIngredientById error:', error);
+      return {
+        data: null,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // CHEF
   // ═══════════════════════════════════════════════════════════════
@@ -585,6 +639,114 @@ class ApiService {
         data: {} as any,
         success: false,
         errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
+   * GET /api/reservationIngredientChecklist/filterbyReservation
+   * Obtiene la lista de ingredientes para una reserva
+   */
+  async getIngredientChecklistByReservation(
+    idReservation: number,
+    page: number = 1,
+    recordsPerPage: number = 100
+  ): Promise<IngredientChecklistResponse> {
+    const endpoint = `reservationIngredientChecklist/filterbyReservation?IdReservation=${idReservation}&Page=${page}&RecordsPerPage=${recordsPerPage}`;
+    
+    console.log('Calling getIngredientChecklistByReservation:', endpoint);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          errorMessage: data.errorMessage || `HTTP error! status: ${response.status}`,
+          data: [],
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error fetching ingredient checklist by reservation:', error);
+      return {
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        data: [],
+      };
+    }
+  }
+
+  /**
+   * GET /api/reservationIngredientChecklist/filterbyReservationSuscription
+   * Obtiene la lista de ingredientes para una reserva de suscripción
+   */
+  async getIngredientChecklistByReservationSuscription(
+    idReservationSuscription: number,
+    page: number = 1,
+    recordsPerPage: number = 100
+  ): Promise<IngredientChecklistResponse> {
+    const endpoint = `reservationIngredientChecklist/filterbyReservationSuscription?IdReservationSuscription=${idReservationSuscription}&Page=${page}&RecordsPerPage=${recordsPerPage}`;
+    
+    console.log('Calling getIngredientChecklistByReservationSuscription:', endpoint);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          errorMessage: data.errorMessage || `HTTP error! status: ${response.status}`,
+          data: [],
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error fetching ingredient checklist by reservation suscription:', error);
+      return {
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        data: [],
       };
     }
   }

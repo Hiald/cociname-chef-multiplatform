@@ -258,6 +258,20 @@ export interface IngredientData {
   unit: number;
   uM_value: number;
   price: number;
+  preparationTime?: number;
+  description?: string;
+  isDuplicated?: boolean;
+  order?: number;
+  isOptional?: number;
+  image1?: string;
+  masterRecipeId?: number;
+  masterRecipeTitle?: string | null;
+  id?: number;
+  status?: boolean;
+  createdById?: string;
+  createdAt?: string;
+  updatedById?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface IngredientResponse {
@@ -474,6 +488,30 @@ export interface ReservationSuscriptionData {
 
 export interface ReservationSuscriptionResponse {
   data: ReservationSuscriptionData;
+  success: boolean;
+  errorMessage: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INGREDIENT CHECKLIST - GET /api/reservationIngredientChecklist/filterbyReservation
+// ═══════════════════════════════════════════════════════════════
+
+export interface IngredientChecklistItem {
+  id: number;
+  reservationId?: number;
+  reservationSuscriptionId?: number;
+  ingredientName: string;
+  quantity: number;
+  unit: string;
+  category: number;
+  isChecked: boolean;
+  status: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface IngredientChecklistResponse {
+  data: IngredientChecklistItem[];
   success: boolean;
   errorMessage: string | null;
 }
