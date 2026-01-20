@@ -223,7 +223,7 @@ export const PublicReservationScreen = ({ token }) => {
 
   const formatDate = (date) => {
     const d = typeof date === 'string' ? new Date(date) : date;
-    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' };
     return d.toLocaleDateString('es-ES', options);
   };
 
