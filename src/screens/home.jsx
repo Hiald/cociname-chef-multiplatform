@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
 import { Calendar, CalendarCheck, Chef, Clock, Profile, Time, Shopping, ArrowRight } from '../assets/svgs';
 import { getDistrictName } from '../utils/formatters';
+import { useSignalR } from '../hooks/useSignalR';
 
 // Add loader animation
 const loaderStyle = document.createElement('style');
@@ -42,7 +43,7 @@ const HomeScreen = () => {
     }
   };
 
-  const loadReservations = async () => {
+  const loadReservations = useCallback(async () => {
     try {
       setLoading(true);
       const response = await apiService.listReservationByChefId(chefId);
@@ -121,7 +122,14 @@ const HomeScreen = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [chefId]);
+
+  useSignalR(loadReservations);
+  
+  useEffect(() => {
+    loadChefData();
+    loadReservations();
+  }, [loadReservations]); 
 
   const formatDate = (date) => {
     const d = new Date(date);
