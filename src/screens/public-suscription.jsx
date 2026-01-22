@@ -90,6 +90,9 @@ export const PublicSuscriptionScreen = ({ token }) => {
       return;
     }
 
+    // Prevenir llamadas duplicadas
+    let isMounted = true;
+
     const loadSuscription = async () => {
       try {
         setLoading(true);
@@ -105,7 +108,18 @@ export const PublicSuscriptionScreen = ({ token }) => {
         
         if (response.success && response.data) {
           const data = response.data;
+          
+          if (!isMounted) return;
           setReservation(data);
+          
+          // Cargar la información de la suscripción padre PRIMERO (tiene los datos del cliente)
+          if (data.suscriptionId) {
+            const suscriptionResponse = await apiService.getSuscriptionById(data.suscriptionId);
+            if (suscriptionResponse.success && suscriptionResponse.data) {
+              if (!isMounted) return;
+              setSuscriptionInfo(suscriptionResponse.data);
+            }
+          }
           
           // Cargar ingredientes si tiene compras
           if (data.puchaseIngredients) {
@@ -151,6 +165,7 @@ export const PublicSuscriptionScreen = ({ token }) => {
                     })
                   );
                   
+                  if (!isMounted) return;
                   setIngredients(ingredientsDetails);
                   
                   // Cargar estado de checkboxes desde localStorage
@@ -170,14 +185,6 @@ export const PublicSuscriptionScreen = ({ token }) => {
             }
           }
           
-          // Cargar la información de la suscripción padre
-          if (data.suscriptionId) {
-            const suscriptionResponse = await apiService.getSuscriptionById(data.suscriptionId);
-            if (suscriptionResponse.success && suscriptionResponse.data) {
-              setSuscriptionInfo(suscriptionResponse.data);
-            }
-          }
-          
           // Parsear recetas
           try {
             const requestedDishes = JSON.parse(data.jsonRequest || '[]');
@@ -187,24 +194,33 @@ export const PublicSuscriptionScreen = ({ token }) => {
             console.error('Error parsing recipes:', e);
           }
         } else {
+          if (!isMounted) return;
           setError(response.errorMessage || 'No se pudo cargar la suscripción');
         }
       } catch (err) {
         console.error('Error cargando suscripción pública:', err);
         const errorMessage = err instanceof Error ? err.message : 'Enlace inválido o expirado';
+        if (!isMounted) return;
         setError(errorMessage);
       } finally {
+        // eslint-disable-next-line no-unsafe-finally
+        if (!isMounted) return;
         setLoading(false);
       }
     };
 
     loadSuscription();
+    
+    // Cleanup para prevenir actualizaciones en componente desmontado
+    return () => {
+      isMounted = false;
+    };
   }, [token]);
 
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
-        <div style={styles.loader}></div>
+        <div style={styles.loader} />
         <p style={styles.loadingText}>Cargando suscripción...</p>
       </div>
     );
@@ -259,7 +275,7 @@ export const PublicSuscriptionScreen = ({ token }) => {
           {/* Header con badge de suscripción */}
           <div style={styles.customerHeader}>
             <h1 style={styles.customerName}>
-              Suscripción #{reservation.suscriptionCode}
+              {suscriptionInfo?.customerName || reservation.customerName || 'Cliente'} {suscriptionInfo?.customerLastName || reservation.customerLastName || ''}
             </h1>
             <p style={styles.publicBadge}>
               Vista pública • Reserva {reservation.suscriptionCount} de {reservation.visitsPerMonth}
