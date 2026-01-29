@@ -30,7 +30,8 @@ export const PublicReservationScreen = ({ token }) => {
       7: 'cdta',      // Cucharadita
       8: 'atado',     // Atado
       9: 'hojas',     // Hojas
-      10: 'ramita'    // Ramita
+      10: 'ramita',    // Ramita
+      11: "tazas",    // Tazas
     };
     return units[unitNumber] || 'un';
   };
