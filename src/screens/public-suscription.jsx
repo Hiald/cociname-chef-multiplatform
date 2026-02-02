@@ -350,10 +350,10 @@ export const PublicSuscriptionScreen = ({ token }) => {
                     </div>
                   </div>
                 ))}
-                {reservation.commentClient && (
+                {reservation.comments && (
                   <div style={styles.clientCommentBox}>
                     <p style={styles.commentBoxTitle}>Comentarios del cliente</p>
-                    <p style={styles.commentBoxText}>{reservation.commentClient}</p>
+                    <p style={styles.commentBoxText}>{reservation.comments}</p>
                   </div>
                 )}
               </div>
@@ -445,30 +445,6 @@ export const PublicSuscriptionScreen = ({ token }) => {
               </div>
             </div>
           </div>
-
-          {/* Comentarios */}
-          {(reservation.comments || reservation.commentClient) && (
-            <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <span style={styles.sectionIcon}>💬</span>
-                <h2 style={styles.sectionTitle}>Comentarios</h2>
-              </div>
-              <div style={styles.card}>
-                {reservation.commentClient && (
-                  <div style={styles.commentSection}>
-                    <p style={styles.commentLabel}>Del cliente:</p>
-                    <p style={styles.commentText}>{reservation.commentClient}</p>
-                  </div>
-                )}
-                {reservation.comments && (
-                  <div style={styles.commentSection}>
-                    <p style={styles.commentLabel}>Notas adicionales:</p>
-                    <p style={styles.commentText}>{reservation.comments}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Nota de Privacidad */}
           <div style={styles.helpSection}>
