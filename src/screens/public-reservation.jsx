@@ -312,7 +312,7 @@ export const PublicReservationScreen = ({ token }) => {
                 ))}
                 {reservation.comments && (
                   <div style={styles.clientCommentBox}>
-                    <p style={styles.commentBoxTitle}>Comentarios del cliente</p>
+                    <p style={styles.commentBoxTitle}>Comentarios</p>
                     <p style={styles.commentBoxText}>{reservation.comments}</p>
                   </div>
                 )}
