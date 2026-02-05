@@ -522,7 +522,7 @@ class ApiService {
   async getMasterRecipeById(id: number): Promise<MasterRecipeResponse> {
     console.log(`Calling getMasterRecipeById with id: ${id}`);
     const response = await this.request<MasterRecipeResponse['data']>(
-      `/masterRecipe/${id}`,
+      `masterRecipe/${id}`,
       { method: 'GET' }
     );
     console.log('getMasterRecipeById response:', response);
