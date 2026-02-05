@@ -112,17 +112,24 @@ const RecipeModal = ({
                   <div style={{ textAlign: 'center', padding: '20px', color: '#FF5136' }}>Cargando...</div>
                 ) : ingredients.length > 0 ? (
                   <div style={styles.ingredientsList}>
-                    {ingredients.map((ingredient, index) => (
-                      <div key={index} style={styles.ingredientItem}>
-                        <div style={styles.ingredientNameContainer}>
-                          <p style={styles.ingredientName}>{ingredient.name}</p>
-                          <p style={styles.ingredientCategory}>{getCategoryName(ingredient.category)}</p>
+                    {ingredients.map((ingredient, index) => {
+                      // Multiplicar cantidades por número de porciones
+                      const adjustedIngredient = {
+                        ...ingredient,
+                        size: ingredient.size * portions
+                      };
+                      return (
+                        <div key={index} style={styles.ingredientItem}>
+                          <div style={styles.ingredientNameContainer}>
+                            <p style={styles.ingredientName}>{ingredient.name}</p>
+                            <p style={styles.ingredientCategory}>{getCategoryName(ingredient.category)}</p>
+                          </div>
+                          <p style={styles.ingredientQuantity}>
+                            {formatIngredientQuantity(adjustedIngredient)}
+                          </p>
                         </div>
-                        <p style={styles.ingredientQuantity}>
-                          {formatIngredientQuantity(ingredient)}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p style={styles.emptyText}>No hay ingredientes registrados</p>
@@ -209,17 +216,24 @@ const RecipeModal = ({
               <div style={{ textAlign: 'center', padding: '20px', color: '#FF5136' }}>Cargando...</div>
             ) : ingredients.length > 0 ? (
               <div style={styles.ingredientsList}>
-                {ingredients.map((ingredient, index) => (
-                  <div key={index} style={styles.ingredientItem}>
-                    <div style={styles.ingredientNameContainer}>
-                      <p style={styles.ingredientName}>{ingredient.name}</p>
-                      <p style={styles.ingredientCategory}>{getCategoryName(ingredient.category)}</p>
+                {ingredients.map((ingredient, index) => {
+                  // Multiplicar cantidades por número de porciones
+                  const adjustedIngredient = {
+                    ...ingredient,
+                    size: ingredient.size * portions
+                  };
+                  return (
+                    <div key={index} style={styles.ingredientItem}>
+                      <div style={styles.ingredientNameContainer}>
+                        <p style={styles.ingredientName}>{ingredient.name}</p>
+                        <p style={styles.ingredientCategory}>{getCategoryName(ingredient.category)}</p>
+                      </div>
+                      <p style={styles.ingredientQuantity}>
+                        {formatIngredientQuantity(adjustedIngredient)}
+                      </p>
                     </div>
-                    <p style={styles.ingredientQuantity}>
-                      {formatIngredientQuantity(ingredient)}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p style={styles.emptyText}>No hay ingredientes registrados</p>
