@@ -357,9 +357,11 @@ class ApiService {
    * Obtiene los ingredientes de una receta
    */
   async getIngredientsByRecipeId(
-    masterRecipeId: number
+    masterRecipeId: number,
+    page: number = 1,
+    recordsPerPage: number = 20
   ): Promise<IngredientResponse> {
-    const endpoint = `ingredient/IngredientByMasterRecipeId?search=${masterRecipeId}`;
+    const endpoint = `ingredient/IngredientByMasterRecipeId?search=${masterRecipeId}&Page=${page}&RecordsPerPage=${recordsPerPage}`;
     
     console.log('Calling ingredients API:', endpoint);
     
