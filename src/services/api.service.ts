@@ -752,6 +752,93 @@ class ApiService {
       };
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ASIGNACIÓN DE RESERVAS
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * PUT /api/reservationAssignment/Reservation/{chefId}
+   * Acepta o rechaza una reserva normal
+   */
+  async updateReservationAssignment(
+    chefId: number,
+    reservationId: number,
+    assignmentStatus: number,
+    rejectionReason?: string
+  ): Promise<BaseResponseGeneric<any>> {
+    const endpoint = `reservationAssignment/Reservation/${chefId}`;
+    
+    const now = new Date();
+    const dateString = now.toISOString().split('T')[0];
+    const timeString = now.toTimeString().split(' ')[0].substring(0, 5);
+
+    const requestBody = {
+      priority: 0,
+      assignmentStatus,
+      notifiedAt: dateString,
+      hourNotifiedAt: timeString,
+      responseAt: dateString,
+      hourResponseAt: timeString,
+      rejectionReason: rejectionReason || '',
+      chefId,
+      reservationId,
+      suscriptionId: 0,
+      reservationSuscriptionId: 0,
+      status: true,
+      createdById: chefId.toString(),
+      createdAt: now.toISOString(),
+    };
+
+    console.log('Calling updateReservationAssignment:', endpoint, requestBody);
+
+    return this.request<any>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  /**
+   * PUT /api/reservationAssignment/ReservationSuscription/{chefId}
+   * Acepta o rechaza una reserva de suscripción
+   */
+  async updateReservationSuscriptionAssignment(
+    chefId: number,
+    reservationSuscriptionId: number,
+    suscriptionId: number,
+    assignmentStatus: number,
+    rejectionReason?: string
+  ): Promise<BaseResponseGeneric<any>> {
+    const endpoint = `reservationAssignment/ReservationSuscription/${chefId}`;
+    
+    const now = new Date();
+    const dateString = now.toISOString().split('T')[0];
+    const timeString = now.toTimeString().split(' ')[0].substring(0, 5);
+
+    const requestBody = {
+      priority: 0,
+      assignmentStatus,
+      notifiedAt: dateString,
+      hourNotifiedAt: timeString,
+      responseAt: dateString,
+      hourResponseAt: timeString,
+      rejectionReason: rejectionReason || '',
+      chefId,
+      reservationId: 0,
+      suscriptionId,
+      reservationSuscriptionId,
+      status: true,
+      createdById: chefId.toString(),
+      createdAt: now.toISOString(),
+    };
+
+    console.log('Calling updateReservationSuscriptionAssignment:', endpoint, requestBody);
+
+    return this.request<any>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
+    });
+  }
 }
 
 // Exporta una instancia única del servicio (Singleton)
