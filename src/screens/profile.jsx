@@ -6,11 +6,11 @@ import { useAuth } from '../hooks/useAuth';
 import { Profile, Clock, Restaurant, List, Verified, TyC, Logout, WhatsApp, Calendar, ArrowRight } from '../assets/svgs';
 
 const ProfileScreen = () => {
-  const [chefData, setChefData] = useState(null);
+  const [, setChefDataLocal] = useState(null);
   const [loading, setLoading] = useState(true);
-  const chefId = 30; // TODO: Obtener del contexto de autenticación
+  const { chefData, logout } = useAuth();
+  const chefId = chefData?.chefId; // Obtener del contexto de autenticación
   const navigate = useNavigate();
-  const { logout } = useAuth();
 
   useEffect(() => {
     loadChefData();
@@ -21,7 +21,7 @@ const ProfileScreen = () => {
       setLoading(true);
       const response = await apiService.getChef(chefId);
       if (response.success && response.data) {
-        setChefData(response.data);
+        setChefDataLocal(response.data);
       }
     } catch (error) {
       console.error('Error loading chef data:', error);

@@ -6,6 +6,7 @@ import { StatusReservation } from '../types';
 import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ArrowRightDetail, ChecklistDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail, HatblueDetail } from '../assets/svgs';
 import { RecipeModal } from '../components/recipe-modal';
 import { getConceptName } from '../utils/formatters';
+import { useAuth } from '../hooks/useAuth';
 
 const ReservationDetailScreen = () => {
   const [reservation, setReservation] = useState(null);
@@ -13,9 +14,14 @@ const ReservationDetailScreen = () => {
   const [loading, setLoading] = useState(true);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [recipeModalVisible, setRecipeModalVisible] = useState(false);
+  const [acceptModalVisible, setAcceptModalVisible] = useState(false);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { id: reservationId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { chefData } = useAuth();
   const isActive = location.state?.isActive || false;
 
   useEffect(() => {
@@ -148,6 +154,92 @@ const ReservationDetailScreen = () => {
     setRecipeModalVisible(false);
     setTimeout(() => setSelectedRecipe(null), 300);
   };
+
+  const handleAcceptReservation = async () => {
+    console.log('=== ACEPTAR RESERVA ===');
+    console.log('chefData:', chefData);
+    console.log('reservationId:', reservationId);
+    
+    if (!chefData?.chefId) {
+      alert('Error: No se encontró el ID del chef');
+      return;
+    }
+    
+    if (!reservationId) {
+      alert('Error: No se encontró el ID de la reserva');
+      return;
+    }
+    
+    try {
+      setSubmitting(true);
+      console.log('Llamando al endpoint con:', {
+        chefId: chefData.chefId,
+        reservationId: parseInt(reservationId),
+        assignmentStatus: 1
+      });
+      
+      const response = await apiService.updateReservationAssignment(
+        chefData.chefId,
+        parseInt(reservationId),
+        1, // assignmentStatus: 1 = Aceptada
+        ''
+      );
+
+      console.log('Respuesta del endpoint:', response);
+
+      if (response.success) {
+        console.log('Reserva aceptada exitosamente');
+        // Mostrar el modal de confirmación
+        setAcceptModalVisible(true);
+      } else {
+        console.error('Error en la respuesta:', response.errorMessage);
+        alert('Error al aceptar la reserva: ' + (response.errorMessage || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error accepting reservation:', error);
+      alert('Error al aceptar la reserva: ' + error.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCloseAcceptModal = () => {
+    setAcceptModalVisible(false);
+    // Navegar a las reservas confirmadas
+    navigate('/', { replace: true });
+  };
+
+  const handleRejectReservation = async () => {
+    if (!chefData?.chefId || !reservationId || !rejectionReason.trim()) {
+      alert('Por favor ingresa un motivo de rechazo');
+      return;
+    }
+    
+    try {
+      setSubmitting(true);
+      const response = await apiService.updateReservationAssignment(
+        chefData.chefId,
+        parseInt(reservationId),
+        2, // assignmentStatus: 2 = Rechazada
+        rejectionReason
+      );
+
+      if (response.success) {
+        setRejectModalVisible(false);
+        setRejectionReason('');
+        // Navegar de vuelta
+        navigate(-1);
+      } else {
+        alert('Error al rechazar la reserva: ' + (response.errorMessage || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error rejecting reservation:', error);
+      alert('Error al rechazar la reserva');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
@@ -308,17 +400,27 @@ const ReservationDetailScreen = () => {
           </div>
         </div>
 
-        {/* Help Section */}
-        <div style={styles.helpSection}>
-          <p style={styles.helpTitle}>¿Necesitas ayuda?</p>
-          <p style={styles.helpText}>Comunícate con un asesor</p>
-          <button style={styles.helpButton}>
-            <div style={styles.helpButtonContent}>
-              <HelpDetail />
-              <span style={styles.helpButtonText}>Ayuda con mi servicio</span>
-            </div>
-          </button>
-        </div>
+        {/* Accept/Reject Buttons - Solo si está pendiente (Creada) */}
+        {reservation.statusReservation === StatusReservation.Creada && (
+          <div style={styles.actionButtonsContainer}>
+            <button 
+              style={styles.acceptButton} 
+              onClick={handleAcceptReservation}
+              disabled={submitting}
+            >
+              <span style={styles.acceptButtonText}>
+                {submitting ? 'Aceptando...' : 'Aceptar'}
+              </span>
+            </button>
+            <button 
+              style={styles.rejectButton} 
+              onClick={() => setRejectModalVisible(true)}
+              disabled={submitting}
+            >
+              <span style={styles.rejectButtonText}>Rechazar</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Recipe Modal */}
@@ -331,6 +433,73 @@ const ReservationDetailScreen = () => {
           portions={selectedRecipe.iCantidadPlatos}
           recipeSteps={selectedRecipe.sPasos}
         />
+      )}
+
+      {/* Accept Modal */}
+      {acceptModalVisible && (
+        <div style={styles.modalOverlay} onClick={() => !submitting && setAcceptModalVisible(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalIconContainer}>
+              <div style={styles.checkIconCircle}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 12l2 2 4-4" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <h3 style={styles.modalTitle}>¿Reserva aceptada?</h3>
+            <p style={styles.modalDescription}>
+              La verás en tus reservas confirmadas.
+            </p>
+            <button 
+              style={{...styles.modalButton, ...styles.modalButtonPrimary}} 
+              onClick={handleCloseAcceptModal}
+            >
+              <span style={styles.modalButtonText}>Ver Reservas</span>
+            </button>
+            <button 
+              style={styles.modalButtonSecondary}
+              onClick={handleCloseAcceptModal}
+            >
+              <span style={styles.modalButtonSecondaryText}>Volver al inicio</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectModalVisible && (
+        <div style={styles.modalOverlay} onClick={() => !submitting && setRejectModalVisible(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalIconContainer}>
+              <div style={styles.closeIconCircle}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 18L18 6M6 6l12 12" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <h3 style={styles.modalTitle}>Reserva rechazada</h3>
+            <p style={styles.modalDescription}>
+              Gracias por contestar.
+            </p>
+            <textarea
+              style={styles.modalTextarea}
+              placeholder="Motivo de rechazo"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              disabled={submitting}
+              rows={4}
+            />
+            <button 
+              style={{...styles.modalButton, ...styles.modalButtonDanger}} 
+              onClick={handleRejectReservation}
+              disabled={submitting || !rejectionReason.trim()}
+            >
+              <span style={styles.modalButtonText}>
+                {submitting ? 'Rechazando...' : 'Volver al inicio'}
+              </span>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -670,6 +839,146 @@ const styles = {
     fontWeight: '600',
     color: '#FFFFFF',
     marginLeft: '8px',
+  },
+  actionButtonsContainer: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: `${spacing.small}px`,
+    marginBottom: `${spacing.medium}px`,
+    width: '100%',
+  },
+  acceptButton: {
+    flex: 1,
+    backgroundColor: '#2EBE60',
+    padding: '16px',
+    borderRadius: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  acceptButtonText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  rejectButton: {
+    flex: 1,
+    backgroundColor: '#FF51361A',
+    padding: '16px',
+    borderRadius: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  rejectButtonText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#FF5136',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: `${spacing.medium}px`,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: '20px',
+    padding: `${spacing.large}px`,
+    maxWidth: '400px',
+    width: '100%',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+  },
+  modalIconContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: `${spacing.medium}px`,
+  },
+  checkIconCircle: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '50%',
+    backgroundColor: '#D1FAE5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeIconCircle: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '50%',
+    backgroundColor: '#FEE2E2',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#1A1F24',
+    textAlign: 'center',
+    marginBottom: `${spacing.small}px`,
+  },
+  modalDescription: {
+    fontSize: '14px',
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: `${spacing.medium}px`,
+    lineHeight: '20px',
+  },
+  modalTextarea: {
+    width: '100%',
+    padding: `${spacing.small}px`,
+    borderRadius: '8px',
+    border: '1px solid #E5E7EB',
+    fontSize: '14px',
+    color: '#1A1F24',
+    marginBottom: `${spacing.medium}px`,
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+  },
+  modalButton: {
+    width: '100%',
+    padding: '16px',
+    borderRadius: '30px',
+    border: 'none',
+    cursor: 'pointer',
+    marginBottom: `${spacing.small}px`,
+  },
+  modalButtonPrimary: {
+    backgroundColor: '#FF5136',
+  },
+  modalButtonDanger: {
+    backgroundColor: '#EF4444',
+  },
+  modalButtonText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  modalButtonSecondary: {
+    width: '100%',
+    padding: '12px',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  modalButtonSecondaryText: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6B7280',
   },
 };
 

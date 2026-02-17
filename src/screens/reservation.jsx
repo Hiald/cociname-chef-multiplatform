@@ -12,6 +12,7 @@ import {
   AgentReservation,
   ListReservation
 } from '../assets/svgs';
+import { useAuth } from '../hooks/useAuth';
 
 const ReservationScreen = () => {
   const [activeTab, setActiveTab] = useState('confirmed');
@@ -19,7 +20,8 @@ const ReservationScreen = () => {
   const [requestReservations, setRequestReservations] = useState([]);
   const [activeReservation, setActiveReservation] = useState(null);
   const [loading, setLoading] = useState(true);
-  const chefId = 30; // TODO: Obtener del contexto de autenticación
+  const { chefData } = useAuth();
+  const chefId = chefData?.chefId; // Obtener del contexto de autenticación
   const navigate = useNavigate();
 
   useEffect(() => {
