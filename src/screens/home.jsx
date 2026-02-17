@@ -6,6 +6,7 @@ import { StatusReservation } from '../types';
 import { Calendar, CalendarCheck, Chef, Clock, Profile, Time, Shopping, ArrowRight } from '../assets/svgs';
 import { getDistrictName } from '../utils/formatters';
 import { useSignalR } from '../hooks/useSignalR';
+import { useAuth } from '../hooks/useAuth';
 
 // Add loader animation
 const loaderStyle = document.createElement('style');
@@ -23,8 +24,9 @@ const HomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [activeReservation, setActiveReservation] = useState(null);
   const [upcomingReservations, setUpcomingReservations] = useState([]);
-  const [chefData, setChefData] = useState(null);
-  const chefId = 30; // TODO: Obtener del contexto de autenticación
+  const [, setChefDataLocal] = useState(null);
+  const { chefData } = useAuth();
+  const chefId = chefData?.chefId; // Obtener del contexto de autenticación
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,7 +38,7 @@ const HomeScreen = () => {
     try {
       const response = await apiService.getChef(chefId);
       if (response.success && response.data) {
-        setChefData(response.data);
+        setChefDataLocal(response.data);
       }
     } catch (error) {
       console.error('Error loading chef data:', error);
