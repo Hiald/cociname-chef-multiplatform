@@ -4,7 +4,7 @@ import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
 import { Calendar, CalendarCheck, Chef, Clock, Profile, Time, Shopping, ArrowRight } from '../assets/svgs';
-import { getDistrictName } from '../utils/formatters';
+import { getDistrictName, formatearFechaConDia } from '../utils/formatters';
 import { useSignalR } from '../hooks/useSignalR';
 import { useAuth } from '../hooks/useAuth';
 
@@ -131,12 +131,11 @@ const HomeScreen = () => {
   useEffect(() => {
     loadChefData();
     loadReservations();
-  }, [loadReservations]); 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); 
 
   const formatDate = (date) => {
-    const d = new Date(date);
-    const options = { weekday: 'long', day: 'numeric', month: 'short' };
-    return d.toLocaleDateString('es-ES', options);
+    return formatearFechaConDia(date);
   };
 
   // eslint-disable-next-line no-unused-vars

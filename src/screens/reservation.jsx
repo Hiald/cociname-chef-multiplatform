@@ -13,6 +13,7 @@ import {
   ListReservation
 } from '../assets/svgs';
 import { useAuth } from '../hooks/useAuth';
+import { formatearFechaConDia } from '../utils/formatters';
 
 const ReservationScreen = () => {
   const [activeTab, setActiveTab] = useState('confirmed');
@@ -26,6 +27,7 @@ const ReservationScreen = () => {
 
   useEffect(() => {
     loadReservations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadReservations = async () => {
@@ -110,13 +112,29 @@ const ReservationScreen = () => {
       const dateFilter = now.toISOString().split('T')[0]; // Formato: YYYY-MM-DD
       const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5); // Formato: HH:mm
       
+      // Cargar reservas normales pendientes
       const requestsResponse = await apiService.getPendingReservations({
         dateFilter,
         timeFilter,
       });
-      if (requestsResponse.success && requestsResponse.data) {
-        setRequestReservations(requestsResponse.data);
-      }
+      
+      // Cargar reservas de suscripción pendientes
+      const suscriptionResponse = await apiService.getPendingReservationSuscription({
+        dateFilter,
+        timeFilter,
+      });
+      
+      // Combinar ambas listas y agregar tipo identificador
+      const normalRequests = requestsResponse.success && requestsResponse.data 
+        ? requestsResponse.data.map(r => ({ ...r, tipo: 'reserva' }))
+        : [];
+      
+      const suscriptionRequests = suscriptionResponse.success && suscriptionResponse.data
+        ? suscriptionResponse.data.map(r => ({ ...r, tipo: 'suscripcion' }))
+        : [];
+      
+      const allRequests = [...normalRequests, ...suscriptionRequests];
+      setRequestReservations(allRequests);
     } catch (error) {
       console.error('Error loading reservations:', error);
     } finally {
@@ -125,9 +143,7 @@ const ReservationScreen = () => {
   };
 
   const formatDate = (date) => {
-    const d = new Date(date);
-    const options = { weekday: 'long', day: 'numeric', month: 'short' };
-    return d.toLocaleDateString('es-ES', options);
+    return formatearFechaConDia(date);
   };
 
   const formatCustomerName = (firstName, lastName, isRequest) => {
@@ -177,15 +193,32 @@ const ReservationScreen = () => {
         onClick={() => handleViewReservation(reservation.id, reservation.statusReservation === StatusReservation.EnCocina || reservation.statusReservation === StatusReservation.EnTrayecto)}
       >
         <div style={styles.reservationCardContent}>
-          {/* Header con badge de estado */}
+          {/* Header con badge de estado y tipo */}
           <div style={styles.cardTopRow}>
             <span style={styles.reservationCardName}>
               {formatCustomerName(reservation.customerName, reservation.customerLastName, isRequest)}
             </span>
-            <div style={{...styles.statusBadgeMini, backgroundColor: statusBadge.bgColor}}>
-              <span style={{...styles.statusBadgeMiniText, color: statusBadge.color}}>
-                {statusBadge.text}
-              </span>
+            <div style={styles.badgesContainer}>
+              {/* Badge de tipo (Reserva/Suscripción) */}
+              {reservation.tipo && (
+                <div style={{
+                  ...styles.typeBadgeMini, 
+                  backgroundColor: reservation.tipo === 'suscripcion' ? '#FEF3C7' : '#E0E7FF'
+                }}>
+                  <span style={{
+                    ...styles.typeBadgeMiniText, 
+                    color: reservation.tipo === 'suscripcion' ? '#F59E0B' : '#6366F1'
+                  }}>
+                    {reservation.tipo === 'suscripcion' ? 'SUSCRIPCIÓN' : 'RESERVA'}
+                  </span>
+                </div>
+              )}
+              {/* Badge de estado */}
+              <div style={{...styles.statusBadgeMini, backgroundColor: statusBadge.bgColor}}>
+                <span style={{...styles.statusBadgeMiniText, color: statusBadge.color}}>
+                  {statusBadge.text}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -448,10 +481,29 @@ const styles = {
     color: '#1A1F24',
     flex: 1,
   },
+  badgesContainer: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: '6px',
+    alignItems: 'center',
+  },
+  typeBadgeMini: {
+    padding: '3px 8px',
+    borderRadius: '8px',
+    minWidth: '85px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  typeBadgeMiniText: {
+    fontSize: '9px',
+    fontWeight: '700',
+    letterSpacing: '0.5px',
+    textAlign: 'center',
+  },
   statusBadgeMini: {
     padding: '3px 8px',
     borderRadius: '8px',
-    marginLeft: '8px',
   },
   statusBadgeMiniText: {
     fontSize: '9px',
