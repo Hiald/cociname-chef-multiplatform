@@ -304,6 +304,71 @@ class ApiService {
   }
 
   /**
+   * GET /api/reservationSuscription/GetPendingReservationSuscription
+   * Obtiene las reservas de suscripción pendientes con filtros opcionales
+   */
+  async getPendingReservationSuscription(
+    params?: GetPendingReservationParams
+  ): Promise<PendingReservationResponse> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.dateFilter) {
+      queryParams.append('dateFilter', params.dateFilter);
+    }
+    if (params?.timeFilter) {
+      queryParams.append('timeFilter', params.timeFilter);
+    }
+    if (params?.Page !== undefined) {
+      queryParams.append('Page', params.Page.toString());
+    }
+    if (params?.RecordsPerPage !== undefined) {
+      queryParams.append('RecordsPerPage', params.RecordsPerPage.toString());
+    }
+
+    const queryString = queryParams.toString();
+    const endpoint = `reservationSuscription/GetPendingReservationSuscription${queryString ? `?${queryString}` : ''}`;
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data: PendingReservationResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: [],
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
    * GET /api/reservationMasterRecipe/ReservationMasterRecipeSearchId?ReservationId={reservationId}
    * Obtiene las recetas/platos de una reserva
    */
