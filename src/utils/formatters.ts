@@ -3,6 +3,36 @@
  */
 
 /**
+ * Formateador de fechas para Lima, Perú (UTC-5)
+ * Evita el error de "un día menos" usando UTC
+ */
+export function formatearFechaPerú(fechaISO: string | Date): string {
+  const opciones: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC' // Forzamos UTC para que coincida con la entrada ISO
+  };
+
+  return new Intl.DateTimeFormat('es-PE', opciones).format(new Date(fechaISO));
+}
+
+/**
+ * Formatea una fecha para mostrar con día de la semana
+ * Formato: "lunes, 5 ene"
+ */
+export function formatearFechaConDia(fechaISO: string | Date): string {
+  const opciones: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC'
+  };
+
+  return new Intl.DateTimeFormat('es-PE', opciones).format(new Date(fechaISO));
+}
+
+/**
  * Retorna el nombre de la categoría de ingrediente
  */
 export function getCategoryName(categoryId: number): string {
