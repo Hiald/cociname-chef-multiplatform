@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import LoginScreen from '../screens/login';
 import ReservationDetailScreen from '../screens/reservationDetail';
+import ReservationSuscriptionDetailScreen from '../screens/reservationSuscriptionDetail';
 import HomeScreen from '../screens/home';
 import ReservationScreen from '../screens/reservation';
 import ProfileScreen from '../screens/profile';
@@ -94,6 +95,7 @@ const Navigator = () => {
             <Route path="/reservation" element={<ReservationScreen />} />
             <Route path="/profile" element={<ProfileScreen />} />
             <Route path="/reservation/:id" element={<ReservationDetailScreen />} />
+            <Route path="/reservation-suscription/:id" element={<ReservationSuscriptionDetailScreen />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

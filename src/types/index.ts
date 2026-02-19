@@ -517,7 +517,7 @@ export interface IngredientChecklistResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Tipos de Navegación (5 vistas)
+// Tipos de Navegación (6 vistas)
 // ═══════════════════════════════════════════════════════════════
 
 export type RootStackParamList = {
@@ -530,5 +530,8 @@ export type RootStackParamList = {
   ReservationDetail: {
     reservationId: number;
     isActive?: boolean;
+  };
+  SuscriptionDetail: {
+    suscriptionId: number;
   };
 };

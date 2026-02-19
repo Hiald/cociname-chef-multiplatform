@@ -20,6 +20,9 @@ const ReservationScreen = () => {
   const [confirmedReservations, setConfirmedReservations] = useState([]);
   const [requestReservations, setRequestReservations] = useState([]);
   const [activeReservation, setActiveReservation] = useState(null);
+  const [activeSuscription, setActiveSuscription] = useState(null);
+  const [suscriptionReservations, setSuscriptionReservations] = useState([]);
+  const [expandedSuscription, setExpandedSuscription] = useState(false);
   const [loading, setLoading] = useState(true);
   const { chefData } = useAuth();
   const chefId = chefData?.chefId; // Obtener del contexto de autenticación
@@ -29,6 +32,13 @@ const ReservationScreen = () => {
     loadReservations();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (chefData?.id) {
+      loadSuscriptions();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chefData?.id]);
 
   const loadReservations = async () => {
     try {
@@ -142,6 +152,41 @@ const ReservationScreen = () => {
     }
   };
 
+  const loadSuscriptions = async () => {
+    try {
+      const response = await apiService.getSuscriptionsByChefId(chefData.id);
+      
+      if (response.success && response.data && response.data.length > 0) {
+        // Filtrar suscripciones activas y ordenar por fecha más cercana
+        const activeSuscriptions = response.data.filter(s => s.statusSuscription === 1);
+        
+        if (activeSuscriptions.length > 0) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          // Ordenar por fecha de inicio más cercana
+          const sorted = activeSuscriptions
+            .map(s => ({
+              ...s,
+              dateNum: s.startDate ? new Date(s.startDate).getTime() : 0
+            }))
+            .sort((a, b) => Math.abs(a.dateNum - today.getTime()) - Math.abs(b.dateNum - today.getTime()));
+          
+          const firstActive = sorted[0];
+          setActiveSuscription(firstActive);
+          
+          // Cargar las reservas hijas de esta suscripción
+          const reservationsResponse = await apiService.getReservationsBySuscriptionId(firstActive.id);
+          if (reservationsResponse.success && reservationsResponse.data) {
+            setSuscriptionReservations(reservationsResponse.data);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error loading suscriptions:', error);
+    }
+  };
+
   const formatDate = (date) => {
     return formatearFechaConDia(date);
   };
@@ -177,10 +222,18 @@ const ReservationScreen = () => {
     }
   };
 
-  const handleViewReservation = (reservationId, isActive) => {
-    navigate(`/reservation/${reservationId}`, {
-      state: { reservationId, isActive }
-    });
+  const handleViewReservation = (reservation, isActive) => {
+    // Si es una suscripción, navegar a reservationSuscriptionDetail
+    if (reservation.tipo === 'suscripcion') {
+      navigate(`/reservation-suscription/${reservation.id}`, {
+        state: { reservationSuscriptionId: reservation.id, suscriptionId: reservation.suscriptionId, isActive, isSuscription: true }
+      });
+    } else {
+      // Si es una reserva normal, navegar a reservationDetail
+      navigate(`/reservation/${reservation.id}`, {
+        state: { reservationId: reservation.id, isActive }
+      });
+    }
   };
 
   const renderReservationCard = (reservation, isRequest) => {
@@ -190,7 +243,7 @@ const ReservationScreen = () => {
       <button 
         key={reservation.id} 
         style={styles.reservationCard}
-        onClick={() => handleViewReservation(reservation.id, reservation.statusReservation === StatusReservation.EnCocina || reservation.statusReservation === StatusReservation.EnTrayecto)}
+        onClick={() => handleViewReservation(reservation, reservation.statusReservation === StatusReservation.EnCocina || reservation.statusReservation === StatusReservation.EnTrayecto)}
       >
         <div style={styles.reservationCardContent}>
           {/* Header con badge de estado y tipo */}
@@ -267,6 +320,107 @@ const ReservationScreen = () => {
 
   return (
     <div style={styles.container}>
+      {/* Mis suscripciones */}
+      {activeSuscription && (
+        <div style={styles.suscriptionSection}>
+          <div style={styles.suscriptionHeader}>
+            <h2 style={styles.suscriptionTitle}>Mi suscripción</h2>
+            <div style={styles.suscriptionBadge}>
+              <span style={styles.suscriptionBadgeText}>Suscripción activa</span>
+            </div>
+          </div>
+
+          <div style={styles.suscriptionCard}>
+            <div style={styles.suscriptionCardHeader}>
+              <h3 style={styles.suscriptionPlanName}>Plan Mensual Premium</h3>
+              <span style={styles.suscriptionPrice}>S/ {activeSuscription.totalPrice}</span>
+            </div>
+
+            <p style={styles.suscriptionSubtitle}>
+              {activeSuscription.visitsPerMonth} reservas incluidas al mes
+            </p>
+
+            <div style={styles.progressSection}>
+              <div style={styles.progressHeader}>
+                <span style={styles.progressLabel}>Fechas utilizadas</span>
+                <span style={styles.progressCount}>
+                  {suscriptionReservations.filter(r => r.suscriptionStatus >= 1).length}/{activeSuscription.visitsPerMonth}
+                </span>
+              </div>
+              <div style={styles.progressBar}>
+                <div 
+                  style={{
+                    ...styles.progressFill,
+                    width: `${(suscriptionReservations.filter(r => r.suscriptionStatus >= 1).length / activeSuscription.visitsPerMonth) * 100}%`
+                  }}
+                />
+              </div>
+              <p style={styles.progressText}>
+                Te quedan {activeSuscription.visitsPerMonth - suscriptionReservations.filter(r => r.suscriptionStatus >= 1).length} reservas disponibles
+              </p>
+            </div>
+
+            <div style={styles.renewalSection}>
+              <span style={styles.renewalLabel}>Próxima renovación:</span>
+              <span style={styles.renewalDate}>{activeSuscription.endDate ? formatDate(activeSuscription.endDate) : 'No especificada'}</span>
+            </div>
+
+            <button 
+              style={styles.toggleButton}
+              onClick={() => setExpandedSuscription(!expandedSuscription)}
+            >
+              <span style={styles.toggleButtonText}>
+                {expandedSuscription ? 'Ocultar reservas' : 'Ver detalle de reservas'}
+              </span>
+              <span style={{...styles.toggleIcon, transform: expandedSuscription ? 'rotate(180deg)' : 'rotate(0deg)'}}>
+                ▼
+              </span>
+            </button>
+
+            {/* Lista expandible de reservas */}
+            {expandedSuscription && (
+              <div style={styles.suscriptionReservationsList}>
+                {suscriptionReservations.length === 0 ? (
+                  <p style={styles.emptyReservationsText}>No hay reservas programadas aún</p>
+                ) : (
+                  suscriptionReservations.map((reservation, index) => (
+                    <div key={reservation.id} style={styles.suscriptionReservationItem}>
+                      <div style={styles.suscriptionReservationHeader}>
+                        <span style={styles.suscriptionReservationNumber}>Reserva {index + 1}</span>
+                        <span style={{
+                          ...styles.suscriptionReservationStatus,
+                          color: reservation.suscriptionStatus >= 1 ? '#10B981' : '#6B7280'
+                        }}>
+                          {reservation.suscriptionStatus >= 1 ? 'Completada' : 'Pendiente'}
+                        </span>
+                      </div>
+                      {reservation.dateReservation && (
+                        <p style={styles.suscriptionReservationDate}>
+                          {formatDate(reservation.dateReservation)} - {reservation.hourReservation}
+                        </p>
+                      )}
+                      <button 
+                        style={{
+                          ...styles.suscriptionReservationButton,
+                          opacity: !reservation.dateReservation ? 0.5 : 1,
+                          cursor: !reservation.dateReservation ? 'not-allowed' : 'pointer'
+                        }}
+                        onClick={() => reservation.dateReservation && navigate(`/suscription/${activeSuscription.id}`)}
+                        disabled={!reservation.dateReservation}
+                      >
+                        <span style={styles.suscriptionReservationButtonText}>
+                          {reservation.dateReservation ? 'Ver detalle' : 'Sin programar'}
+                        </span>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header con título */}
       <div style={styles.header}>
         <div style={styles.headerTitleRow}>
@@ -335,7 +489,7 @@ const ReservationScreen = () => {
 
             <button 
               style={styles.viewDetailsButton} 
-              onClick={() => handleViewReservation(activeReservation.id, true)}
+              onClick={() => handleViewReservation(activeReservation, true)}
             >
               <span style={styles.viewDetailsButtonText}>Ver Reserva en Curso</span>
             </button>
@@ -643,6 +797,200 @@ const styles = {
     fontSize: '15px',
     fontWeight: '600',
     color: '#FF5136',
+  },
+  // Estilos para Suscripción
+  suscriptionSection: {
+    backgroundColor: '#FFFFFF',
+    padding: `${spacing.medium}px`,
+    borderBottom: '1px solid #E5E7EB',
+  },
+  suscriptionHeader: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: `${spacing.small}px`,
+  },
+  suscriptionTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#1A1F24',
+    margin: 0,
+  },
+  suscriptionBadge: {
+    backgroundColor: '#D1FAE5',
+    padding: '4px 12px',
+    borderRadius: '12px',
+  },
+  suscriptionBadgeText: {
+    fontSize: '11px',
+    fontWeight: '700',
+    color: '#10B981',
+    letterSpacing: '0.5px',
+  },
+  suscriptionCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: '12px',
+    padding: `${spacing.medium}px`,
+    marginTop: `${spacing.small}px`,
+  },
+  suscriptionCardHeader: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px',
+  },
+  suscriptionPlanName: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#1A1F24',
+    margin: 0,
+  },
+  suscriptionPrice: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#FF5136',
+  },
+  suscriptionSubtitle: {
+    fontSize: '14px',
+    color: '#6B7280',
+    marginBottom: `${spacing.medium}px`,
+    marginTop: '4px',
+  },
+  progressSection: {
+    marginBottom: `${spacing.medium}px`,
+  },
+  progressHeader: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px',
+  },
+  progressLabel: {
+    fontSize: '14px',
+    color: '#374151',
+    fontWeight: '600',
+  },
+  progressCount: {
+    fontSize: '18px',
+    fontWeight: '700',
+    color: '#3B82F6',
+  },
+  progressBar: {
+    width: '100%',
+    height: '8px',
+    backgroundColor: '#E5E7EB',
+    borderRadius: '4px',
+    overflow: 'hidden',
+    marginBottom: '8px',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#3B82F6',
+    borderRadius: '4px',
+    transition: 'width 0.3s ease',
+  },
+  progressText: {
+    fontSize: '13px',
+    color: '#6B7280',
+    margin: 0,
+  },
+  renewalSection: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: `${spacing.small}px`,
+    borderTop: '1px solid #E5E7EB',
+    marginBottom: `${spacing.medium}px`,
+  },
+  renewalLabel: {
+    fontSize: '14px',
+    color: '#6B7280',
+  },
+  renewalDate: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1A1F24',
+  },
+  toggleButton: {
+    backgroundColor: '#FF51361A',
+    padding: '12px',
+    borderRadius: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    cursor: 'pointer',
+    width: '100%',
+    marginBottom: `${spacing.small}px`,
+  },
+  toggleButtonText: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#FF5136',
+    marginRight: '8px',
+  },
+  toggleIcon: {
+    fontSize: '12px',
+    color: '#FF5136',
+    transition: 'transform 0.3s ease',
+  },
+  suscriptionReservationsList: {
+    marginTop: `${spacing.medium}px`,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: `${spacing.small}px`,
+  },
+  suscriptionReservationItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: '8px',
+    padding: `${spacing.small}px`,
+    border: '1px solid #E5E7EB',
+  },
+  suscriptionReservationHeader: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '4px',
+  },
+  suscriptionReservationNumber: {
+    fontSize: '14px',
+    fontWeight: '700',
+    color: '#1A1F24',
+  },
+  suscriptionReservationStatus: {
+    fontSize: '12px',
+    fontWeight: '600',
+  },
+  suscriptionReservationDate: {
+    fontSize: '13px',
+    color: '#6B7280',
+    margin: '4px 0',
+  },
+  suscriptionReservationButton: {
+    backgroundColor: 'transparent',
+    border: '1px solid #E5E7EB',
+    borderRadius: '6px',
+    padding: '8px 12px',
+    width: '100%',
+    cursor: 'pointer',
+    marginTop: '8px',
+  },
+  suscriptionReservationButtonText: {
+    fontSize: '13px',
+    fontWeight: '600',
+    color: '#374151',
+  },
+  emptyReservationsText: {
+    fontSize: '14px',
+    color: '#9CA3AF',
+    textAlign: 'center',
+    padding: `${spacing.medium}px`,
+    margin: 0,
   },
 };
 
