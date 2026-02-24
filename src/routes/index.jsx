@@ -8,6 +8,7 @@ import ReservationScreen from '../screens/reservation';
 import ProfileScreen from '../screens/profile';
 import { PublicReservationScreen } from '../screens/public-reservation';
 import { PublicSuscriptionScreen } from '../screens/public-suscription';
+import PublicOnboardingScreen from '../screens/public-onboarding';
 import { Header } from '../components/header';
 import { Sidebar } from '../components/sidebar';
 import BottomTabs from '../components/bottom-tabs/bottom-tabs';
@@ -30,6 +31,11 @@ const Navigator = () => {
     return <PublicSuscriptionScreen token={token} />;
   };
 
+  const PublicOnboardingWrapper = () => {
+    const { token } = useParams();
+    return <PublicOnboardingScreen token={token} />;
+  };
+
   // Ruta pública independiente - NO requiere autenticación
   // Se verifica DESPUÉS de los hooks pero ANTES de verificar auth
   if (location.pathname.startsWith('/reserva/')) {
@@ -44,6 +50,15 @@ const Navigator = () => {
     return (
       <Routes>
         <Route path="/suscripcion/:token" element={<PublicSuscriptionWrapper />} />
+      </Routes>
+    );
+  }
+
+  // Alias para /inicio/:token -> mismo que /onboarding/:token
+  if (location.pathname.startsWith('/inicio/')) {
+    return (
+      <Routes>
+        <Route path="/inicio/:token" element={<PublicOnboardingWrapper />} />
       </Routes>
     );
   }
