@@ -129,6 +129,70 @@ class ApiService {
     }
   }
 
+  /**
+   * Método para peticiones públicas (sin autenticación)
+   */
+  private async publicRequest<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<BaseResponseGeneric<T>> {
+    const url = `${this.baseUrl}${endpoint}`;
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string>),
+    };
+
+    // NO agregar Authorization header para peticiones públicas
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const contentType = response.headers.get('content-type');
+      const hasJsonContent = contentType && contentType.includes('application/json');
+      
+      if (!response.ok) {
+        let errorMessage = `Error: ${response.status}`;
+        let errorData = null;
+        
+        if (hasJsonContent) {
+          try {
+            errorData = await response.json();
+            errorMessage = errorData.errorMessage || errorMessage;
+            console.error(`Public request error (${response.status}):`, errorData);
+          } catch (e) {
+            console.error(`Public request error (${response.status}): Could not parse JSON`);
+          }
+        }
+        
+        return {
+          success: false,
+          errorMessage,
+          data: null,
+        };
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Public request exception:', error);
+      return {
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+        data: null,
+      };
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // AUTENTICACIÓN
   // ═══════════════════════════════════════════════════════════════
@@ -166,6 +230,27 @@ class ApiService {
     return this.request<RegisterChefResponseDto>('users/RegisterChef', {
       method: 'POST',
       body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * POST /api/users/send-onboarding-code
+   * Envía código de 6 dígitos al correo para onboarding de chef
+   */
+  async sendOnboardingChefCode(
+    tokenLink: string,
+    nuevoCorreo: string
+  ): Promise<BaseResponseGeneric<any>> {
+    const requestBody = {
+      tokenLink,
+      nuevoCorreo,
+    };
+
+    console.log('Calling sendOnboardingChefCode:', requestBody);
+
+    return this.publicRequest<any>('users/send-onboarding-chef-code', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
     });
   }
 
