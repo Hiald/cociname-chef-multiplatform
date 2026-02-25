@@ -277,6 +277,27 @@ class ApiService {
     });
   }
 
+  /**
+   * POST /api/users/complete-onboarding-chefapp
+   * Completa el onboarding del chef desde la app con código de verificación
+   */
+  async completeOnboardingChefApp(
+    email: string,
+    code: string
+  ): Promise<BaseResponseGeneric<any>> {
+    const requestBody = {
+      email,
+      code,
+    };
+
+    console.log('Calling completeOnboardingChefApp:', requestBody);
+
+    return this.publicRequest<any>('users/complete-onboarding-chefapp', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // RESERVAS
   // ═══════════════════════════════════════════════════════════════
