@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api.service';
 import { CalendarCheck, Restaurant, Verified } from '../assets/svgs';
 import logoImg from '../assets/images/logo.png';
@@ -10,6 +10,7 @@ import logoImg from '../assets/images/logo.png';
  */
 const PublicOnboardingScreen = () => {
   const { token } = useParams();
+  const navigate = useNavigate();
   
   // Step 1: Email input
   const [step, setStep] = useState(1); // 1 = email, 2 = code + password
@@ -23,7 +24,6 @@ const PublicOnboardingScreen = () => {
   // UI states
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
 
   const handleSendCode = async () => {
     setError('');
@@ -95,6 +95,13 @@ const PublicOnboardingScreen = () => {
       return;
     }
 
+    // Validar que la contraseña tenga al menos 1 número
+    const hasNumber = /\d/.test(password);
+    if (!hasNumber) {
+      setError('La contraseña debe contener al menos un número');
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
@@ -103,17 +110,21 @@ const PublicOnboardingScreen = () => {
     setIsLoading(true);
     
     try {
-      // Aquí iría la lógica para confirmar el código y crear la cuenta
+      // Limpiar el token removiendo cualquier hash (#) que pueda tener al final
+      const cleanToken = token.split('#')[0];
+      
       console.log('Confirmando registro con código:', code);
       console.log('Email:', email);
-      console.log('Password:', password);
       
-      // TODO: Llamar al endpoint de confirmación final
-      // const response = await apiService.confirmOnboardingChef(token, code, password);
+      const response = await apiService.completeChefOnboarding(cleanToken, code, password);
       
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setSuccess(true);
+      if (response.success) {
+        console.log('Onboarding completado exitosamente');
+        // Redirigir al login
+        navigate('/login');
+      } else {
+        setError(response.errorMessage || 'Error al confirmar el registro');
+      }
       
     } catch (err) {
       setError('Error al confirmar el registro. Por favor, intenta más tarde.');
@@ -177,39 +188,6 @@ const PublicOnboardingScreen = () => {
       </div>
     </div>
   );
-
-  // Success screen
-  if (success) {
-    return (
-      <div style={styles.container}>
-        {renderLeftSection()}
-        <div style={styles.rightSection}>
-          <div style={styles.rightSectionContent}>
-            <div style={styles.successCard}>
-              <div style={styles.successIconCircle}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none">
-                  <path 
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" 
-                    stroke="#10B981" 
-                    strokeWidth="2" 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </div>
-              <h2 style={styles.successTitle}>¡Cuenta confirmada!</h2>
-              <p style={styles.successText}>
-                Tu cuenta ha sido creada exitosamente. Ahora puedes descargar la aplicación móvil para comenzar a usar Cociname.
-              </p>
-              <button style={styles.successButton}>
-                <span style={styles.successButtonText}>Descargar aplicación</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Step 1: Email input
   if (step === 1) {
@@ -324,12 +302,12 @@ const PublicOnboardingScreen = () => {
               ) : null}
 
               <button 
-                style={isLoading ? {...styles.continueButton, ...styles.continueButtonDisabled} : styles.continueButton}
+                style={isLoading ? {...styles.activateButton, ...styles.activateButtonDisabled} : styles.activateButton}
                 onClick={handleConfirmRegistration}
                 disabled={isLoading}
               >
-                <span style={styles.continueButtonText}>
-                  {isLoading ? 'Confirmando...' : 'Confirmar registro'}
+                <span style={styles.activateButtonText}>
+                  {isLoading ? 'Activando cuenta...' : 'Activar cuenta'}
                 </span>
               </button>
 
@@ -513,6 +491,29 @@ const styles = {
     fontWeight: '600',
     color: '#FFFFFF',
   },
+  activateButton: {
+    width: '100%',
+    height: 56,
+    backgroundColor: '#10B981',
+    borderRadius: 10,
+    border: 'none',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s',
+    marginTop: 8,
+  },
+  activateButtonDisabled: {
+    backgroundColor: '#86EFAC',
+    opacity: 0.7,
+    cursor: 'not-allowed',
+  },
+  activateButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
   backButton: {
     width: '100%',
     height: 48,
@@ -542,53 +543,6 @@ const styles = {
     color: '#3B82F6',
     textDecoration: 'none',
     fontWeight: '500',
-  },
-  
-  // Success state
-  successCard: {
-    width: '100%',
-    maxWidth: 500,
-    textAlign: 'center',
-  },
-  successIconCircle: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: '#D1FAE5',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: '0 auto 24px auto',
-  },
-  successTitle: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#1A1F24',
-    marginBottom: 16,
-    margin: '0 0 16px 0',
-  },
-  successText: {
-    fontSize: 17,
-    color: '#6B7280',
-    lineHeight: '28px',
-    marginBottom: 40,
-    margin: '0 0 40px 0',
-  },
-  successButton: {
-    width: '100%',
-    height: 56,
-    backgroundColor: '#FF5136',
-    borderRadius: 10,
-    border: 'none',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    cursor: 'pointer',
-  },
-  successButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
 };
 
