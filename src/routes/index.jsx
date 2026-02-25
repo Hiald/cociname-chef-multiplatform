@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import LoginScreen from '../screens/login';
+import RegisterScreen from '../screens/register';
 import ReservationDetailScreen from '../screens/reservationDetail';
 import ReservationSuscriptionDetailScreen from '../screens/reservationSuscriptionDetail';
 import HomeScreen from '../screens/home';
@@ -63,6 +64,24 @@ const Navigator = () => {
     );
   }
 
+  // Ruta pública para onboarding
+  if (location.pathname.startsWith('/onboarding/')) {
+    return (
+      <Routes>
+        <Route path="/onboarding/:token" element={<PublicOnboardingWrapper />} />
+      </Routes>
+    );
+  }
+
+  // Ruta pública para registro
+  if (location.pathname === '/register') {
+    return (
+      <Routes>
+        <Route path="/register" element={<RegisterScreen />} />
+      </Routes>
+    );
+  }
+
   const getCurrentRoute = () => {
     const path = location.pathname;
     if (path === '/' || path === '/home') return 'Home';
@@ -84,6 +103,7 @@ const Navigator = () => {
     return (
       <Routes>
         <Route path="/login" element={<LoginScreen />} />
+        <Route path="/register" element={<RegisterScreen />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );

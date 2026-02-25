@@ -148,6 +148,16 @@ const LoginScreen = () => {
                 {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
               </span>
             </button>
+
+            <p style={styles.registerText}>
+              ¿No tienes cuenta? <button 
+                style={styles.registerLink}
+                onClick={() => navigate('/register')}
+                disabled={isLoading}
+              >
+                Regístrate
+              </button>
+            </p>
           </div>
         </div>
       </div>
@@ -368,7 +378,24 @@ const styles = {
     alignItems: 'center',
     marginTop: 8,
     cursor: 'pointer',
-  }
+  },
+  registerText: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 24,
+    margin: '24px 0 0 0',
+  },
+  registerLink: {
+    background: 'none',
+    border: 'none',
+    color: '#3B82F6',
+    textDecoration: 'underline',
+    cursor: 'pointer',
+    fontSize: 15,
+    fontWeight: '500',
+    padding: 0,
+  },
 };
 
 export default LoginScreen;
