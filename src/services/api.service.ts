@@ -254,6 +254,29 @@ class ApiService {
     });
   }
 
+  /**
+   * POST /api/users/complete-chef-onboarding
+   * Completa el onboarding del chef con código de verificación y contraseña
+   */
+  async completeChefOnboarding(
+    tokenLink: string,
+    codigo6Digitos: string,
+    nuevaPassword: string
+  ): Promise<BaseResponseGeneric<any>> {
+    const requestBody = {
+      tokenLink,
+      codigo6Digitos,
+      nuevaPassword,
+    };
+
+    console.log('Calling completeChefOnboarding:', { tokenLink, codigo6Digitos, nuevaPassword: '***' });
+
+    return this.publicRequest<any>('users/complete-chef-onboarding', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // RESERVAS
   // ═══════════════════════════════════════════════════════════════
