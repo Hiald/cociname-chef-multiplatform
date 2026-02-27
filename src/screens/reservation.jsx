@@ -113,8 +113,36 @@ const ReservationScreen = () => {
           r.statusReservation === StatusReservation.EnCompra ||
           r.statusReservation === StatusReservation.EnTrayecto ||
           r.statusReservation === StatusReservation.EnCocina
-        );
-        setConfirmedReservations(confirmed);
+        ).map(r => ({ ...r, tipo: 'reserva' }));
+        
+        // Cargar suscripciones confirmadas del chef
+        let allConfirmed = [...confirmed];
+        
+        if (chefId) {
+          const suscriptionsResponse = await apiService.getSuscriptionsByChefId(chefId);
+          
+          if (suscriptionsResponse.success && suscriptionsResponse.data) {
+            // Filtrar suscripciones activas (confirmadas)
+            const activeSuscriptions = suscriptionsResponse.data
+              .filter(s => s.statusSuscription === 1)
+              .map(s => ({
+                ...s,
+                tipo: 'suscripcion',
+                // Mapear campos para que sean compatibles con el renderizado
+                customerName: s.customerName || 'Cliente',
+                customerLastName: s.customerLastName || '',
+                dateReservation: s.startDate,
+                hourReservation: '00:00',
+                direction: s.direction || 'Dirección no especificada',
+                puchaseIngredients: false,
+                statusReservation: StatusReservation.Aceptada // Considerarlas como aceptadas
+              }));
+            
+            allConfirmed = [...allConfirmed, ...activeSuscriptions];
+          }
+        }
+        
+        setConfirmedReservations(allConfirmed);
       }
 
       // Cargar solicitudes pendientes con fecha y hora actual
@@ -154,7 +182,7 @@ const ReservationScreen = () => {
 
   const loadSuscriptions = async () => {
     try {
-      const response = await apiService.getSuscriptionsByChefId(chefData.id);
+      const response = await apiService.getSuscriptionsByChefId(chefId);
       
       if (response.success && response.data && response.data.length > 0) {
         // Filtrar suscripciones activas y ordenar por fecha más cercana
@@ -222,16 +250,41 @@ const ReservationScreen = () => {
     }
   };
 
-  const handleViewReservation = (reservation, isActive) => {
-    // Si es una suscripción, navegar a reservationSuscriptionDetail
+  const handleViewReservation = (reservation, isActive, isRequest = false) => {
+    // Si es una suscripción confirmada (plan completo)
+    if (reservation.tipo === 'suscripcion' && !reservation.reservationSuscriptionId) {
+      // Navegar al detalle de suscripción usando el ID de la suscripción
+      navigate(`/reservation-suscription/${reservation.id}`, {
+        state: { 
+          reservationSuscriptionId: reservation.id, 
+          suscriptionId: reservation.id, 
+          isActive: false, 
+          isSuscription: true,
+          isRequest: false
+        }
+      });
+      return;
+    }
+    
+    // Si es una reserva de suscripción (reserva individual dentro de un plan)
     if (reservation.tipo === 'suscripcion') {
       navigate(`/reservation-suscription/${reservation.id}`, {
-        state: { reservationSuscriptionId: reservation.id, suscriptionId: reservation.suscriptionId, isActive, isSuscription: true }
+        state: { 
+          reservationSuscriptionId: reservation.id, 
+          suscriptionId: reservation.suscriptionId, 
+          isActive, 
+          isSuscription: true,
+          isRequest // Agregar si es solicitud o confirmada
+        }
       });
     } else {
       // Si es una reserva normal, navegar a reservationDetail
       navigate(`/reservation/${reservation.id}`, {
-        state: { reservationId: reservation.id, isActive }
+        state: { 
+          reservationId: reservation.id, 
+          isActive,
+          isRequest // Agregar si es solicitud o confirmada
+        }
       });
     }
   };
@@ -243,7 +296,11 @@ const ReservationScreen = () => {
       <button 
         key={reservation.id} 
         style={styles.reservationCard}
-        onClick={() => handleViewReservation(reservation, reservation.statusReservation === StatusReservation.EnCocina || reservation.statusReservation === StatusReservation.EnTrayecto)}
+        onClick={() => handleViewReservation(
+          reservation, 
+          reservation.statusReservation === StatusReservation.EnCocina || reservation.statusReservation === StatusReservation.EnTrayecto,
+          isRequest
+        )}
       >
         <div style={styles.reservationCardContent}>
           {/* Header con badge de estado y tipo */}

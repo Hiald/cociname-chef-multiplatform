@@ -21,10 +21,12 @@ const ReservationSuscriptionDetailScreen = () => {
   const navigate = useNavigate();
   const { chefData } = useAuth();
   const isActive = location.state?.isActive || false;
+  const isRequest = location.state?.isRequest || false;
 
   console.log('🔍 Estado del componente:', { 
     reservationId, 
-    isActive, 
+    isActive,
+    isRequest,
     locationState: location.state,
     chefData: chefData?.chefId 
   });
@@ -362,8 +364,8 @@ const ReservationSuscriptionDetailScreen = () => {
             </div>
           </div>
 
-          {/* Action Buttons for Pending Requests */}
-          {!isActive && (
+          {/* Action Buttons for Pending Requests - Solo si es solicitud pendiente */}
+          {isRequest && (
             <div style={styles.actionButtonsContainer}>
               <button 
                 style={styles.acceptButton}

@@ -23,6 +23,7 @@ const ReservationDetailScreen = () => {
   const navigate = useNavigate();
   const { chefData } = useAuth();
   const isActive = location.state?.isActive || false;
+  const isRequest = location.state?.isRequest || false;
 
   useEffect(() => {
     let isMounted = true;
@@ -400,8 +401,8 @@ const ReservationDetailScreen = () => {
           </div>
         </div>
 
-        {/* Accept/Reject Buttons - Solo si está pendiente (Creada) */}
-        {reservation.statusReservation === StatusReservation.Creada && (
+        {/* Accept/Reject Buttons - Solo si es una solicitud pendiente */}
+        {isRequest && (
           <div style={styles.actionButtonsContainer}>
             <button 
               style={styles.acceptButton} 
