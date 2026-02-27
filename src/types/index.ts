@@ -517,6 +517,31 @@ export interface IngredientChecklistResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CHEF RESERVATION - Marcaciones de Chef
+// ═══════════════════════════════════════════════════════════════
+
+export interface ChefReservationData {
+  id: number;
+  reservationId?: number;
+  reservationSuscriptionId?: number;
+  chefId: number;
+  arrivedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  status: boolean;
+  createdById: string;
+  createdAt: string;
+  updatedById?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface ChefReservationResponse {
+  data: ChefReservationData[];
+  success: boolean;
+  errorMessage: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Tipos de Navegación (6 vistas)
 // ═══════════════════════════════════════════════════════════════
 

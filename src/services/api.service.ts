@@ -19,7 +19,8 @@ import {
   IngredientData,
   ReservationSuscriptionData,
   SuscriptionData,
-} from '../types';
+  ChefReservationResponse
+} from '../types'; 
 
 // ═══════════════════════════════════════════════════════════════
 // Servicio API REST para Cociname
@@ -1239,6 +1240,116 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(reservationData),
     });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MARCACIONES DE CHEF
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/ChefReservation/ListChefReservationByReservId?ReservationId={reservationId}
+   * Obtiene las marcaciones de una reserva independiente
+   */
+  async getChefReservationByReservationId(
+    reservationId: number
+  ): Promise<ChefReservationResponse> {
+    const endpoint = `ChefReservation/ListChefReservationByReservId?ReservationId=${reservationId}`;
+    
+    console.log('Calling getChefReservationByReservationId:', endpoint);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data: ChefReservationResponse = await response.json();
+
+      if (!response.ok) {
+        console.error('getChefReservationByReservationId error:', response.status, data);
+        return {
+          data: [],
+          success: false,
+          errorMessage: data.errorMessage || `HTTP ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error('getChefReservationByReservationId exception:', error);
+      return {
+        data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
+   * GET /api/ChefReservation/ListChefReservationByReservSuscrId?ReservationSuscriptionId={reservationSuscriptionId}
+   * Obtiene las marcaciones de una reserva de suscripción
+   */
+  async getChefReservationByReservationSuscriptionId(
+    reservationSuscriptionId: number
+  ): Promise<ChefReservationResponse> {
+    const endpoint = `ChefReservation/ListChefReservationByReservSuscrId?ReservationSuscriptionId=${reservationSuscriptionId}`;
+    
+    console.log('Calling getChefReservationByReservationSuscriptionId:', endpoint);
+    
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data: ChefReservationResponse = await response.json();
+
+      if (!response.ok) {
+        console.error('getChefReservationByReservationSuscriptionId error:', response.status, data);
+        return {
+          data: [],
+          success: false,
+          errorMessage: data.errorMessage || `HTTP ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error('getChefReservationByReservationSuscriptionId exception:', error);
+      return {
+        data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
   }
 }
 
