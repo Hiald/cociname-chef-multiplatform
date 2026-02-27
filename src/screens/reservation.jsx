@@ -244,9 +244,9 @@ const ReservationScreen = () => {
         return { text: 'ACEPTADA', color: '#8B5CF6', bgColor: '#EDE9FE' };
       case StatusReservation.Creada:
       case StatusReservation.Actualizada:
-        return { text: 'PENDIENTE', color: '#6B7280', bgColor: '#F3F4F6' };
+        return { text: 'CONFIRMADA', color: '#10B981', bgColor: '#D1FAE5' };
       default:
-        return { text: 'PENDIENTE', color: '#6B7280', bgColor: '#F3F4F6' };
+        return { text: 'CONFIRMADA', color: '#10B981', bgColor: '#D1FAE5' };
     }
   };
 
