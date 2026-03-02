@@ -541,6 +541,37 @@ export interface ChefReservationResponse {
   errorMessage: string | null;
 }
 
+export interface MarkStartRequest {
+  securityCode: string;
+  dateReservationStart: string;
+  hourReservationStart: string;
+  image1Start?: string;
+  commentStart?: string;
+  latitudeStart: string;
+  longitudeStart: string;
+  isEmergency?: number;
+  emergencyComment?: string;
+  chefId: number;
+  reservationId: number;
+  reservationSuscriptionId?: number;
+  startAt: string;
+}
+
+export interface MarkEndRequest {
+  preparationTime: number;
+  dateReservationEnd: string;
+  hourReservationEnd: string;
+  image1End?: string;
+  commentEnd?: string;
+  latitudeEnd: string;
+  longitudeEnd: string;
+  chefId: number;
+  customerId: number;
+  reservationId: number;
+  reservationSuscriptionId?: number;
+  finishedAt: string;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Tipos de Navegación (6 vistas)
 // ═══════════════════════════════════════════════════════════════

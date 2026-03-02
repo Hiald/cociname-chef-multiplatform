@@ -19,7 +19,9 @@ import {
   IngredientData,
   ReservationSuscriptionData,
   SuscriptionData,
-  ChefReservationResponse
+  ChefReservationResponse,
+  MarkStartRequest,
+  MarkEndRequest
 } from '../types'; 
 
 // ═══════════════════════════════════════════════════════════════
@@ -1350,6 +1352,42 @@ class ApiService {
         errorMessage: error instanceof Error ? error.message : 'Error de red',
       };
     }
+  }
+
+  /**
+   * PUT /api/ChefReservation/mark-start/{id}
+   * Marca el inicio del servicio (llegada al domicilio)
+   */
+  async markReservationStart(
+    chefReservationId: number,
+    request: MarkStartRequest
+  ): Promise<BaseResponseGeneric<any>> {
+    const endpoint = `ChefReservation/mark-start/${chefReservationId}`;
+    
+    console.log('Calling markReservationStart:', endpoint, request);
+    
+    return this.request<any>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * PUT /api/ChefReservation/mark-end/{id}
+   * Marca el fin del servicio (culminación del servicio)
+   */
+  async markReservationEnd(
+    chefReservationId: number,
+    request: MarkEndRequest
+  ): Promise<BaseResponseGeneric<any>> {
+    const endpoint = `ChefReservation/mark-end/${chefReservationId}`;
+    
+    console.log('Calling markReservationEnd:', endpoint, request);
+    
+    return this.request<any>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
   }
 }
 
