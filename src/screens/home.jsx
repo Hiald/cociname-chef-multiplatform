@@ -45,11 +45,12 @@ const HomeScreen = () => {
     }
   };
 
-  // Helper para convertir fecha string a Date en zona horaria local
-  const parseLocalDate = (dateString) => {
+
+  // Helper para combinar fecha y hora en un Date completo
+  const parseLocalDateTime = (dateString, timeString) => {
     const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    date.setHours(0, 0, 0, 0);
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
     return date;
   };
 
@@ -63,78 +64,67 @@ const HomeScreen = () => {
         console.log('Status de cada reserva:', response.data.map(r => ({ id: r.id, status: r.statusReservation })));
         setReservations(response.data);
 
-        // Obtener fecha actual (solo fecha, sin hora)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayTime = today.getTime();
+        // Obtener fecha y hora actual
+        const now = new Date();
+        const nowTime = now.getTime();
 
-        // Filtrar reservas en cocina o en trayecto (solo hoy o futuras)
+        // Filtrar reservas en cocina o en trayecto (solo futuras considerando fecha y hora)
         const activeReservations = response.data.filter(r => {
-          const reservationDate = parseLocalDate(r.dateReservation);
+          const reservationDateTime = parseLocalDateTime(r.dateReservation, r.hourReservation);
           return (
             (r.statusReservation === StatusReservation.EnCocina ||
              r.statusReservation === StatusReservation.EnTrayecto) &&
-            reservationDate.getTime() >= todayTime
+            reservationDateTime.getTime() >= nowTime
           );
         });
 
         let activeReservation = null;
 
         if (activeReservations.length > 0) {
-          // Buscar reserva del día de hoy primero
-          const todayActive = activeReservations.find(r => {
-            const reservationDate = parseLocalDate(r.dateReservation);
-            return reservationDate.getTime() === todayTime;
-          });
-
-          if (todayActive) {
-            activeReservation = todayActive;
-          } else {
-            // Si no hay del día de hoy, buscar la más cercana futura
-            const sortedByDate = activeReservations
-              .map(r => ({
-                ...r,
-                dateTime: parseLocalDate(r.dateReservation).getTime()
-              }))
-              .sort((a, b) => a.dateTime - b.dateTime);
-            
-            activeReservation = sortedByDate[0];
-          }
+          // Buscar la más cercana futura (considerando fecha y hora)
+          const sortedByDateTime = activeReservations
+            .map(r => ({
+              ...r,
+              dateTime: parseLocalDateTime(r.dateReservation, r.hourReservation).getTime()
+            }))
+            .sort((a, b) => a.dateTime - b.dateTime);
+          
+          activeReservation = sortedByDateTime[0];
         }
 
-        // Si no hay reserva en cocina/trayecto, buscar la próxima reserva confirmada (solo hoy o futuras)
+        // Si no hay reserva en cocina/trayecto, buscar la próxima reserva confirmada (futuras considerando fecha y hora)
         if (!activeReservation) {
           const confirmedReservations = response.data.filter(r => {
-            const reservationDate = parseLocalDate(r.dateReservation);
+            const reservationDateTime = parseLocalDateTime(r.dateReservation, r.hourReservation);
             return (
               r.statusReservation !== StatusReservation.Cancelada &&
               r.statusReservation !== StatusReservation.Completada &&
-              reservationDate.getTime() >= todayTime
+              reservationDateTime.getTime() >= nowTime
             );
           });
 
           if (confirmedReservations.length > 0) {
-            const sortedByDate = confirmedReservations
+            const sortedByDateTime = confirmedReservations
               .map(r => ({
                 ...r,
-                dateTime: parseLocalDate(r.dateReservation).getTime()
+                dateTime: parseLocalDateTime(r.dateReservation, r.hourReservation).getTime()
               }))
               .sort((a, b) => a.dateTime - b.dateTime);
             
-            activeReservation = sortedByDate[0];
+            activeReservation = sortedByDateTime[0];
           }
         }
 
         setActiveReservation(activeReservation);
 
-        // Filtrar próximas reservas (Aceptadas, Creadas, Actualizadas) - solo hoy o futuras
+        // Filtrar próximas reservas (Aceptadas, Creadas, Actualizadas) - solo futuras considerando fecha y hora
         const upcoming = response.data.filter(r => {
-          const reservationDate = parseLocalDate(r.dateReservation);
+          const reservationDateTime = parseLocalDateTime(r.dateReservation, r.hourReservation);
           return (
             (r.statusReservation === StatusReservation.Aceptada ||
              r.statusReservation === StatusReservation.Creada ||
              r.statusReservation === StatusReservation.Actualizada) &&
-            reservationDate.getTime() >= todayTime
+            reservationDateTime.getTime() >= nowTime
           );
         });
         setUpcomingReservations(upcoming);
