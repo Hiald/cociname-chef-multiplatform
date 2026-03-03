@@ -35,6 +35,21 @@ const ReservationSuscriptionDetailScreen = () => {
     chefData: chefData?.chefId 
   });
 
+  // Función para verificar si está en el rango de tiempo permitido (hora de reserva + 15 min)
+  const isWithinTimeWindow = (reservationDate, reservationHour) => {
+    if (!reservationDate || !reservationHour) return false;
+    
+    const now = new Date();
+    const [hours, minutes] = reservationHour.split(':').map(Number);
+    const reservationDateTime = new Date(reservationDate);
+    reservationDateTime.setHours(hours, minutes, 0, 0);
+    
+    // Ventana de tiempo: desde la hora de reserva hasta 15 minutos después
+    const windowEnd = new Date(reservationDateTime.getTime() + 15 * 60 * 1000);
+    
+    return now >= reservationDateTime && now <= windowEnd;
+  };
+
   const loadReservationDetail = async () => {
     try {
       setLoading(true);
@@ -397,8 +412,9 @@ const ReservationSuscriptionDetailScreen = () => {
 
       <div style={styles.scrollView}>
         <div style={styles.contentContainer}>
-          {/* Arrive Button - Solo si es activa y no ha empezado */}
-          {isActive && !hasStarted && chefReservationId && (
+          {/* Arrive Button - Solo en el rango de tiempo y si no ha empezado */}
+          {isActive && !hasStarted && chefReservationId && 
+           reservation && isWithinTimeWindow(reservation.dateReservation, reservation.hourReservation) && (
             <button 
               style={styles.arriveButton} 
               onClick={handleArriveHome}
