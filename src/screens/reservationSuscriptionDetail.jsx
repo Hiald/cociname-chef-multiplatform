@@ -16,6 +16,10 @@ const ReservationSuscriptionDetailScreen = () => {
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [chefReservationId, setChefReservationId] = useState(null);
+  const [, setChefReservation] = useState(null);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [hasEnded, setHasEnded] = useState(false);
   const { id: reservationId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -63,6 +67,18 @@ const ReservationSuscriptionDetailScreen = () => {
           console.error('Error parsing recipes:', e);
           setRecipes([]);
         }
+        
+        // Cargar marcaciones de chef si existe reservationSuscriptionId
+        const markingsResponse = await apiService.getChefReservationByReservationSuscriptionId(parseInt(reservationId));
+        
+        if (markingsResponse.success && markingsResponse.data && markingsResponse.data.length > 0) {
+          const marking = markingsResponse.data[0];
+          setChefReservationId(marking.id);
+          setChefReservation(marking);
+          setHasStarted(!!marking.arrivedAt || !!marking.startedAt);
+          setHasEnded(!!marking.completedAt);
+          console.log('Marcaciones de suscripción cargadas:', marking);
+        }
       }
     } catch (error) {
       console.error('Error loading reservation suscription detail:', error);
@@ -84,6 +100,158 @@ const ReservationSuscriptionDetailScreen = () => {
 
   const handleGoBack = () => {
     navigate(-1);
+  };
+
+  const handleArriveHome = async () => {
+    if (!chefReservationId) {
+      alert('Error: No se encontró el ID de marcación');
+      return;
+    }
+    
+    if (!chefData?.chefId || !reservation) {
+      alert('Error: Datos incompletos');
+      return;
+    }
+    
+    try {
+      setSubmitting(true);
+      
+      // Obtener ubicación actual
+      const getCurrentLocation = () => {
+        return new Promise((resolve) => {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                resolve({
+                  latitude: position.coords.latitude.toString(),
+                  longitude: position.coords.longitude.toString()
+                });
+              },
+              () => {
+                resolve({ latitude: '-', longitude: '-' });
+              }
+            );
+          } else {
+            resolve({ latitude: '-', longitude: '-' });
+          }
+        });
+      };
+      
+      const location = await getCurrentLocation();
+      const now = new Date();
+      const dateString = now.toISOString().split('T')[0];
+      const timeString = now.toTimeString().split(' ')[0].substring(0, 5);
+      
+      const request = {
+        securityCode: reservation.securityCode || '',
+        dateReservationStart: dateString,
+        hourReservationStart: timeString,
+        latitudeStart: location.latitude,
+        longitudeStart: location.longitude,
+        chefId: chefData.chefId,
+        reservationSuscriptionId: parseInt(reservationId),
+        startAt: now.toISOString(),
+        isEmergency: 0,
+        emergencyComment: ''
+      };
+      
+      console.log('Marcando llegada al domicilio (suscripción):', request);
+      
+      const response = await apiService.markReservationStart(chefReservationId, request);
+      
+      if (response.success) {
+        setHasStarted(true);
+        alert('✓ Llegada registrada correctamente');
+      } else {
+        alert('Error al registrar llegada: ' + (response.errorMessage || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error marking arrival:', error);
+      alert('Error al registrar llegada');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleFinishService = async () => {
+    if (!chefReservationId) {
+      alert('Error: No se encontró el ID de marcación');
+      return;
+    }
+    
+    if (!chefData?.chefId || !reservation) {
+      alert('Error: Datos incompletos');
+      return;
+    }
+    
+    if (!hasStarted) {
+      alert('Debes marcar tu llegada antes de culminar el servicio');
+      return;
+    }
+    
+    try {
+      setSubmitting(true);
+      
+      // Obtener ubicación actual
+      const getCurrentLocation = () => {
+        return new Promise((resolve) => {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                resolve({
+                  latitude: position.coords.latitude.toString(),
+                  longitude: position.coords.longitude.toString()
+                });
+              },
+              () => {
+                resolve({ latitude: '-', longitude: '-' });
+              }
+            );
+          } else {
+            resolve({ latitude: '-', longitude: '-' });
+          }
+        });
+      };
+      
+      const location = await getCurrentLocation();
+      const now = new Date();
+      const dateString = now.toISOString().split('T')[0];
+      const timeString = now.toTimeString().split(' ')[0].substring(0, 5);
+      
+      // Calcular tiempo de preparación en horas
+      const preparationTime = reservation.preparationTime || 0;
+      
+      const request = {
+        preparationTime: preparationTime,
+        dateReservationEnd: dateString,
+        hourReservationEnd: timeString,
+        latitudeEnd: location.latitude,
+        longitudeEnd: location.longitude,
+        chefId: chefData.chefId,
+        customerId: reservation.customerId,
+        reservationSuscriptionId: parseInt(reservationId),
+        finishedAt: now.toISOString()
+      };
+      
+      console.log('Marcando culminación de servicio (suscripción):', request);
+      
+      const response = await apiService.markReservationEnd(chefReservationId, request);
+      
+      if (response.success) {
+        setHasEnded(true);
+        alert('✓ Servicio culminado correctamente');
+        setTimeout(() => {
+          navigate('/', { replace: true });
+        }, 1500);
+      } else {
+        alert('Error al registrar culminación: ' + (response.errorMessage || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error marking finish:', error);
+      alert('Error al registrar culminación del servicio');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleOpenMaps = () => {
@@ -229,6 +397,38 @@ const ReservationSuscriptionDetailScreen = () => {
 
       <div style={styles.scrollView}>
         <div style={styles.contentContainer}>
+          {/* Arrive Button - Solo si es activa y no ha empezado */}
+          {isActive && !hasStarted && chefReservationId && (
+            <button 
+              style={styles.arriveButton} 
+              onClick={handleArriveHome}
+              disabled={submitting}
+            >
+              <div style={styles.arriveButtonContent}>
+                <ClockDetail />
+                <span style={styles.arriveButtonText}>
+                  {submitting ? 'Registrando...' : 'Llegué al domicilio'}
+                </span>
+              </div>
+            </button>
+          )}
+          
+          {/* Finish Button - Solo si ya empezó y no ha terminado */}
+          {isActive && hasStarted && !hasEnded && chefReservationId && (
+            <button 
+              style={styles.finishButton} 
+              onClick={handleFinishService}
+              disabled={submitting}
+            >
+              <div style={styles.finishButtonContent}>
+                <ClockDetail />
+                <span style={styles.finishButtonText}>
+                  {submitting ? 'Registrando...' : 'Culminé el servicio'}
+                </span>
+              </div>
+            </button>
+          )}
+
           {/* Subscription Info Card */}
           <div style={styles.infoCardContainer}>
             <div style={styles.suscriptionBadge}>
@@ -682,6 +882,52 @@ const styles = {
     color: '#9CA3AF',
     textAlign: 'center',
     padding: `${spacing.medium}px 0`,
+  },
+  arriveButton: {
+    backgroundColor: '#FF5136',
+    padding: '16px',
+    borderRadius: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: `${spacing.small}px`,
+    border: 'none',
+    cursor: 'pointer',
+    width: '100%',
+  },
+  arriveButtonContent: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  arriveButtonText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: '8px',
+  },
+  finishButton: {
+    backgroundColor: '#10B981',
+    padding: '16px',
+    borderRadius: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: `${spacing.small}px`,
+    border: 'none',
+    cursor: 'pointer',
+    width: '100%',
+  },
+  finishButtonContent: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  finishButtonText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: '8px',
   },
   garantiaRow: {
     display: 'flex',
