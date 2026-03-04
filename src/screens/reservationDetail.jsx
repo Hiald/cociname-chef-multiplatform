@@ -89,17 +89,33 @@ const ReservationDetailScreen = () => {
     };
   }, [reservationId]);
 
-  // Función para verificar si está en el rango de tiempo para marcar llegada (15 min desde inicio)
+  // Función para verificar si está en el rango de tiempo para marcar llegada (1 hora desde inicio)
   const isWithinArrivalWindow = (reservationDate, reservationHour) => {
     if (!reservationDate || !reservationHour) return false;
     
     const now = new Date();
     const [hours, minutes] = reservationHour.split(':').map(Number);
-    const reservationDateTime = new Date(reservationDate);
-    reservationDateTime.setHours(hours, minutes, 0, 0);
     
-    // Ventana de tiempo: desde la hora de reserva hasta 15 minutos después
-    const windowEnd = new Date(reservationDateTime.getTime() + 15 * 60 * 1000);
+    // Parsear fecha en timezone local (evitar UTC)
+    const [year, month, day] = reservationDate.split('-').map(Number);
+    const reservationDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+    
+    // Ventana de tiempo: desde la hora de reserva hasta 1 hora después
+    const windowEnd = new Date(reservationDateTime.getTime() + 60 * 60 * 1000);
+    
+    console.log('🕐 isWithinArrivalWindow Check:', {
+      now: now.toLocaleString('es-PE', { timeZone: 'America/Lima' }),
+      nowTime: now.getTime(),
+      reservationDate,
+      reservationHour,
+      reservationDateTime: reservationDateTime.toLocaleString('es-PE', { timeZone: 'America/Lima' }),
+      reservationStartTime: reservationDateTime.getTime(),
+      windowEnd: windowEnd.toLocaleString('es-PE', { timeZone: 'America/Lima' }),
+      windowEndTime: windowEnd.getTime(),
+      isAfterStart: now >= reservationDateTime,
+      isBeforeEnd: now <= windowEnd,
+      result: now >= reservationDateTime && now <= windowEnd
+    });
     
     return now >= reservationDateTime && now <= windowEnd;
   };
@@ -110,12 +126,22 @@ const ReservationDetailScreen = () => {
     
     const now = new Date();
     const [hours, minutes] = reservationHour.split(':').map(Number);
-    const reservationDateTime = new Date(reservationDate);
-    reservationDateTime.setHours(hours, minutes, 0, 0);
+    
+    // Parsear fecha en timezone local (evitar UTC)
+    const [year, month, day] = reservationDate.split('-').map(Number);
+    const reservationDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
     
     // Ventana de tiempo: desde la hora de reserva hasta hora + preparationTime
     const preparationTimeMs = (preparationTime || 2.5) * 60 * 60 * 1000;
     const windowEnd = new Date(reservationDateTime.getTime() + preparationTimeMs);
+    
+    console.log('⏰ isWithinServiceWindow Check:', {
+      now: now.toLocaleString('es-PE', { timeZone: 'America/Lima' }),
+      reservationDateTime: reservationDateTime.toLocaleString('es-PE', { timeZone: 'America/Lima' }),
+      preparationTime,
+      windowEnd: windowEnd.toLocaleString('es-PE', { timeZone: 'America/Lima' }),
+      result: now >= reservationDateTime && now <= windowEnd
+    });
     
     return now >= reservationDateTime && now <= windowEnd;
   };
