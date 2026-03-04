@@ -68,20 +68,28 @@ const HomeScreen = () => {
         const now = new Date();
         const nowTime = now.getTime();
 
-        // Filtrar reservas en cocina o en trayecto (solo futuras considerando fecha y hora)
+        // Buscar reservas que estén dentro de su ventana de tiempo de ejecución
         const activeReservations = response.data.filter(r => {
+          // Solo considerar reservas confirmadas (no canceladas ni completadas)
+          if (r.statusReservation === StatusReservation.Cancelada || 
+              r.statusReservation === StatusReservation.Completada) {
+            return false;
+          }
+
           const reservationDateTime = parseLocalDateTime(r.dateReservation, r.hourReservation);
-          return (
-            (r.statusReservation === StatusReservation.EnCocina ||
-             r.statusReservation === StatusReservation.EnTrayecto) &&
-            reservationDateTime.getTime() >= nowTime
-          );
+          const reservationStartTime = reservationDateTime.getTime();
+          // Calcular hora de finalización (hora inicio + preparationTime en horas)
+          const preparationTimeMs = (r.preparationTime || 2.5) * 60 * 60 * 1000;
+          const reservationEndTime = reservationStartTime + preparationTimeMs;
+          
+          // La reserva está "en curso" si estamos dentro de su ventana de tiempo
+          return nowTime >= reservationStartTime && nowTime <= reservationEndTime;
         });
 
         let activeReservation = null;
 
         if (activeReservations.length > 0) {
-          // Buscar la más cercana futura (considerando fecha y hora)
+          // Si hay varias en curso, tomar la que empezó primero
           const sortedByDateTime = activeReservations
             .map(r => ({
               ...r,
@@ -90,16 +98,14 @@ const HomeScreen = () => {
             .sort((a, b) => a.dateTime - b.dateTime);
           
           activeReservation = sortedByDateTime[0];
-        }
-
-        // Si no hay reserva en cocina/trayecto, buscar la próxima reserva confirmada (futuras considerando fecha y hora)
-        if (!activeReservation) {
+        } else {
+          // Si no hay ninguna en curso, buscar la próxima reserva confirmada
           const confirmedReservations = response.data.filter(r => {
             const reservationDateTime = parseLocalDateTime(r.dateReservation, r.hourReservation);
             return (
               r.statusReservation !== StatusReservation.Cancelada &&
               r.statusReservation !== StatusReservation.Completada &&
-              reservationDateTime.getTime() >= nowTime
+              reservationDateTime.getTime() > nowTime
             );
           });
 

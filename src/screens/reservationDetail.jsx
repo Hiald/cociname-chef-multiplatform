@@ -89,8 +89,8 @@ const ReservationDetailScreen = () => {
     };
   }, [reservationId]);
 
-  // Función para verificar si está en el rango de tiempo permitido (hora de reserva + 15 min)
-  const isWithinTimeWindow = (reservationDate, reservationHour) => {
+  // Función para verificar si está en el rango de tiempo para marcar llegada (15 min desde inicio)
+  const isWithinArrivalWindow = (reservationDate, reservationHour) => {
     if (!reservationDate || !reservationHour) return false;
     
     const now = new Date();
@@ -100,6 +100,22 @@ const ReservationDetailScreen = () => {
     
     // Ventana de tiempo: desde la hora de reserva hasta 15 minutos después
     const windowEnd = new Date(reservationDateTime.getTime() + 15 * 60 * 1000);
+    
+    return now >= reservationDateTime && now <= windowEnd;
+  };
+
+  // Función para verificar si está dentro del tiempo de servicio (para culminar)
+  const isWithinServiceWindow = (reservationDate, reservationHour, preparationTime) => {
+    if (!reservationDate || !reservationHour) return false;
+    
+    const now = new Date();
+    const [hours, minutes] = reservationHour.split(':').map(Number);
+    const reservationDateTime = new Date(reservationDate);
+    reservationDateTime.setHours(hours, minutes, 0, 0);
+    
+    // Ventana de tiempo: desde la hora de reserva hasta hora + preparationTime
+    const preparationTimeMs = (preparationTime || 2.5) * 60 * 60 * 1000;
+    const windowEnd = new Date(reservationDateTime.getTime() + preparationTimeMs);
     
     return now >= reservationDateTime && now <= windowEnd;
   };
@@ -488,9 +504,9 @@ const ReservationDetailScreen = () => {
           </div>
         </div>
 
-        {/* Arrive Button - Solo en el rango de tiempo y si no ha empezado */}
+        {/* Arrive Button - Solo en los primeros 15 minutos y si no ha empezado */}
         {isActive && !hasStarted && chefReservationId && 
-         reservation && isWithinTimeWindow(reservation.dateReservation, reservation.hourReservation) && (
+         reservation && isWithinArrivalWindow(reservation.dateReservation, reservation.hourReservation) && (
           <button 
             style={styles.arriveButton} 
             onClick={handleArriveHome}
@@ -505,8 +521,9 @@ const ReservationDetailScreen = () => {
           </button>
         )}
         
-        {/* Finish Button - Solo si ya empezó y no ha terminado */}
-        {isActive && hasStarted && !hasEnded && chefReservationId && (
+        {/* Finish Button - Solo si ya empezó, no ha terminado y está dentro del tiempo de servicio */}
+        {isActive && hasStarted && !hasEnded && chefReservationId && 
+         reservation && isWithinServiceWindow(reservation.dateReservation, reservation.hourReservation, reservation.preparationTime) && (
           <button 
             style={styles.finishButton} 
             onClick={handleFinishService}
