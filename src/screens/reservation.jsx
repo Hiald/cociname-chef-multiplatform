@@ -208,10 +208,18 @@ const ReservationScreen = () => {
             .map(r => ({ ...r, tipo: 'reserva' }))
         : [];
       
-      // FILTRAR solo las suscripciones con estado 1 (Creada) - pendientes de aceptación
+      // FILTRAR suscripciones pendientes: sin chef asignado Y estado 1, 9 o 10
       const suscriptionRequests = suscriptionResponse.success && suscriptionResponse.data
         ? suscriptionResponse.data
-            .filter(r => r.suscriptionStatus === 1) // Solo estado Creada
+            .filter(r => {
+              // Debe tener chefId null (sin asignar) Y estar en estado Creada(1), Reprogramada(9) o Reasignación(10)
+              const isPending = r.chefId === null && (
+                r.suscriptionStatus === 1 ||  // Creada
+                r.suscriptionStatus === 9 ||  // Reprogramada
+                r.suscriptionStatus === 10    // Reasignación Cocinera
+              );
+              return isPending;
+            })
             .map(r => ({ ...r, tipo: 'suscripcion' }))
         : [];
       
