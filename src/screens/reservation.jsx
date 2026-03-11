@@ -324,6 +324,14 @@ const ReservationScreen = () => {
     
     // Si es una suscripción confirmada (plan completo)
     if (reservation.tipo === 'suscripcion' && !reservation.reservationSuscriptionId) {
+      console.log('📦 Navegando a suscripción (plan completo) con state:', {
+        reservationSuscriptionId: reservation.id, 
+        suscriptionId: reservation.id, 
+        isActive: false, 
+        isSuscription: true,
+        isRequest // ✅ Pasar el valor correcto
+      });
+      
       // Navegar al detalle de suscripción usando el ID de la suscripción
       navigate(`/reservation-suscription/${reservation.id}`, {
         state: { 
@@ -331,7 +339,7 @@ const ReservationScreen = () => {
           suscriptionId: reservation.id, 
           isActive: false, 
           isSuscription: true,
-          isRequest: false
+          isRequest // ✅ Usar el parámetro en lugar de hardcodear false
         }
       });
       return;
