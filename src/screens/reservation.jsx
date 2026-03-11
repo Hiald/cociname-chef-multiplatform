@@ -182,14 +182,46 @@ const ReservationScreen = () => {
         timeFilter,
       });
       
+      console.log('📋 Solicitudes de suscripción pendientes del API:', suscriptionResponse);
+      if (suscriptionResponse.success && suscriptionResponse.data) {
+        console.log('📋 Datos de solicitudes:', suscriptionResponse.data.map(r => ({
+          id: r.id,
+          suscriptionStatus: r.suscriptionStatus,
+          suscriptionCode: r.suscriptionCode,
+          customerName: r.customerName
+        })));
+      }
+      
       // Combinar ambas listas y agregar tipo identificador
+      // FILTRAR solicitudes pendientes: sin chef asignado (chefId === null) Y estado 1, 9 o 10
       const normalRequests = requestsResponse.success && requestsResponse.data 
-        ? requestsResponse.data.map(r => ({ ...r, tipo: 'reserva' }))
+        ? requestsResponse.data
+            .filter(r => {
+              // Debe tener chefId null (sin asignar) Y estar en estado Creada(1), Reprogramada(9) o Reasignación(10)
+              const isPending = r.chefId === null && (
+                r.statusReservation === 1 ||  // Creada
+                r.statusReservation === 9 ||  // Reprogramada
+                r.statusReservation === 10    // Reasignación Cocinera
+              );
+              return isPending;
+            })
+            .map(r => ({ ...r, tipo: 'reserva' }))
         : [];
       
+      // FILTRAR solo las suscripciones con estado 1 (Creada) - pendientes de aceptación
       const suscriptionRequests = suscriptionResponse.success && suscriptionResponse.data
-        ? suscriptionResponse.data.map(r => ({ ...r, tipo: 'suscripcion' }))
+        ? suscriptionResponse.data
+            .filter(r => r.suscriptionStatus === 1) // Solo estado Creada
+            .map(r => ({ ...r, tipo: 'suscripcion' }))
         : [];
+      
+      console.log('📋 Solicitudes filtradas:', {
+        normalRequests: normalRequests.length,
+        normalRequestsData: normalRequests.map(r => ({ id: r.id, status: r.statusReservation, chefId: r.chefId })),
+        suscriptionRequests: suscriptionRequests.length,
+        suscriptionRequestsData: suscriptionRequests.map(r => ({ id: r.id, status: r.suscriptionStatus })),
+        total: normalRequests.length + suscriptionRequests.length
+      });
       
       const allRequests = [...normalRequests, ...suscriptionRequests];
       setRequestReservations(allRequests);
@@ -236,7 +268,16 @@ const ReservationScreen = () => {
   };
 
   const formatDate = (date) => {
-    return formatearFechaConDia(date);
+    if (!date) return 'Fecha no especificada';
+    if (typeof date === 'string' && (date === 'string' || date.trim() === '')) {
+      return 'Fecha no especificada';
+    }
+    try {
+      return formatearFechaConDia(date);
+    } catch (error) {
+      console.error('Error formatting date:', date, 'Type:', typeof date, 'Error:', error);
+      return 'Fecha inválida';
+    }
   };
 
   const formatCustomerName = (firstName, lastName, isRequest) => {
@@ -271,6 +312,16 @@ const ReservationScreen = () => {
   };
 
   const handleViewReservation = (reservation, isActive, isRequest = false) => {
+    console.log('🔍 handleViewReservation llamado:', {
+      reservationId: reservation.id,
+      tipo: reservation.tipo,
+      isActive,
+      isRequest,
+      suscriptionStatus: reservation.suscriptionStatus,
+      statusReservation: reservation.statusReservation,
+      reservationSuscriptionId: reservation.reservationSuscriptionId
+    });
+    
     // Si es una suscripción confirmada (plan completo)
     if (reservation.tipo === 'suscripcion' && !reservation.reservationSuscriptionId) {
       // Navegar al detalle de suscripción usando el ID de la suscripción
@@ -288,6 +339,14 @@ const ReservationScreen = () => {
     
     // Si es una reserva de suscripción (reserva individual dentro de un plan)
     if (reservation.tipo === 'suscripcion') {
+      console.log('🚀 Navegando a suscripción con state:', {
+        reservationSuscriptionId: reservation.id, 
+        suscriptionId: reservation.suscriptionId, 
+        isActive, 
+        isSuscription: true,
+        isRequest
+      });
+      
       navigate(`/reservation-suscription/${reservation.id}`, {
         state: { 
           reservationSuscriptionId: reservation.id, 
@@ -312,15 +371,31 @@ const ReservationScreen = () => {
   const renderReservationCard = (reservation, isRequest) => {
     const statusBadge = getStatusBadge(reservation.statusReservation);
     
+    console.log('🎴 renderReservationCard:', {
+      id: reservation.id,
+      tipo: reservation.tipo,
+      isRequest,
+      suscriptionStatus: reservation.suscriptionStatus,
+      statusReservation: reservation.statusReservation
+    });
+    
     return (
       <button 
         key={reservation.id} 
         style={styles.reservationCard}
-        onClick={() => handleViewReservation(
-          reservation, 
-          reservation.statusReservation === StatusReservation.EnCocina || reservation.statusReservation === StatusReservation.EnTrayecto,
-          isRequest
-        )}
+        onClick={() => {
+          console.log('👆 Click en tarjeta:', {
+            id: reservation.id,
+            tipo: reservation.tipo,
+            isRequest,
+            suscriptionStatus: reservation.suscriptionStatus
+          });
+          handleViewReservation(
+            reservation, 
+            reservation.statusReservation === StatusReservation.EnCocina || reservation.statusReservation === StatusReservation.EnTrayecto,
+            isRequest
+          );
+        }}
       >
         <div style={styles.reservationCardContent}>
           {/* Header con badge de estado y tipo */}
@@ -359,7 +434,9 @@ const ReservationScreen = () => {
                 <ListReservation />
               </div>
               <span style={styles.cardDetailText}>
-                {formatDate(reservation.dateReservation)} - {reservation.hourReservation}
+                {reservation.dateReservation 
+                  ? `${formatDate(reservation.dateReservation)} - ${reservation.hourReservation || 'Hora no especificada'}` 
+                  : 'Fecha y hora por confirmar'}
               </span>
             </div>
             <div style={styles.cardDetailRow}>

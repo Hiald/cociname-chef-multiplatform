@@ -27,6 +27,14 @@ const ReservationSuscriptionDetailScreen = () => {
   const isActive = location.state?.isActive || false;
   const isRequest = location.state?.isRequest || false;
 
+  console.log('🔍 Estado del componente ReservationSuscriptionDetail:', { 
+    reservationId, 
+    isActive,
+    isRequest,
+    locationState: location.state,
+    chefData: chefData?.chefId 
+  });
+
   console.log('🔍 Estado del componente:', { 
     reservationId, 
     isActive,
@@ -145,7 +153,16 @@ const ReservationSuscriptionDetailScreen = () => {
   }, [reservationId]);
 
   const formatDate = (date) => {
-    return formatearFechaConDia(date);
+    if (!date) return 'Fecha no especificada';
+    if (typeof date === 'string' && (date === 'string' || date.trim() === '')) {
+      return 'Fecha no especificada';
+    }
+    try {
+      return formatearFechaConDia(date);
+    } catch (error) {
+      console.error('Error formatting date:', date, 'Type:', typeof date, 'Error:', error);
+      return 'Fecha inválida';
+    }
   };
 
   const handleGoBack = () => {
