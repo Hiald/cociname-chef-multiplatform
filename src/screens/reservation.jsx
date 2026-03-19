@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
@@ -13,6 +13,7 @@ import {
   ListReservation
 } from '../assets/svgs';
 import { useAuth } from '../hooks/useAuth';
+import { useSignalR } from '../hooks/useSignalR';
 import { formatearFechaConDia } from '../utils/formatters';
 
 const ReservationScreen = () => {
@@ -26,6 +27,7 @@ const ReservationScreen = () => {
   const [loading, setLoading] = useState(true);
   const { chefData } = useAuth();
   const chefId = chefData?.chefId; // Obtener del contexto de autenticación
+  const location = useLocation();
   const navigate = useNavigate();
 
   // Helper para convertir fecha string a Date en zona horaria local
@@ -42,11 +44,30 @@ const ReservationScreen = () => {
   }, []);
 
   useEffect(() => {
+    if (location.state?.defaultTab === 'requests') {
+      setActiveTab('requests');
+    }
+  }, [location.state]);
+
+  useEffect(() => {
     if (chefData?.id) {
       loadSuscriptions();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chefData?.id]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void loadReservations();
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useSignalR(() => {
+    void loadReservations();
+  }, { playSound: false });
 
   const loadReservations = async () => {
     try {

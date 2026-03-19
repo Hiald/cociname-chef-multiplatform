@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { spacing } from '../../styles';
 import { images } from '../../assets/images';
 
-const Header = ({ onMenuPress, showMenu = true }) => {
+const Header = ({ onMenuPress, showMenu = true, notificationCount = 0, onNotificationPress }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -42,8 +42,13 @@ const Header = ({ onMenuPress, showMenu = true }) => {
 
       <div style={styles.rightSection}>
         {showMenu && (
-          <button style={styles.notificationButton}>
+          <button style={styles.notificationButton} onClick={onNotificationPress}>
             <span style={styles.notificationIcon}>🔔</span>
+            {notificationCount > 0 && (
+              <span style={styles.notificationBadge}>
+                {notificationCount > 99 ? '99+' : notificationCount}
+              </span>
+            )}
           </button>
         )}
       </div>
@@ -107,6 +112,7 @@ const styles = {
     alignItems: 'center',
   },
   notificationButton: {
+    position: 'relative',
     padding: spacing.small,
     background: 'none',
     border: 'none',
@@ -114,6 +120,23 @@ const styles = {
   },
   notificationIcon: {
     fontSize: 20,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    color: '#FFFFFF',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 10,
+    fontWeight: '700',
+    padding: '0 4px',
+    lineHeight: 1,
   },
 };
 

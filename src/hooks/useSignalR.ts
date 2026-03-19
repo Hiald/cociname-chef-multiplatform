@@ -4,14 +4,67 @@ import { API_CONFIG } from '../config';
 import { useAuth } from './useAuth';
 import notificationSound from '../assets/sound/notification.mp3';
 
-export const useSignalR = (onReservationReceived?: () => void) => {
+interface UseSignalROptions {
+    playSound?: boolean;
+    listenEvents?: string[];
+    soundEvents?: string[];
+}
+
+export const useSignalR = (
+    onReservationReceived?: (reservationId?: number | string, eventName?: string) => void,
+    options: UseSignalROptions = {}
+) => {
     const { token, isAuthenticated } = useAuth();
     const [connection, setConnection] = useState<HubConnection | null>(null);
     const callbackRef = useRef(onReservationReceived);
+    const playSoundRef = useRef(Boolean(options.playSound));
+    const listenEventsRef = useRef<string[]>(options.listenEvents ?? ['ReceiveNewReservation']);
+    const soundEventsRef = useRef<string[]>(options.soundEvents ?? []);
+    const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
         callbackRef.current = onReservationReceived;
     }, [onReservationReceived]);
+
+    useEffect(() => {
+        playSoundRef.current = Boolean(options.playSound);
+    }, [options.playSound]);
+
+    useEffect(() => {
+        listenEventsRef.current = options.listenEvents ?? ['ReceiveNewReservation'];
+    }, [options.listenEvents]);
+
+    useEffect(() => {
+        soundEventsRef.current = options.soundEvents ?? [];
+    }, [options.soundEvents]);
+
+    useEffect(() => {
+        const audio = new Audio(notificationSound);
+        audio.preload = 'auto';
+        audio.volume = 0.9;
+        notificationAudioRef.current = audio;
+
+        return () => {
+            if (notificationAudioRef.current) {
+                notificationAudioRef.current.pause();
+                notificationAudioRef.current = null;
+            }
+        };
+    }, []);
+
+    const playNotificationAudio = async () => {
+        if (!playSoundRef.current) {
+            return;
+        }
+
+        try {
+            const audio = notificationAudioRef.current ?? new Audio(notificationSound);
+            audio.currentTime = 0;
+            await audio.play();
+        } catch (err) {
+            console.warn('No se pudo reproducir el audio de notificacion', err);
+        }
+    };
 
     useEffect(() => {
         if (!isAuthenticated || !token) return;
@@ -35,26 +88,26 @@ export const useSignalR = (onReservationReceived?: () => void) => {
                 .then(() => {
                     console.log('🟢 SignalR Conectado exitosamente');
 
-                    connection.on("ReceiveNewReservation", (reservationId) => {
-                        console.log("🔔 Notificación recibida. Reserva ID:", reservationId);
-                        try {
-                            //const audio = new Audio(notificationSound);
-                            //audio.play().catch(e => console.warn("El navegador bloqueó el audio automático", e));
-                            console.log("navegador bloqueó notificación");
-                        } catch (err) {
-                            console.error("Error audio", err);
-                        }
-                        //alert(`¡Nueva solicitud de reserva recibida! ID: ${reservationId}`);
-                          console.log("notificación");
-                        if (callbackRef.current) {
-                            callbackRef.current();
-                        }
+                    listenEventsRef.current.forEach((eventName) => {
+                        connection.on(eventName, (reservationId) => {
+                            console.log('🔔 Notificación recibida.', { eventName, reservationId });
+
+                            if (playSoundRef.current && soundEventsRef.current.includes(eventName)) {
+                                void playNotificationAudio();
+                            }
+
+                            if (callbackRef.current) {
+                                callbackRef.current(reservationId, eventName);
+                            }
+                        });
                     });
                 })
                 .catch(error => console.error('🔴 Error al conectar SignalR:', error));
 
             return () => {
-                connection.off("ReceiveNewReservation");
+                listenEventsRef.current.forEach((eventName) => {
+                    connection.off(eventName);
+                });
                 connection.stop();
             };
         }

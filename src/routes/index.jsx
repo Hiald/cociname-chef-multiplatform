@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import LoginScreen from '../screens/login';
 import RegisterScreen from '../screens/register';
 import ReservationDetailScreen from '../screens/reservationDetail';
@@ -14,12 +14,83 @@ import { Header } from '../components/header';
 import { Sidebar } from '../components/sidebar';
 import BottomTabs from '../components/bottom-tabs/bottom-tabs';
 import { useAuth } from '../hooks/useAuth';
+import { useSignalR } from '../hooks/useSignalR';
+import { apiService } from '../services/api.service';
+import { StatusReservation } from '../types';
 import './routes.css';
 
 const Navigator = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { isAuthenticated, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const [pendingNotifications, setPendingNotifications] = React.useState(0);
+
+  const loadPendingNotifications = React.useCallback(async () => {
+    try {
+      const now = new Date();
+      const dateFilter = now.toISOString().split('T')[0];
+      const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
+
+      const [requestsResponse, suscriptionResponse] = await Promise.all([
+        apiService.getPendingReservations({ dateFilter, timeFilter }),
+        apiService.getPendingReservationSuscription({ dateFilter, timeFilter }),
+      ]);
+
+      const normalRequests = requestsResponse.success && requestsResponse.data
+        ? requestsResponse.data.filter(r => (
+            r.chefId === null &&
+            (r.statusReservation === StatusReservation.Creada ||
+              r.statusReservation === StatusReservation.Reprogramada ||
+              r.statusReservation === StatusReservation.ReasignacionCocinera)
+          ))
+        : [];
+
+      const suscriptionRequests = suscriptionResponse.success && suscriptionResponse.data
+        ? suscriptionResponse.data.filter(r => (
+            r.chefId === null &&
+            (r.suscriptionStatus === StatusReservation.Creada ||
+              r.suscriptionStatus === StatusReservation.Reprogramada ||
+              r.suscriptionStatus === StatusReservation.ReasignacionCocinera)
+          ))
+        : [];
+
+      setPendingNotifications(normalRequests.length + suscriptionRequests.length);
+    } catch (error) {
+      console.error('Error loading pending notifications:', error);
+    }
+  }, []);
+
+  useSignalR(() => {
+    void loadPendingNotifications();
+  }, {
+    playSound: true,
+    listenEvents: [
+      'ReceiveNewReservation',
+      'ReceiveReservationAccepted',
+      'ReceiveAcceptedReservation',
+      'ReservationAccepted',
+    ],
+    soundEvents: [
+      'ReceiveReservationAccepted',
+      'ReceiveAcceptedReservation',
+      'ReservationAccepted',
+    ],
+  });
+
+  React.useEffect(() => {
+    if (!isAuthenticated) {
+      setPendingNotifications(0);
+      return;
+    }
+
+    void loadPendingNotifications();
+    const intervalId = window.setInterval(() => {
+      void loadPendingNotifications();
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isAuthenticated, loadPendingNotifications]);
 
   // Wrapper para la vista pública
   const PublicReservationWrapper = () => {
@@ -113,7 +184,12 @@ const Navigator = () => {
     <div className="app-layout">
       <Header 
         showMenu={true} 
-        onMenuPress={() => setIsSidebarOpen(!isSidebarOpen)} 
+        onMenuPress={() => setIsSidebarOpen(!isSidebarOpen)}
+        notificationCount={pendingNotifications}
+        onNotificationPress={() => {
+          setIsSidebarOpen(false);
+          navigate('/reservation', { state: { defaultTab: 'requests' } });
+        }}
       />
       <div className="app-content">
         <Sidebar 
