@@ -308,7 +308,7 @@ const HomeScreen = () => {
           <h2 style={styles.sectionTitle}>Mi disponibilidad</h2>
         </div>
 
-        <button style={styles.availabilityButton}>
+        <button style={styles.availabilityButton} onClick={() => navigate('/availability')}>
           <span style={styles.availabilityButtonText}>Completar disponibilidad</span>
         </button>
       </div>

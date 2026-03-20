@@ -6,6 +6,7 @@ import ReservationDetailScreen from '../screens/reservationDetail';
 import ReservationSuscriptionDetailScreen from '../screens/reservationSuscriptionDetail';
 import HomeScreen from '../screens/home';
 import ReservationScreen from '../screens/reservation';
+import AvailabilityScreen from '../screens/availability';
 import ProfileScreen from '../screens/profile';
 import { PublicReservationScreen } from '../screens/public-reservation';
 import { PublicSuscriptionScreen } from '../screens/public-suscription';
@@ -157,6 +158,7 @@ const Navigator = () => {
     const path = location.pathname;
     if (path === '/' || path === '/home') return 'Home';
     if (path === '/reservation' || path.startsWith('/reservation/')) return 'Reservation';
+    if (path === '/availability') return 'Availability';
     if (path === '/profile') return 'Profile';
     return 'Home';
   };
@@ -204,6 +206,7 @@ const Navigator = () => {
             <Route path="/" element={<HomeScreen />} />
             <Route path="/home" element={<HomeScreen />} />
             <Route path="/reservation" element={<ReservationScreen />} />
+            <Route path="/availability" element={<AvailabilityScreen />} />
             <Route path="/profile" element={<ProfileScreen />} />
             <Route path="/reservation/:id" element={<ReservationDetailScreen />} />
             <Route path="/reservation-suscription/:id" element={<ReservationSuscriptionDetailScreen />} />

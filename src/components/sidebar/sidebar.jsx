@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { spacing } from '../../styles';
-import { Home, Reservation, Profile } from '../../assets/svgs';
+import { Home, Reservation, Profile, Clock } from '../../assets/svgs';
 import { useAuth } from '../../hooks/useAuth';
 
 // Inject responsive styles
@@ -29,6 +29,7 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
   const menuItems = [
     { id: 'Home', label: 'Inicio', Icon: Home, path: '/' },
     { id: 'Reservation', label: 'Reservas', Icon: Reservation, path: '/reservation' },
+    { id: 'Availability', label: 'Disponibilidad', Icon: Clock, path: '/availability' },
     { id: 'Profile', label: 'Perfil', Icon: Profile, path: '/profile' },
   ];
 
