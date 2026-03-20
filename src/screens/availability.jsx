@@ -203,17 +203,12 @@ const styles = {
 	container: {
 		maxWidth: 520,
 		margin: '0 auto',
-		backgroundColor: '#ECECEC',
-		borderRadius: 14,
-		padding: spacing.medium,
-		border: '1px solid #D1D5DB',
 	},
 	backButton: {
-		border: '1px solid #D1D5DB',
-		backgroundColor: '#F9FAFB',
+		backgroundColor: '#F3F4F6',
 		color: '#111827',
 		borderRadius: 8,
-		padding: '10px 12px',
+		padding: '10px 0px',
 		fontSize: 14,
 		fontWeight: '500',
 		cursor: 'pointer',
@@ -234,7 +229,6 @@ const styles = {
 	},
 	arrowButton: {
 		width: 32,
-		height: 32,
 		borderRadius: 16,
 		border: 'none',
 		backgroundColor: 'transparent',
@@ -257,14 +251,12 @@ const styles = {
 		marginBottom: spacing.large,
 	},
 	dayCard: {
-		backgroundColor: '#E5E7EB',
 		borderRadius: 12,
 		border: '1px solid #D1D5DB',
 		padding: spacing.medium,
 	},
 	dayCardActive: {
-		backgroundColor: '#F3F4F6',
-		border: '1px solid #86EFAC',
+		border: '1px solid #2EBE60',
 	},
 	dayHeader: {
 		display: 'flex',
@@ -274,14 +266,14 @@ const styles = {
 	dayName: {
 		margin: 0,
 		color: '#111827',
-		fontSize: 20,
+		fontSize: 18,
 		fontWeight: '700',
 		display: 'flex',
 		gap: 6,
 		alignItems: 'center',
 	},
 	dayLabel: {
-		fontSize: 18,
+		fontSize: 16,
 		fontWeight: '500',
 		color: '#374151',
 	},
@@ -296,7 +288,7 @@ const styles = {
 		padding: 0,
 	},
 	switchTrackOn: {
-		backgroundColor: '#22C55E',
+		backgroundColor: '#2EBE60',
 	},
 	switchThumb: {
 		width: 20,
@@ -329,7 +321,7 @@ const styles = {
 	toLabel: {
 		margin: 0,
 		color: '#374151',
-		fontSize: 18,
+		fontSize: 16,
 		fontWeight: '500',
 	},
 	saveButton: {
