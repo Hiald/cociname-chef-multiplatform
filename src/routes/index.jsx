@@ -26,6 +26,12 @@ const Navigator = () => {
   const { isAuthenticated, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [pendingNotifications, setPendingNotifications] = React.useState(0);
+  const isPublicRoute =
+    location.pathname.startsWith('/reserva/') ||
+    location.pathname.startsWith('/suscripcion/') ||
+    location.pathname.startsWith('/inicio/') ||
+    location.pathname.startsWith('/onboarding/') ||
+    location.pathname === '/register';
 
   const loadPendingNotifications = React.useCallback(async () => {
     try {
@@ -65,6 +71,7 @@ const Navigator = () => {
   useSignalR(() => {
     void loadPendingNotifications();
   }, {
+    enabled: isAuthenticated && !isPublicRoute,
     playSound: true,
     listenEvents: [
       'ReceiveNewReservation',
@@ -80,7 +87,7 @@ const Navigator = () => {
   });
 
   React.useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || isPublicRoute) {
       setPendingNotifications(0);
       return;
     }
@@ -91,7 +98,7 @@ const Navigator = () => {
     }, 30000);
 
     return () => window.clearInterval(intervalId);
-  }, [isAuthenticated, loadPendingNotifications]);
+  }, [isAuthenticated, isPublicRoute, loadPendingNotifications]);
 
   // Wrapper para la vista pública
   const PublicReservationWrapper = () => {

@@ -8,6 +8,7 @@ interface UseSignalROptions {
     playSound?: boolean;
     listenEvents?: string[];
     soundEvents?: string[];
+    enabled?: boolean;
 }
 
 export const useSignalR = (
@@ -20,6 +21,7 @@ export const useSignalR = (
     const playSoundRef = useRef(Boolean(options.playSound));
     const listenEventsRef = useRef<string[]>(options.listenEvents ?? ['ReceiveNewReservation']);
     const soundEventsRef = useRef<string[]>(options.soundEvents ?? []);
+    const enabledRef = useRef(options.enabled ?? true);
     const notificationAudioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
@@ -37,6 +39,10 @@ export const useSignalR = (
     useEffect(() => {
         soundEventsRef.current = options.soundEvents ?? [];
     }, [options.soundEvents]);
+
+    useEffect(() => {
+        enabledRef.current = options.enabled ?? true;
+    }, [options.enabled]);
 
     useEffect(() => {
         const audio = new Audio(notificationSound);
@@ -67,7 +73,10 @@ export const useSignalR = (
     };
 
     useEffect(() => {
-        if (!isAuthenticated || !token) return;
+        if (!enabledRef.current || !isAuthenticated || !token) {
+            setConnection(null);
+            return;
+        }
 
         const newConnection = new HubConnectionBuilder()
             .withUrl(API_CONFIG.HUB_URL, {
@@ -80,7 +89,7 @@ export const useSignalR = (
         return () => {
             setConnection(null);
         };
-    }, [token, isAuthenticated]);
+    }, [token, isAuthenticated, options.enabled]);
 
     useEffect(() => {
         if (connection) {
@@ -102,7 +111,14 @@ export const useSignalR = (
                         });
                     });
                 })
-                .catch(error => console.error('🔴 Error al conectar SignalR:', error));
+                .catch(error => {
+                    const message = String(error?.message || error || '');
+                    if (message.includes('401')) {
+                        console.warn('SignalR deshabilitado por autenticacion invalida (401).');
+                        return;
+                    }
+                    console.error('🔴 Error al conectar SignalR:', error);
+                });
 
             return () => {
                 listenEventsRef.current.forEach((eventName) => {
