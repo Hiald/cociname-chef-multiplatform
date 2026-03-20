@@ -34,9 +34,6 @@ const buildDefaultDays = (weekStartDate) => {
 			id: formatDateKey(currentDate),
 			name,
 			label: formatDayLabel(currentDate),
-			enabled: index === 1 || index === 2,
-			startTime: '07:00',
-			endTime: '20:00',
 		};
 	});
 };
