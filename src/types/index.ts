@@ -573,6 +573,77 @@ export interface MarkEndRequest {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// AVAILABILITY - GET/POST/PUT /api/Availability
+// ═══════════════════════════════════════════════════════════════
+
+export interface GetAvailabilityByWeekAndDateParams {
+  ChefId: number;
+  WorkShift: number;
+  DateStart: string;
+  DateEnd: string;
+  Page?: number;
+  RecordsPerPage?: number;
+}
+
+export interface AvailabilityData {
+  dayOfTheWeek: number;
+  isWorking: number;
+  name: string;
+  description: string;
+  hourMonday?: string | null;
+  hourTuesday?: string | null;
+  hourWednesday?: string | null;
+  hourThursday?: string | null;
+  hourFriday?: string | null;
+  hourSaturday?: string | null;
+  hourSunday?: string | null;
+  dateStart?: string | null;
+  dateEnd?: string | null;
+  workShift: number;
+  valuesofWeek?: string | null;
+  baseLatitude?: string | null;
+  baseLongitude?: string | null;
+  coverageRadiusKm: number;
+  chefId: number;
+  id: number;
+  status: boolean;
+  createdById?: string | null;
+  createdAt?: string | null;
+}
+
+export interface AvailabilityListResponse {
+  data: AvailabilityData[];
+  success: boolean;
+  errorMessage: string | null;
+}
+
+export interface AvailabilityRequestDto {
+  dayOfTheWeek: number;
+  isWorking: number;
+  name: string;
+  description: string;
+  hourMonday?: string | null;
+  hourTuesday?: string | null;
+  hourWednesday?: string | null;
+  hourThursday?: string | null;
+  hourFriday?: string | null;
+  hourSaturday?: string | null;
+  hourSunday?: string | null;
+  dateStart?: string | null;
+  dateEnd?: string | null;
+  workShift: number;
+  valuesofWeek?: string | null;
+  baseLatitude?: string | null;
+  baseLongitude?: string | null;
+  coverageRadiusKm: number;
+  chefId: number;
+  id?: number;
+  status: boolean;
+  createdById?: string | null;
+  createdAt?: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Tipos de Navegación (6 vistas)
 // ═══════════════════════════════════════════════════════════════
 

@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { spacing } from '../styles';
+import { apiService } from '../services/api.service';
+import { useAuth } from '../hooks/useAuth';
 
 const DAY_NAMES = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
 const MONTH_NAMES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -41,6 +43,110 @@ const buildDefaultDays = (weekStartDate) => {
 
 const getWeekStorageKey = (weekStartDate) => `availability-week-${formatDateKey(weekStartDate)}`;
 
+const formatDateForApi = (date) => {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+};
+
+const formatDateTimeForApi = (date) => {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, '0');
+	const day = String(date.getDate()).padStart(2, '0');
+	const hours = String(date.getHours()).padStart(2, '0');
+	const minutes = String(date.getMinutes()).padStart(2, '0');
+	const seconds = String(date.getSeconds()).padStart(2, '0');
+	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
+const getWeekNumber = (date) => {
+	const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+	const dayNum = utcDate.getUTCDay() || 7;
+	utcDate.setUTCDate(utcDate.getUTCDate() + 4 - dayNum);
+	const yearStart = new Date(Date.UTC(utcDate.getUTCFullYear(), 0, 1));
+	return Math.ceil((((utcDate - yearStart) / 86400000) + 1) / 7);
+};
+
+const parseHourRange = (hourRange) => {
+	if (!hourRange || typeof hourRange !== 'string') {
+		return { enabled: false, startTime: '07:00', endTime: '20:00' };
+	}
+
+	const [start, end] = hourRange.split(',');
+	if (!start || !end) {
+		return { enabled: false, startTime: '07:00', endTime: '20:00' };
+	}
+
+	return {
+		enabled: true,
+		startTime: start.trim(),
+		endTime: end.trim(),
+	};
+};
+
+const applyAvailabilityToDays = (weekStartDate, availabilityRow) => {
+	const baseDays = buildDefaultDays(weekStartDate);
+	const dayMap = [
+		availabilityRow?.hourMonday,
+		availabilityRow?.hourTuesday,
+		availabilityRow?.hourWednesday,
+		availabilityRow?.hourThursday,
+		availabilityRow?.hourFriday,
+		availabilityRow?.hourSaturday,
+		availabilityRow?.hourSunday,
+	];
+
+	return baseDays.map((day, index) => {
+		const parsed = parseHourRange(dayMap[index]);
+		if (availabilityRow?.isWorking === 0) {
+			return {
+				...day,
+				enabled: false,
+				startTime: parsed.startTime,
+				endTime: parsed.endTime,
+			};
+		}
+
+		return {
+			...day,
+			...parsed,
+		};
+	});
+};
+
+const getPayloadFromDays = ({ days, weekStartDate, chefId, workShift, currentAvailabilityId, chefData }) => {
+	const hours = days.map(day => day.enabled ? `${day.startTime},${day.endTime}` : null);
+	const weekEndDate = new Date(weekStartDate);
+	weekEndDate.setDate(weekStartDate.getDate() + 6);
+
+	return {
+		dayOfTheWeek: 0,
+		isWorking: days.some(day => day.enabled) ? 1 : 0,
+		name: '-',
+		description: '-',
+		hourMonday: hours[0],
+		hourTuesday: hours[1],
+		hourWednesday: hours[2],
+		hourThursday: hours[3],
+		hourFriday: hours[4],
+		hourSaturday: hours[5],
+		hourSunday: hours[6],
+		dateStart: formatDateForApi(weekStartDate),
+		dateEnd: formatDateForApi(weekEndDate),
+		workShift,
+		valuesofWeek: days.map(day => (day.enabled ? '1' : '0')).join(','),
+		baseLatitude: chefData?.baseLatitude || '0',
+		baseLongitude: chefData?.baseLongitude || '0',
+		coverageRadiusKm: chefData?.coverageRadiusKm || 1,
+		chefId,
+		id: currentAvailabilityId || 0,
+		status: true,
+		createdById: String(chefId),
+		createdAt: formatDateTimeForApi(new Date()),
+	};
+};
+
 const getDaysForWeek = (weekStartDate) => {
 	const baseDays = buildDefaultDays(weekStartDate);
 	const savedRaw = window.localStorage.getItem(getWeekStorageKey(weekStartDate));
@@ -63,11 +169,61 @@ const getDaysForWeek = (weekStartDate) => {
 
 const AvailabilityScreen = () => {
 	const navigate = useNavigate();
+	const { chefData } = useAuth();
+	const chefId = chefData?.chefId;
 	const [weekStartDate, setWeekStartDate] = useState(() => getStartOfWeek(new Date()));
 	const [days, setDays] = useState(() => getDaysForWeek(getStartOfWeek(new Date())));
 	const [savedMessage, setSavedMessage] = useState('');
+	const [loading, setLoading] = useState(false);
+	const [submitting, setSubmitting] = useState(false);
+	const [availabilityId, setAvailabilityId] = useState(null);
 
-	const weekStorageKey = useMemo(() => getWeekStorageKey(weekStartDate), [weekStartDate]);
+	const workShift = useMemo(() => getWeekNumber(weekStartDate), [weekStartDate]);
+
+	const loadAvailabilityForWeek = useCallback(async (targetWeekStartDate) => {
+		if (!chefId) {
+			setDays(buildDefaultDays(targetWeekStartDate));
+			setAvailabilityId(null);
+			return;
+		}
+
+		const weekEndDate = new Date(targetWeekStartDate);
+		weekEndDate.setDate(targetWeekStartDate.getDate() + 6);
+		const targetShift = getWeekNumber(targetWeekStartDate);
+
+		setLoading(true);
+		try {
+			const response = await apiService.getAvailabilityByWeekAndDate({
+				ChefId: chefId,
+				WorkShift: targetShift,
+				DateStart: formatDateForApi(targetWeekStartDate),
+				DateEnd: formatDateForApi(weekEndDate),
+				Page: 1,
+				RecordsPerPage: 10,
+			});
+
+			if (response.success && response.data && response.data.length > 0) {
+				const row = response.data[0];
+				setDays(applyAvailabilityToDays(targetWeekStartDate, row));
+				setAvailabilityId(row.id || null);
+				setSavedMessage('');
+				return;
+			}
+
+			setDays(getDaysForWeek(targetWeekStartDate));
+			setAvailabilityId(null);
+		} catch (error) {
+			console.error('Error loading availability:', error);
+			setDays(getDaysForWeek(targetWeekStartDate));
+			setAvailabilityId(null);
+		} finally {
+			setLoading(false);
+		}
+	}, [chefId]);
+
+	useEffect(() => {
+		void loadAvailabilityForWeek(weekStartDate);
+	}, [weekStartDate, loadAvailabilityForWeek]);
 
 	const weekTitle = useMemo(() => {
 		const start = new Date(weekStartDate);
@@ -94,23 +250,105 @@ const AvailabilityScreen = () => {
 		setWeekStartDate(prev => {
 			const next = new Date(prev);
 			next.setDate(prev.getDate() + (direction * 7));
-			setDays(getDaysForWeek(next));
 			return next;
 		});
 	};
 
-	const handleSaveAvailability = () => {
-		const payload = days.reduce((acc, day) => {
-			acc[day.id] = {
-				enabled: day.enabled,
-				startTime: day.startTime,
-				endTime: day.endTime,
-			};
-			return acc;
-		}, {});
+	const handleSaveAvailability = async () => {
+		if (!chefId) {
+			setSavedMessage('No se pudo identificar la chef logeada');
+			return;
+		}
 
-		window.localStorage.setItem(weekStorageKey, JSON.stringify(payload));
-		setSavedMessage('Disponibilidad semanal guardada localmente');
+		const payload = getPayloadFromDays({
+			days,
+			weekStartDate,
+			chefId,
+			workShift,
+			currentAvailabilityId: availabilityId,
+			chefData,
+		});
+
+		setSubmitting(true);
+		try {
+			const response = availabilityId
+				? await apiService.updateAvailability(availabilityId, payload)
+				: await apiService.createAvailability(payload);
+
+			if (response.success) {
+				const successText = availabilityId
+					? 'Disponibilidad semanal actualizada correctamente'
+					: 'Disponibilidad semanal guardada correctamente';
+				setSavedMessage(successText);
+				await loadAvailabilityForWeek(weekStartDate);
+			} else {
+				setSavedMessage(response.errorMessage || 'No se pudo guardar la disponibilidad');
+			}
+		} catch (error) {
+			console.error('Error saving availability:', error);
+			setSavedMessage('Error al guardar disponibilidad');
+		} finally {
+			setSubmitting(false);
+		}
+	};
+
+	const handleCopyFromPreviousWeek = async () => {
+		if (!chefId) {
+			setSavedMessage('No se pudo identificar la chef logeada');
+			return;
+		}
+
+		if (availabilityId) {
+			setSavedMessage('Esta semana ya tiene disponibilidad. Usa Actualizar disponibilidad.');
+			return;
+		}
+
+		const previousWeekStart = new Date(weekStartDate);
+		previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+		const previousWeekEnd = new Date(previousWeekStart);
+		previousWeekEnd.setDate(previousWeekStart.getDate() + 6);
+
+		setSubmitting(true);
+		try {
+			const previousResponse = await apiService.getAvailabilityByWeekAndDate({
+				ChefId: chefId,
+				WorkShift: getWeekNumber(previousWeekStart),
+				DateStart: formatDateForApi(previousWeekStart),
+				DateEnd: formatDateForApi(previousWeekEnd),
+				Page: 1,
+				RecordsPerPage: 10,
+			});
+
+			if (!previousResponse.success || !previousResponse.data || previousResponse.data.length === 0) {
+				setSavedMessage('No existe disponibilidad en la semana anterior para copiar');
+				return;
+			}
+
+			const previousRow = previousResponse.data[0];
+			const copiedDays = applyAvailabilityToDays(weekStartDate, previousRow);
+			const payload = getPayloadFromDays({
+				days: copiedDays,
+				weekStartDate,
+				chefId,
+				workShift,
+				currentAvailabilityId: 0,
+				chefData,
+			});
+
+			const createResponse = await apiService.createAvailability(payload);
+			if (createResponse.success) {
+				setSavedMessage('Se copio la disponibilidad de la semana pasada');
+				setDays(copiedDays);
+				await loadAvailabilityForWeek(weekStartDate);
+			} else {
+				setSavedMessage(createResponse.errorMessage || 'No se pudo copiar la semana pasada');
+			}
+		} catch (error) {
+			console.error('Error copying previous week availability:', error);
+			setSavedMessage('Error al copiar disponibilidad de la semana pasada');
+		} finally {
+			setSubmitting(false);
+		}
 	};
 
 	return (
@@ -131,6 +369,14 @@ const AvailabilityScreen = () => {
 						{'>'}
 					</button>
 				</div>
+
+                <button style={{ ...styles.secondaryButton, ...(submitting ? styles.disabledButton : {}) }} onClick={handleCopyFromPreviousWeek} disabled={submitting || loading}>
+					Igual que la semana pasada
+				</button>
+
+				{loading ? (
+					<p style={styles.loadingText}>Cargando disponibilidad...</p>
+				) : null}
 
 				<div style={styles.daysList}>
 					{days.map(day => (
@@ -180,8 +426,8 @@ const AvailabilityScreen = () => {
 					))}
 				</div>
 
-				<button style={styles.saveButton} onClick={handleSaveAvailability}>
-					Guardar disponibilidad semanal
+				<button style={{ ...styles.saveButton, ...(submitting ? styles.disabledButton : {}) }} onClick={handleSaveAvailability} disabled={submitting || loading}>
+					{availabilityId ? 'Actualizar disponibilidad' : 'Guardar disponibilidad'}
 				</button>
 
 				{savedMessage ? (
@@ -243,6 +489,16 @@ const styles = {
 		color: '#111827',
 		textAlign: 'center',
 		fontWeight: '600',
+	},
+	weekShiftText: {
+		margin: `0 0 ${spacing.small}px 0`,
+		fontSize: 13,
+		color: '#6B7280',
+	},
+	loadingText: {
+		margin: `0 0 ${spacing.small}px 0`,
+		fontSize: 13,
+		color: '#6B7280',
 	},
 	daysList: {
 		display: 'flex',
@@ -334,6 +590,22 @@ const styles = {
 		fontSize: 16,
 		fontWeight: '700',
 		cursor: 'pointer',
+	},
+	secondaryButton: {
+		width: '100%',
+		border: '1px solid #FF51361A',
+		borderRadius: 999,
+		backgroundColor: '#FF51361A',
+		color: '#FF5136',
+		padding: '12px 16px',
+		fontSize: 15,
+		fontWeight: '700',
+		cursor: 'pointer',
+		marginBottom: spacing.medium,
+	},
+	disabledButton: {
+		opacity: 0.6,
+		cursor: 'not-allowed',
 	},
 	savedText: {
 		marginTop: spacing.small,

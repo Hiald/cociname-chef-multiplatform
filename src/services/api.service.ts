@@ -21,7 +21,10 @@ import {
   SuscriptionData,
   ChefReservationResponse,
   MarkStartRequest,
-  MarkEndRequest
+  MarkEndRequest,
+  AvailabilityListResponse,
+  GetAvailabilityByWeekAndDateParams,
+  AvailabilityRequestDto
 } from '../types'; 
 
 // ═══════════════════════════════════════════════════════════════
@@ -1140,6 +1143,94 @@ class ApiService {
         data: [],
       };
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // DISPONIBILIDAD
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/Availability/GetAvailabilityByWeekAndDateAsync
+   * Obtiene disponibilidad semanal por chef y semana del anio
+   */
+  async getAvailabilityByWeekAndDate(
+    params: GetAvailabilityByWeekAndDateParams
+  ): Promise<AvailabilityListResponse> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('ChefId', params.ChefId.toString());
+    queryParams.append('WorkShift', params.WorkShift.toString());
+    queryParams.append('DateStart', params.DateStart);
+    queryParams.append('DateEnd', params.DateEnd);
+    queryParams.append('Page', String(params.Page ?? 1));
+    queryParams.append('RecordsPerPage', String(params.RecordsPerPage ?? 10));
+
+    const endpoint = `Availability/GetAvailabilityByWeekAndDateAsync?${queryParams.toString()}`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data: AvailabilityListResponse = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: [],
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      return {
+        data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
+   * POST /api/Availability
+   * Crea disponibilidad semanal
+   */
+  async createAvailability(
+    request: AvailabilityRequestDto
+  ): Promise<BaseResponseGeneric<any>> {
+    return this.request<any>('Availability', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * PUT /api/Availability/{id}
+   * Actualiza disponibilidad semanal existente
+   */
+  async updateAvailability(
+    availabilityId: number,
+    request: AvailabilityRequestDto
+  ): Promise<BaseResponseGeneric<any>> {
+    return this.request<any>(`Availability/${availabilityId}`, {
+      method: 'PUT',
+      body: JSON.stringify(request),
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════
