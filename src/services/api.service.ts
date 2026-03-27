@@ -227,6 +227,26 @@ class ApiService {
   }
 
   /**
+   * POST /api/users/login-google
+   * Login/Register con Google para chef enviando idToken + role
+   */
+  async loginGoogleChef(
+    idToken: string
+  ): Promise<BaseResponseGeneric<LoginChefResponseDto>> {
+    const role = 'Chef';
+    const result = await this.publicRequest<LoginChefResponseDto>('users/login-google', {
+      method: 'POST',
+      body: JSON.stringify({ idToken, role }),
+    });
+
+    if (result.success && result.data?.token) {
+      this.setToken(result.data.token);
+    }
+
+    return result;
+  }
+
+  /**
    * POST /api/users/RegisterChef
    * Registro de cocineros
    */
