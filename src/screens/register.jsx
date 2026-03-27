@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarCheck, Restaurant, Verified } from '../assets/svgs';
 import { apiService } from '../services/api.service';
+import { useAuth } from '../hooks/useAuth';
 import logoImg from '../assets/images/logo.png';
 
 const RegisterScreen = () => {
+  const GOOGLE_CLIENT_ID_FALLBACK = '164367639878-13699crmkeg3jt0ksc7hs1ff5np0sm6c.apps.googleusercontent.com';
   const navigate = useNavigate();
   
   // Form fields
@@ -23,6 +25,77 @@ const RegisterScreen = () => {
   // UI states
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const googleButtonContainerRef = useRef(null);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK;
+  const { loginWithGoogleToken } = useAuth();
+
+  useEffect(() => {
+    if (!googleClientId || !googleButtonContainerRef.current || showVerification) {
+      return;
+    }
+
+    const renderGoogleButton = () => {
+      if (!window.google?.accounts?.id || !googleButtonContainerRef.current) {
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        context: 'use',
+        ux_mode: 'popup',
+        auto_select: false,
+        callback: async (response) => {
+          if (!response?.credential) {
+            setError('No se pudo obtener credencial de Google');
+            return;
+          }
+
+          setError('');
+          setIsGoogleLoading(true);
+          try {
+            const success = await loginWithGoogleToken(response.credential);
+            if (success) {
+              navigate('/');
+            } else {
+              setError('No se pudo registrarte/iniciar sesión con Google');
+            }
+          } catch (err) {
+            console.error('Google register/login error:', err);
+            setError('Error al continuar con Google');
+          } finally {
+            setIsGoogleLoading(false);
+          }
+        },
+      });
+
+      googleButtonContainerRef.current.innerHTML = '';
+      window.google.accounts.id.renderButton(googleButtonContainerRef.current, {
+        theme: 'outline',
+        size: 'large',
+        shape: 'pill',
+        width: 380,
+        text: 'signup_with',
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      renderGoogleButton();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = renderGoogleButton;
+    script.onerror = () => setError('No se pudo cargar Google Sign-In');
+    document.head.appendChild(script);
+
+    return () => {
+      script.remove();
+    };
+  }, [googleClientId, loginWithGoogleToken, navigate, showVerification]);
 
   const handleRegister = async () => {
     setError('');
@@ -385,6 +458,15 @@ const RegisterScreen = () => {
                 </span>
               </button>
 
+              <div style={styles.googleSeparator}>
+                <span style={styles.googleSeparatorText}>o continúa con</span>
+              </div>
+
+              <div style={styles.googleButtonWrapper}>
+                <div ref={googleButtonContainerRef} style={styles.googleButtonContainer} />
+                {isGoogleLoading ? <p style={styles.googleLoadingText}>Validando con Google...</p> : null}
+              </div>
+
               <p style={styles.loginText}>
                 ¿Ya tienes cuenta? <button 
                   style={styles.loginLink}
@@ -576,6 +658,34 @@ const styles = {
     fontSize: 17,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  googleSeparator: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    marginBottom: 12,
+  },
+  googleSeparatorText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+  },
+  googleButtonWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    minHeight: 52,
+  },
+  googleButtonContainer: {
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'center',
+  },
+  googleLoadingText: {
+    marginTop: 8,
+    marginBottom: 0,
+    fontSize: 13,
+    color: '#6B7280',
   },
   activateButton: {
     width: '100%',
