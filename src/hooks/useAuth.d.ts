@@ -5,6 +5,7 @@ export interface AuthContextValue {
   chefData: any;
   token: string | null;
   login: (username: string, password: string) => Promise<boolean>;
+  loginWithGoogleToken: (idToken: string) => Promise<boolean>;
   logout: () => Promise<void>;
   loading: boolean;
 }

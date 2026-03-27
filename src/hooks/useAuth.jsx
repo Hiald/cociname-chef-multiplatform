@@ -55,6 +55,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithGoogleToken = async (idToken) => {
+    try {
+      const result = await apiService.loginGoogleChef(idToken);
+
+      if (result.success && result.data?.token) {
+        localStorage.setItem('auth_token', result.data.token);
+        localStorage.setItem('chef_data', JSON.stringify(result.data));
+
+        setToken(result.data.token);
+        setChefData(result.data);
+        setIsAuthenticated(true);
+
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Google login error:', error);
+      return false;
+    }
+  };
+
   const logout = async () => {
     try {
       localStorage.removeItem('auth_token');
@@ -70,7 +92,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, chefData, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ isAuthenticated, chefData, token, login, loginWithGoogleToken, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
