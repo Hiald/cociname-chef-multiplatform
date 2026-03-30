@@ -51,10 +51,19 @@ const BottomTabs = () => {
     height: 60,
     backgroundColor: '#FFFFFF',
     borderTop: '1px solid #E5E7EB',
-    boxShadow: '0px -2px 3px rgba(0, 0, 0, 0.1)',
+    borderRadius: '20px 20px 0 0',
+    boxShadow: `
+      0px -5px 10px 0px #376A7C1C,
+      0px -18px 18px 0px #376A7C17,
+      0px -42px 25px 0px #376A7C0D,
+      0px -74px 30px 0px #376A7C05,
+      0px -115px 32px 0px #376A7C00,
+      0px 4px 15px 2px #E3F0F8
+    `,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+    overflow: 'hidden',
   };
 
   const bottomBarListStyle = {
@@ -71,8 +80,10 @@ const BottomTabs = () => {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 2, // Menos espacio entre icono y texto
     cursor: 'pointer',
+    transition: 'color 0.2s',
+    userSelect: 'none',
   };
 
   return (
@@ -80,23 +91,30 @@ const BottomTabs = () => {
       <div style={bottomBarListStyle}>
         {tabs.map((tab, index) => {
           const isActive = index === activeIndex;
-          const color = isActive ? '#FF5136' : '#6B7280';
-          
+          const color = isActive ? '#FF4336' : '#6B7280';
           const iconContainerStyle = {
             width: 24,
             height: 24,
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-          };
-
-          const labelStyle = {
-            fontSize: 12,
-            fontWeight: isActive ? 500 : 400,
             color: color,
-            marginTop: 4,
+            transition: 'color 0.2s',
           };
-
+          const labelStyle = {
+            fontFamily: 'Goldplay, sans-serif',
+            fontWeight: 700,
+            fontStyle: 'normal',
+            fontSize: 12,
+            lineHeight: '16px',
+            letterSpacing: 0,
+            color: color,
+            marginTop: 0,
+            textAlign: 'center',
+            verticalAlign: 'middle',
+            transition: 'color 0.2s',
+            display: 'block',
+          };
           return (
             <div
               key={tab.id}
@@ -104,7 +122,7 @@ const BottomTabs = () => {
               onClick={() => handleClick(index)}
             >
               <div style={iconContainerStyle}>
-                <tab.Icon />
+                <tab.Icon color="currentColor" />
               </div>
               <span style={labelStyle}>
                 {tab.label}
