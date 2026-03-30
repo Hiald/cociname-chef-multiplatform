@@ -43,7 +43,11 @@ const Header = ({ onMenuPress, showMenu = true, notificationCount = 0, onNotific
       <div style={styles.rightSection}>
         {showMenu && (
           <button style={styles.notificationButton} onClick={onNotificationPress}>
-            <span style={styles.notificationIcon}>🔔</span>
+            <img 
+              src={images.notification} 
+              alt="Notificaciones" 
+              style={styles.notificationIcon} 
+            />
             {notificationCount > 0 && (
               <span style={styles.notificationBadge}>
                 {notificationCount > 99 ? '99+' : notificationCount}
@@ -103,8 +107,8 @@ const styles = {
     marginBottom: 4,
   },
   logo: {
-    width: 120,
-    height: 30,
+    width: 124,
+    height: 24,
   },
   rightSection: {
     display: 'flex',
@@ -113,22 +117,39 @@ const styles = {
   },
   notificationButton: {
     position: 'relative',
-    padding: spacing.small,
-    background: 'none',
+    width: 28,
+    height: 28,
+    padding: (spacing.xs || 4), // Usa spacing.xs si existe, si no 4
+    background: '#FF4336',
     border: 'none',
+    borderRadius: 20, // O tu variable Radius/6
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: `
+      0px 5px 11px 0px #2C48581A,
+      0px 19px 19px 0px #2C485817,
+      0px 44px 26px 0px #2C48580D,
+      0px 78px 31px 0px #2C485803,
+      0px 122px 34px 0px #2C485800
+    `,
     cursor: 'pointer',
+    gap: 4,
+    opacity: 1,
   },
   notificationIcon: {
-    fontSize: 20,
+    width: 20,
+    height: 20,
+    objectFit: 'contain',
   },
   notificationBadge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    minWidth: 18,
-    height: 18,
+    top: -5,
+    right: -5,
+    minWidth: 14,
+    height: 14,
     borderRadius: 9,
-    backgroundColor: '#EF4444',
+    backgroundColor: '#1C2837',
     color: '#FFFFFF',
     display: 'flex',
     alignItems: 'center',
