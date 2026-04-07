@@ -1,507 +1,262 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
-import { 
-  CalendarReservation, 
-  CheckReservation, 
-  ArrowRightReservation,
-  MapReservation,
-  NotificationReservation,
-  AgentReservation,
-  ListReservation
-} from '../assets/svgs';
 import { useAuth } from '../hooks/useAuth';
 import { useSignalR } from '../hooks/useSignalR';
 import { formatearFechaConDia } from '../utils/formatters';
+import profileBlackIcon from '../assets/images/reservas/perfil-black.png';
+import clockIcon from '../assets/images/reservas/clock.png';
+import listIcon from '../assets/images/reservas/list.png';
+import mapIcon from '../assets/images/reservas/map.png';
+import rightIcon from '../assets/images/reservas/right.png';
+import proximaIcon from '../assets/images/reservas/proxima.png';
+import calendarIcon from '../assets/images/home/calendario.png';
+
+const confirmedStatuses = new Set([
+  StatusReservation.Aceptada,
+  StatusReservation.Creada,
+  StatusReservation.Actualizada,
+  StatusReservation.EnCompra,
+  StatusReservation.EnTrayecto,
+  StatusReservation.EnCocina,
+]);
+
+const loaderStyle = document.createElement('style');
+loaderStyle.innerHTML = `
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
+if (!document.getElementById('reservation-loader-style')) {
+  loaderStyle.id = 'reservation-loader-style';
+  document.head.appendChild(loaderStyle);
+}
+
+const parseLocalDateTime = (dateString, timeString = '00:00') => {
+  const [year, month, day] = String(dateString).split('-').map(Number);
+  const [hours, minutes] = String(timeString).split(':').map(Number);
+  return new Date(year, month - 1, day, Number.isNaN(hours) ? 0 : hours, Number.isNaN(minutes) ? 0 : minutes, 0, 0);
+};
+
+const formatCustomerName = (firstName, lastName, isRequest) => {
+  if (!firstName) return 'Cliente';
+  if (!isRequest) return `${firstName} ${lastName || ''}`.trim();
+  return `${firstName} ${lastName ? `${lastName.charAt(0)}.` : ''}`.trim();
+};
+
+const formatReservationDateTime = (dateReservation, hourReservation) => {
+  if (!dateReservation) return 'Fecha y hora por confirmar';
+  return `${formatearFechaConDia(dateReservation)} - ${hourReservation || 'Hora no especificada'}`;
+};
+
+const getTypeLabel = (reservation) => {
+  return reservation.tipo === 'suscripcion' ? 'SUSCRIPCION' : 'RESERVA';
+};
+
+const getHoursToLabel = (reservation) => {
+  const now = new Date();
+  const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+  const diffMs = reservationDate.getTime() - now.getTime();
+  const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+
+  if (diffHours <= 1) return 'EN MENOS DE 1 HORA';
+  return `EN ${diffHours} HORAS`;
+};
 
 const ReservationScreen = () => {
   const [activeTab, setActiveTab] = useState('confirmed');
   const [confirmedReservations, setConfirmedReservations] = useState([]);
   const [requestReservations, setRequestReservations] = useState([]);
-  const [activeReservation, setActiveReservation] = useState(null);
-  const [activeSuscription, setActiveSuscription] = useState(null);
-  const [suscriptionReservations, setSuscriptionReservations] = useState([]);
-  const [expandedSuscription, setExpandedSuscription] = useState(false);
   const [loading, setLoading] = useState(true);
   const { chefData } = useAuth();
-  const chefId = chefData?.chefId; // Obtener del contexto de autenticación
+  const chefId = chefData?.chefId;
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Helper para convertir fecha string a Date en zona horaria local
-  const parseLocalDate = (dateString) => {
-    const [year, month, day] = dateString.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  };
-
-  useEffect(() => {
-    loadReservations();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const syncTabToUrl = useCallback((tab) => {
+    navigate(`/reservation?tab=${tab}`, {
+      state: { defaultTab: tab },
+      replace: true,
+    });
+  }, [navigate]);
 
   useEffect(() => {
     const tabFromQuery = new URLSearchParams(location.search).get('tab');
-
     if (tabFromQuery === 'requests' || location.state?.defaultTab === 'requests') {
       setActiveTab('requests');
       return;
     }
-
-    if (tabFromQuery === 'confirmed' || location.state?.defaultTab === 'confirmed') {
-      setActiveTab('confirmed');
-    }
+    setActiveTab('confirmed');
   }, [location.search, location.state]);
 
-  useEffect(() => {
-    if (chefData?.id) {
-      loadSuscriptions();
+  const loadReservations = useCallback(async () => {
+    if (!chefId) return;
+
+    try {
+      setLoading(true);
+
+      const now = new Date();
+      const dateFilter = now.toISOString().split('T')[0];
+      const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
+
+      const [confirmedResponse, requestsResponse, suscriptionResponse] = await Promise.all([
+        apiService.listReservationByChefId(chefId),
+        apiService.getPendingReservations({ dateFilter, timeFilter }),
+        apiService.getPendingReservationSuscription({ dateFilter, timeFilter }),
+      ]);
+
+      if (confirmedResponse.success && confirmedResponse.data) {
+        const confirmed = confirmedResponse.data
+          .filter((reservation) => {
+            if (!confirmedStatuses.has(reservation.statusReservation)) return false;
+            const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+            return reservationDate.getTime() >= new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
+          })
+          .map((reservation) => ({ ...reservation, tipo: 'reserva' }))
+          .sort((a, b) => {
+            const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
+            const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
+            return dateA - dateB;
+          });
+
+        setConfirmedReservations(confirmed);
+      } else {
+        setConfirmedReservations([]);
+      }
+
+      const normalRequests = requestsResponse.success && requestsResponse.data
+        ? requestsResponse.data
+            .filter((reservation) => (
+              reservation.chefId === null &&
+              (reservation.statusReservation === StatusReservation.Creada ||
+                reservation.statusReservation === StatusReservation.Reprogramada ||
+                reservation.statusReservation === StatusReservation.ReasignacionCocinera)
+            ))
+            .map((reservation) => ({ ...reservation, tipo: 'reserva' }))
+        : [];
+
+      const suscriptionRequests = suscriptionResponse.success && suscriptionResponse.data
+        ? suscriptionResponse.data
+            .filter((reservation) => (
+              reservation.chefId === null &&
+              (reservation.suscriptionStatus === StatusReservation.Creada ||
+                reservation.suscriptionStatus === StatusReservation.Reprogramada ||
+                reservation.suscriptionStatus === StatusReservation.ReasignacionCocinera)
+            ))
+            .map((reservation) => ({ ...reservation, tipo: 'suscripcion' }))
+        : [];
+
+      const allRequests = [...normalRequests, ...suscriptionRequests].sort((a, b) => {
+        const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
+        const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
+        return dateA - dateB;
+      });
+
+      setRequestReservations(allRequests);
+    } catch (error) {
+      console.error('Error loading reservations:', error);
+      setConfirmedReservations([]);
+      setRequestReservations([]);
+    } finally {
+      setLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chefData?.id]);
+  }, [chefId]);
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      void loadReservations();
-    }, 30000);
-
-    return () => window.clearInterval(intervalId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void loadReservations();
+  }, [loadReservations]);
 
   useSignalR(() => {
     void loadReservations();
   }, { playSound: false });
 
-  const loadReservations = async () => {
-    try {
-      setLoading(true);
-      
-      // Cargar reservas confirmadas
-      const confirmedResponse = await apiService.listReservationByChefId(chefId);
-      if (confirmedResponse.success && confirmedResponse.data) {
-        const data = confirmedResponse.data;
-
-        // Obtener fecha actual (solo fecha, sin hora)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayTime = today.getTime();
-
-        // Filtrar reservas en cocina o en trayecto (solo hoy o futuras)
-        const activeReservations = data.filter(r => {
-          const reservationDate = parseLocalDate(r.dateReservation);
-          return (
-            (r.statusReservation === StatusReservation.EnCocina ||
-             r.statusReservation === StatusReservation.EnTrayecto) &&
-            reservationDate.getTime() >= todayTime
-          );
-        });
-
-        let activeReservation = null;
-
-        if (activeReservations.length > 0) {
-          // Buscar reserva del día de hoy
-          const todayActive = activeReservations.find(r => {
-            const reservationDate = parseLocalDate(r.dateReservation);
-            return reservationDate.getTime() === todayTime;
-          });
-
-          if (todayActive) {
-            activeReservation = todayActive;
-          } else {
-            // Si no hay del día de hoy, buscar la más cercana futura
-            const sortedByDate = activeReservations
-              .map(r => ({
-                ...r,
-                dateTime: parseLocalDate(r.dateReservation).getTime()
-              }))
-              .sort((a, b) => a.dateTime - b.dateTime);
-            
-            activeReservation = sortedByDate[0];
-          }
-        }
-
-        // Si no hay reserva en cocina/trayecto, buscar la próxima reserva confirmada (solo hoy o futuras)
-        if (!activeReservation) {
-          const confirmedReservations = data.filter(r => {
-            const reservationDate = parseLocalDate(r.dateReservation);
-            return (
-              r.statusReservation !== StatusReservation.Cancelada &&
-              r.statusReservation !== StatusReservation.Completada &&
-              reservationDate.getTime() >= todayTime
-            );
-          });
-
-          if (confirmedReservations.length > 0) {
-            const sortedByDate = confirmedReservations
-              .map(r => ({
-                ...r,
-                dateTime: parseLocalDate(r.dateReservation).getTime()
-              }))
-              .sort((a, b) => a.dateTime - b.dateTime);
-            
-            activeReservation = sortedByDate[0];
-          }
-        }
-
-        setActiveReservation(activeReservation);
-
-        // Filtrar solo las confirmadas (Aceptada, Creada, Actualizada, EnCompra, EnTrayecto, EnCocina) - solo hoy o futuras
-        const confirmed = data.filter(r => {
-          const reservationDate = parseLocalDate(r.dateReservation);
-          return (
-            (r.statusReservation === StatusReservation.Aceptada ||
-             r.statusReservation === StatusReservation.Creada ||
-             r.statusReservation === StatusReservation.Actualizada ||
-             r.statusReservation === StatusReservation.EnCompra ||
-             r.statusReservation === StatusReservation.EnTrayecto ||
-             r.statusReservation === StatusReservation.EnCocina) &&
-            reservationDate.getTime() >= todayTime
-          );
-        }).map(r => ({ ...r, tipo: 'reserva' }));
-        
-        // Cargar suscripciones confirmadas del chef
-        let allConfirmed = [...confirmed];
-        
-        if (chefId) {
-          const suscriptionsResponse = await apiService.getSuscriptionsByChefId(chefId);
-          
-          if (suscriptionsResponse.success && suscriptionsResponse.data) {
-            // Filtrar suscripciones activas (confirmadas)
-            const activeSuscriptions = suscriptionsResponse.data
-              .filter(s => s.statusSuscription === 1)
-              .map(s => ({
-                ...s,
-                tipo: 'suscripcion',
-                // Mapear campos para que sean compatibles con el renderizado
-                customerName: s.customerName || 'Cliente',
-                customerLastName: s.customerLastName || '',
-                dateReservation: s.startDate,
-                hourReservation: '00:00',
-                direction: s.direction || 'Dirección no especificada',
-                puchaseIngredients: false,
-                statusReservation: StatusReservation.Aceptada // Considerarlas como aceptadas
-              }));
-            
-            allConfirmed = [...allConfirmed, ...activeSuscriptions];
-          }
-        }
-        
-        setConfirmedReservations(allConfirmed);
-      }
-
-      // Cargar solicitudes pendientes con fecha y hora actual
-      const now = new Date();
-      const dateFilter = now.toISOString().split('T')[0]; // Formato: YYYY-MM-DD
-      const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5); // Formato: HH:mm
-      
-      // Cargar reservas normales pendientes
-      const requestsResponse = await apiService.getPendingReservations({
-        dateFilter,
-        timeFilter,
+  const upcomingReservation = useMemo(() => {
+    if (activeTab !== 'confirmed') return null;
+    const now = new Date();
+    const nearestUpcoming = confirmedReservations
+      .filter((reservation) => {
+        const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+        return reservationDate.getTime() >= now.getTime();
+      })
+      .sort((a, b) => {
+        const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
+        const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
+        return dateA - dateB;
       });
-      
-      // Cargar reservas de suscripción pendientes
-      const suscriptionResponse = await apiService.getPendingReservationSuscription({
-        dateFilter,
-        timeFilter,
-      });
-      
-      console.log('📋 Solicitudes de suscripción pendientes del API:', suscriptionResponse);
-      if (suscriptionResponse.success && suscriptionResponse.data) {
-        console.log('📋 Datos de solicitudes:', suscriptionResponse.data.map(r => ({
-          id: r.id,
-          suscriptionStatus: r.suscriptionStatus,
-          suscriptionCode: r.suscriptionCode,
-          customerName: r.customerName
-        })));
-      }
-      
-      // Combinar ambas listas y agregar tipo identificador
-      // FILTRAR solicitudes pendientes: sin chef asignado (chefId === null) Y estado 1, 9 o 10
-      const normalRequests = requestsResponse.success && requestsResponse.data 
-        ? requestsResponse.data
-            .filter(r => {
-              // Debe tener chefId null (sin asignar) Y estar en estado Creada(1), Reprogramada(9) o Reasignación(10)
-              const isPending = r.chefId === null && (
-                r.statusReservation === 1 ||  // Creada
-                r.statusReservation === 9 ||  // Reprogramada
-                r.statusReservation === 10    // Reasignación Cocinera
-              );
-              return isPending;
-            })
-            .map(r => ({ ...r, tipo: 'reserva' }))
-        : [];
-      
-      // FILTRAR suscripciones pendientes: sin chef asignado Y estado 1, 9 o 10
-      const suscriptionRequests = suscriptionResponse.success && suscriptionResponse.data
-        ? suscriptionResponse.data
-            .filter(r => {
-              // Debe tener chefId null (sin asignar) Y estar en estado Creada(1), Reprogramada(9) o Reasignación(10)
-              const isPending = r.chefId === null && (
-                r.suscriptionStatus === 1 ||  // Creada
-                r.suscriptionStatus === 9 ||  // Reprogramada
-                r.suscriptionStatus === 10    // Reasignación Cocinera
-              );
-              return isPending;
-            })
-            .map(r => ({ ...r, tipo: 'suscripcion' }))
-        : [];
-      
-      console.log('📋 Solicitudes filtradas:', {
-        normalRequests: normalRequests.length,
-        normalRequestsData: normalRequests.map(r => ({ id: r.id, status: r.statusReservation, chefId: r.chefId })),
-        suscriptionRequests: suscriptionRequests.length,
-        suscriptionRequestsData: suscriptionRequests.map(r => ({ id: r.id, status: r.suscriptionStatus })),
-        total: normalRequests.length + suscriptionRequests.length
-      });
-      
-      const allRequests = [...normalRequests, ...suscriptionRequests];
-      setRequestReservations(allRequests);
-    } catch (error) {
-      console.error('Error loading reservations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const loadSuscriptions = async () => {
-    try {
-      const response = await apiService.getSuscriptionsByChefId(chefId);
-      
-      if (response.success && response.data && response.data.length > 0) {
-        // Filtrar suscripciones activas y ordenar por fecha más cercana
-        const activeSuscriptions = response.data.filter(s => s.statusSuscription === 1);
-        
-        if (activeSuscriptions.length > 0) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
-          // Ordenar por fecha de inicio más cercana
-          const sorted = activeSuscriptions
-            .map(s => ({
-              ...s,
-              dateNum: s.startDate ? new Date(s.startDate).getTime() : 0
-            }))
-            .sort((a, b) => Math.abs(a.dateNum - today.getTime()) - Math.abs(b.dateNum - today.getTime()));
-          
-          const firstActive = sorted[0];
-          setActiveSuscription(firstActive);
-          
-          // Cargar las reservas hijas de esta suscripción
-          const reservationsResponse = await apiService.getReservationsBySuscriptionId(firstActive.id);
-          if (reservationsResponse.success && reservationsResponse.data) {
-            setSuscriptionReservations(reservationsResponse.data);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error loading suscriptions:', error);
-    }
-  };
+    return nearestUpcoming[0] || null;
+  }, [activeTab, confirmedReservations]);
 
-  const formatDate = (date) => {
-    if (!date) return 'Fecha no especificada';
-    if (typeof date === 'string' && (date === 'string' || date.trim() === '')) {
-      return 'Fecha no especificada';
-    }
-    try {
-      return formatearFechaConDia(date);
-    } catch (error) {
-      console.error('Error formatting date:', date, 'Type:', typeof date, 'Error:', error);
-      return 'Fecha inválida';
-    }
-  };
+  const visibleReservations = useMemo(() => {
+    const list = activeTab === 'confirmed' ? confirmedReservations : requestReservations;
+    if (activeTab !== 'confirmed' || !upcomingReservation) return list;
+    return list.filter((reservation) => reservation.id !== upcomingReservation.id);
+  }, [activeTab, confirmedReservations, requestReservations, upcomingReservation]);
 
-  const formatCustomerName = (firstName, lastName, isRequest) => {
-    if (!firstName) return 'Cliente';
-    
-    if (isRequest) {
-      // Para solicitudes: nombre + inicial del apellido
-      const lastNameInitial = lastName ? `${lastName.charAt(0)}.` : '';
-      return `${firstName} ${lastNameInitial}`;
-    } else {
-      // Para confirmadas: nombre completo
-      return `${firstName} ${lastName || ''}`.trim();
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case StatusReservation.EnCocina:
-        return { text: 'EN COCINA', color: '#10B981', bgColor: '#D1FAE5' };
-      case StatusReservation.EnTrayecto:
-        return { text: 'EN TRAYECTO', color: '#F59E0B', bgColor: '#FEF3C7' };
-      case StatusReservation.EnCompra:
-        return { text: 'EN COMPRA', color: '#3B82F6', bgColor: '#DBEAFE' };
-      case StatusReservation.Aceptada:
-        return { text: 'ACEPTADA', color: '#8B5CF6', bgColor: '#EDE9FE' };
-      case StatusReservation.Creada:
-      case StatusReservation.Actualizada:
-        return { text: 'CONFIRMADA', color: '#10B981', bgColor: '#D1FAE5' };
-      default:
-        return { text: 'CONFIRMADA', color: '#10B981', bgColor: '#D1FAE5' };
-    }
-  };
-
-  const handleViewReservation = (reservation, isActive, isRequest = false) => {
-    console.log('🔍 handleViewReservation llamado:', {
-      reservationId: reservation.id,
-      tipo: reservation.tipo,
-      isActive,
-      isRequest,
-      suscriptionStatus: reservation.suscriptionStatus,
-      statusReservation: reservation.statusReservation,
-      reservationSuscriptionId: reservation.reservationSuscriptionId
-    });
-    
-    // Si es una suscripción confirmada (plan completo)
-    if (reservation.tipo === 'suscripcion' && !reservation.reservationSuscriptionId) {
-      console.log('📦 Navegando a suscripción (plan completo) con state:', {
-        reservationSuscriptionId: reservation.id, 
-        suscriptionId: reservation.id, 
-        isActive: false, 
-        isSuscription: true,
-        isRequest // ✅ Pasar el valor correcto
-      });
-      
-      // Navegar al detalle de suscripción usando el ID de la suscripción
+  const handleViewReservation = (reservation, isRequest = false) => {
+    if (reservation.tipo === 'suscripcion') {
       navigate(`/reservation-suscription/${reservation.id}`, {
-        state: { 
-          reservationSuscriptionId: reservation.id, 
-          suscriptionId: reservation.id, 
-          isActive: false, 
+        state: {
+          reservationSuscriptionId: reservation.id,
+          suscriptionId: reservation.suscriptionId,
+          isActive: false,
           isSuscription: true,
-          isRequest // ✅ Usar el parámetro en lugar de hardcodear false
-        }
+          isRequest,
+        },
       });
       return;
     }
-    
-    // Si es una reserva de suscripción (reserva individual dentro de un plan)
-    if (reservation.tipo === 'suscripcion') {
-      console.log('🚀 Navegando a suscripción con state:', {
-        reservationSuscriptionId: reservation.id, 
-        suscriptionId: reservation.suscriptionId, 
-        isActive, 
-        isSuscription: true,
-        isRequest
-      });
-      
-      navigate(`/reservation-suscription/${reservation.id}`, {
-        state: { 
-          reservationSuscriptionId: reservation.id, 
-          suscriptionId: reservation.suscriptionId, 
-          isActive, 
-          isSuscription: true,
-          isRequest // Agregar si es solicitud o confirmada
-        }
-      });
-    } else {
-      // Si es una reserva normal, navegar a reservationDetail
-      navigate(`/reservation/${reservation.id}`, {
-        state: { 
-          reservationId: reservation.id, 
-          isActive,
-          isRequest // Agregar si es solicitud o confirmada
-        }
-      });
-    }
+
+    const status = reservation.statusReservation;
+    const isActive = status === StatusReservation.EnCocina || status === StatusReservation.EnTrayecto;
+
+    navigate(`/reservation/${reservation.id}`, {
+      state: {
+        reservationId: reservation.id,
+        isActive,
+        isRequest,
+      },
+    });
   };
 
-  const renderReservationCard = (reservation, isRequest) => {
-    const statusBadge = getStatusBadge(reservation.statusReservation);
-    
-    console.log('🎴 renderReservationCard:', {
-      id: reservation.id,
-      tipo: reservation.tipo,
-      isRequest,
-      suscriptionStatus: reservation.suscriptionStatus,
-      statusReservation: reservation.statusReservation
-    });
-    
+  const renderReservationCard = (reservation, isRequest = false) => {
     return (
-      <button 
-        key={reservation.id} 
+      <button
+        key={`${reservation.tipo || 'reserva'}-${reservation.id}`}
         style={styles.reservationCard}
-        onClick={() => {
-          console.log('👆 Click en tarjeta:', {
-            id: reservation.id,
-            tipo: reservation.tipo,
-            isRequest,
-            suscriptionStatus: reservation.suscriptionStatus
-          });
-          handleViewReservation(
-            reservation, 
-            reservation.statusReservation === StatusReservation.EnCocina || reservation.statusReservation === StatusReservation.EnTrayecto,
-            isRequest
-          );
-        }}
+        onClick={() => handleViewReservation(reservation, isRequest)}
       >
-        <div style={styles.reservationCardContent}>
-          {/* Header con badge de estado y tipo */}
+        <div style={styles.cardBody}>
           <div style={styles.cardTopRow}>
-            <span style={styles.reservationCardName}>
-              {formatCustomerName(reservation.customerName, reservation.customerLastName, isRequest)}
+            <div style={styles.nameRow}>
+              <span style={styles.customerName}>{formatCustomerName(reservation.customerName, reservation.customerLastName, isRequest)}</span>
+            </div>
+            <span style={{ ...styles.typeBadge, ...(reservation.tipo === 'suscripcion' ? styles.typeBadgeSuscription : styles.typeBadgeReservation) }}>
+              {getTypeLabel(reservation)}
             </span>
-            <div style={styles.badgesContainer}>
-              {/* Badge de tipo (Reserva/Suscripción) */}
-              {reservation.tipo && (
-                <div style={{
-                  ...styles.typeBadgeMini, 
-                  backgroundColor: reservation.tipo === 'suscripcion' ? '#FEF3C7' : '#E0E7FF'
-                }}>
-                  <span style={{
-                    ...styles.typeBadgeMiniText, 
-                    color: reservation.tipo === 'suscripcion' ? '#F59E0B' : '#6366F1'
-                  }}>
-                    {reservation.tipo === 'suscripcion' ? 'SUSCRIPCIÓN' : 'RESERVA'}
-                  </span>
-                </div>
-              )}
-              {/* Badge de estado */}
-              <div style={{...styles.statusBadgeMini, backgroundColor: statusBadge.bgColor}}>
-                <span style={{...styles.statusBadgeMiniText, color: statusBadge.color}}>
-                  {statusBadge.text}
-                </span>
-              </div>
-            </div>
           </div>
 
-          {/* Detalles */}
-          <div style={styles.reservationCardDetails}>
-            <div style={styles.cardDetailRow}>
-              <div style={styles.cardDetailIconContainer}>
-                <ListReservation />
-              </div>
-              <span style={styles.cardDetailText}>
-                {reservation.dateReservation 
-                  ? `${formatDate(reservation.dateReservation)} - ${reservation.hourReservation || 'Hora no especificada'}` 
-                  : 'Fecha y hora por confirmar'}
-              </span>
-            </div>
-            <div style={styles.cardDetailRow}>
-              <div style={styles.cardDetailIconContainer}>
-                <AgentReservation />
-              </div>
-              <span style={styles.cardDetailText}>
-                {reservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}
-              </span>
-            </div>
+          <div style={styles.detailRow}>
+            <img src={clockIcon} alt="Hora" style={styles.rowIcon} />
+            <span style={styles.rowText}>{formatReservationDateTime(reservation.dateReservation, reservation.hourReservation)}</span>
           </div>
 
-          {/* Ubicación */}
-          <div style={styles.locationRow}>
-            <MapReservation />
-            <span style={styles.locationText}>{reservation.direction}</span>
+          <div style={styles.detailRow}>
+            <img src={listIcon} alt="Compras" style={styles.rowIcon} />
+            <span style={styles.rowText}>{reservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}</span>
+          </div>
+
+          <div style={styles.detailRow}>
+            <img src={mapIcon} alt="Ubicacion" style={styles.rowIcon} />
+            <span style={styles.rowText}>{reservation.direction || 'Direccion no especificada'}</span>
           </div>
         </div>
-        <div style={styles.arrowIconContainer}>
-          <ArrowRightReservation />
-        </div>
+
+        <img src={rightIcon} alt="Ver detalle" style={styles.rightArrow} />
       </button>
     );
   };
@@ -509,218 +264,110 @@ const ReservationScreen = () => {
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
+        <div style={styles.spinner} />
       </div>
     );
   }
 
-  const currentReservations = activeTab === 'confirmed' ? confirmedReservations : requestReservations;
-
   return (
     <div style={styles.container}>
-      {/* Mis suscripciones */}
-      {activeSuscription && (
-        <div style={styles.suscriptionSection}>
-          <div style={styles.suscriptionHeader}>
-            <h2 style={styles.suscriptionTitle}>Mi suscripción</h2>
-            <div style={styles.suscriptionBadge}>
-              <span style={styles.suscriptionBadgeText}>Suscripción activa</span>
+      <div style={styles.header}>
+        <div style={styles.titleRow}>
+          <img src={calendarIcon} alt="Tus reservas" style={styles.titleIcon} />
+          <h1 style={styles.title}>Tus Reservas</h1>
+        </div>
+
+        <div style={styles.toggleContainer}>
+          <div
+            style={{
+              ...styles.toggleKnob,
+              transform: activeTab === 'confirmed' ? 'translateX(0%)' : 'translateX(100%)',
+            }}
+          />
+
+          <button
+            type="button"
+            style={{ ...styles.toggleButton, ...(activeTab === 'confirmed' ? styles.toggleButtonActive : {}) }}
+            onClick={() => {
+              setActiveTab('confirmed');
+              syncTabToUrl('confirmed');
+            }}
+          >
+            Confirmadas
+          </button>
+
+          <button
+            type="button"
+            style={{ ...styles.toggleButton, ...(activeTab === 'requests' ? styles.toggleButtonActive : {}) }}
+            onClick={() => {
+              setActiveTab('requests');
+              syncTabToUrl('requests');
+            }}
+          >
+            Solicitudes ({requestReservations.length})
+          </button>
+        </div>
+      </div>
+
+      <div style={styles.content}>
+        {activeTab === 'confirmed' && upcomingReservation && (
+          <div style={styles.nextReservationCard}>
+            <div style={styles.nextCardTop}>
+              <div style={styles.nextBadge}>
+                <img src={proximaIcon} alt="Proxima" style={styles.nextBadgeIcon} />
+                <span style={styles.nextBadgeText}>PROXIMA</span>
+              </div>
+              <span style={styles.nextHoursText}>{getHoursToLabel(upcomingReservation)}</span>
             </div>
-          </div>
 
-          <div style={styles.suscriptionCard}>
-            <div style={styles.suscriptionCardHeader}>
-              <h3 style={styles.suscriptionPlanName}>Plan Mensual Premium</h3>
-              <span style={styles.suscriptionPrice}>S/ {activeSuscription.totalPrice}</span>
-            </div>
-
-            <p style={styles.suscriptionSubtitle}>
-              {activeSuscription.visitsPerMonth} reservas incluidas al mes
-            </p>
-
-            <div style={styles.progressSection}>
-              <div style={styles.progressHeader}>
-                <span style={styles.progressLabel}>Fechas utilizadas</span>
-                <span style={styles.progressCount}>
-                  {suscriptionReservations.filter(r => r.suscriptionStatus >= 1).length}/{activeSuscription.visitsPerMonth}
+            <div style={styles.cardBodyNoArrow}>
+              <div style={styles.cardTopRow}>
+                <div style={styles.nameRow}>
+                  <img src={profileBlackIcon} alt="Perfil" style={styles.leadingIcon} />
+                  <span style={styles.customerName}>{formatCustomerName(upcomingReservation.customerName, upcomingReservation.customerLastName, false)}</span>
+                </div>
+                <span style={{ ...styles.typeBadge, ...(upcomingReservation.tipo === 'suscripcion' ? styles.typeBadgeSuscription : styles.typeBadgeReservation) }}>
+                  {getTypeLabel(upcomingReservation)}
                 </span>
               </div>
-              <div style={styles.progressBar}>
-                <div 
-                  style={{
-                    ...styles.progressFill,
-                    width: `${(suscriptionReservations.filter(r => r.suscriptionStatus >= 1).length / activeSuscription.visitsPerMonth) * 100}%`
-                  }}
-                />
+
+              <div style={styles.detailRow}>
+                <span style={styles.rowText}>{upcomingReservation.direction || 'Direccion no especificada'}</span>
               </div>
-              <p style={styles.progressText}>
-                Te quedan {activeSuscription.visitsPerMonth - suscriptionReservations.filter(r => r.suscriptionStatus >= 1).length} reservas disponibles
-              </p>
+
+              <div style={styles.detailRow}>
+                <img src={clockIcon} alt="Hora" style={styles.rowIcon} />
+                <span style={styles.rowText}>{formatReservationDateTime(upcomingReservation.dateReservation, upcomingReservation.hourReservation)}</span>
+              </div>
+
+              <div style={styles.detailRow}>
+                <img src={listIcon} alt="Compras" style={styles.rowIcon} />
+                <span style={styles.rowText}>{upcomingReservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}</span>
+              </div>
             </div>
 
-            <div style={styles.renewalSection}>
-              <span style={styles.renewalLabel}>Próxima renovación:</span>
-              <span style={styles.renewalDate}>{activeSuscription.endDate ? formatDate(activeSuscription.endDate) : 'No especificada'}</span>
-            </div>
-
-            <button 
-              style={styles.toggleButton}
-              onClick={() => setExpandedSuscription(!expandedSuscription)}
+            <button
+              style={styles.nextActionButton}
+              onClick={() => handleViewReservation(upcomingReservation, false)}
             >
-              <span style={styles.toggleButtonText}>
-                {expandedSuscription ? 'Ocultar reservas' : 'Ver detalle de reservas'}
-              </span>
-              <span style={{...styles.toggleIcon, transform: expandedSuscription ? 'rotate(180deg)' : 'rotate(0deg)'}}>
-                ▼
-              </span>
-            </button>
-
-            {/* Lista expandible de reservas */}
-            {expandedSuscription && (
-              <div style={styles.suscriptionReservationsList}>
-                {suscriptionReservations.length === 0 ? (
-                  <p style={styles.emptyReservationsText}>No hay reservas programadas aún</p>
-                ) : (
-                  suscriptionReservations.map((reservation, index) => (
-                    <div key={reservation.id} style={styles.suscriptionReservationItem}>
-                      <div style={styles.suscriptionReservationHeader}>
-                        <span style={styles.suscriptionReservationNumber}>Reserva {index + 1}</span>
-                        <span style={{
-                          ...styles.suscriptionReservationStatus,
-                          color: reservation.suscriptionStatus >= 1 ? '#10B981' : '#6B7280'
-                        }}>
-                          {reservation.suscriptionStatus >= 1 ? 'Completada' : 'Pendiente'}
-                        </span>
-                      </div>
-                      {reservation.dateReservation && (
-                        <p style={styles.suscriptionReservationDate}>
-                          {formatDate(reservation.dateReservation)} - {reservation.hourReservation}
-                        </p>
-                      )}
-                      <button 
-                        style={{
-                          ...styles.suscriptionReservationButton,
-                          opacity: !reservation.dateReservation ? 0.5 : 1,
-                          cursor: !reservation.dateReservation ? 'not-allowed' : 'pointer'
-                        }}
-                        onClick={() => reservation.dateReservation && navigate(`/suscription/${activeSuscription.id}`)}
-                        disabled={!reservation.dateReservation}
-                      >
-                        <span style={styles.suscriptionReservationButtonText}>
-                          {reservation.dateReservation ? 'Ver detalle' : 'Sin programar'}
-                        </span>
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Header con título */}
-      <div style={styles.header}>
-        <div style={styles.headerTitleRow}>
-          <CalendarReservation />
-          <h1 style={styles.headerTitle}>Tus reservas</h1>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={styles.tabsContainer}>
-        <button
-          style={{...styles.tab, ...(activeTab === 'confirmed' ? styles.tabActive : {})}}
-          onClick={() => {
-            setActiveTab('confirmed');
-            navigate('/reservation?tab=confirmed', { state: { defaultTab: 'confirmed' }, replace: true });
-          }}
-        >
-          <CheckReservation />
-          <span style={{...styles.tabText, ...(activeTab === 'confirmed' ? styles.tabTextActive : {})}}>
-            Confirmadas
-          </span>
-        </button>
-
-        <button
-          style={{...styles.tab, ...(activeTab === 'requests' ? styles.tabActive : {})}}
-          onClick={() => {
-            setActiveTab('requests');
-            navigate('/reservation?tab=requests', { state: { defaultTab: 'requests' }, replace: true });
-          }}
-        >
-          <NotificationReservation />
-          <span style={{...styles.tabText, ...(activeTab === 'requests' ? styles.tabTextActive : {})}}>
-            Solicitudes
-          </span>
-        </button>
-      </div>
-
-      {/* Reserva en curso */}
-      {activeReservation && (
-        <div style={styles.activeReservationSection}>
-          <div style={styles.activeReservationCard}>
-            <div style={styles.cardHeader}>
-              <div style={styles.statusBadge}>
-                <span style={styles.statusBadgeText}>EN CURSO</span>
-              </div>
-              <span style={styles.reservationDate}>{formatDate(activeReservation.dateReservation)}</span>
-            </div>
-
-            <div style={styles.reservationInfo}>
-              <p style={styles.customerName}>
-                {formatCustomerName(activeReservation.customerName, activeReservation.customerLastName, false)}
-              </p>
-              <p style={styles.customerAddress}>{activeReservation.direction}</p>
-
-              <div style={styles.reservationDetails}>
-                <div style={styles.detailRow}>
-                  <div style={styles.detailIconContainer}>
-                    <ListReservation />
-                  </div>
-                  <span style={styles.detailText}>{activeReservation.hourReservation}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <div style={styles.detailIconContainer}>
-                    <AgentReservation />
-                  </div>
-                  <span style={styles.detailText}>
-                    {activeReservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <button 
-              style={styles.viewDetailsButton} 
-              onClick={() => handleViewReservation(activeReservation, true)}
-            >
-              <span style={styles.viewDetailsButtonText}>Ver Reserva en Curso</span>
+              Ver proxima reserva
             </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Lista de reservas */}
-      <div style={{...styles.scrollView, ...styles.contentContainer}}>
-        {currentReservations.length === 0 ? (
+        {visibleReservations.length === 0 ? (
           <div style={styles.emptyState}>
-            <span style={styles.emptyStateIcon}>
-              {activeTab === 'confirmed' ? '📅' : '🔔'}
-            </span>
-            <p style={styles.emptyStateTitle}>
+            <p style={styles.emptyTitle}>
               {activeTab === 'confirmed' ? 'No tienes reservas confirmadas' : 'No tienes solicitudes pendientes'}
             </p>
-            <p style={styles.emptyStateText}>
-              {activeTab === 'confirmed' 
-                ? 'Tus reservas confirmadas aparecerán aquí.' 
-                : 'Las nuevas solicitudes de reserva aparecerán aquí.'}
+            <p style={styles.emptyText}>
+              {activeTab === 'confirmed'
+                ? 'Tus reservas apareceran aqui cuando se confirmen.'
+                : 'Las nuevas solicitudes apareceran aqui.'}
             </p>
           </div>
         ) : (
-          currentReservations.map((reservation) => 
-            renderReservationCard(reservation, activeTab === 'requests')
-          )
+          visibleReservations.map((reservation) => renderReservationCard(reservation, activeTab === 'requests'))
         )}
       </div>
     </div>
@@ -729,472 +376,244 @@ const ReservationScreen = () => {
 
 const styles = {
   container: {
-    display: 'flex',
-    flexDirection: 'column',
     minHeight: '100%',
+    backgroundColor: '#EAF1F6',
     width: '100%',
-    maxWidth: '100%',
-    backgroundColor: '#F5F7FA',
-    overflowX: 'hidden',
   },
   loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
     height: '100vh',
+    display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#EAF1F6',
   },
   spinner: {
-    width: '40px',
-    height: '40px',
-    border: '4px solid #f3f4f6',
-    borderTop: '4px solid #FF5136',
+    width: 40,
+    height: 40,
+    border: '4px solid #DDE6EE',
+    borderTop: '4px solid #FF4336',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
   },
   header: {
     padding: `${spacing.medium}px ${spacing.medium}px ${spacing.small}px`,
   },
-  headerTitleRow: {
+  titleRow: {
     display: 'flex',
-    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    marginBottom: spacing.small,
   },
-  headerTitle: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#1A1F24',
-    marginLeft: `${spacing.small}px`,
+  titleIcon: {
+    width: 24,
+    height: 24,
+    objectFit: 'contain',
+  },
+  title: {
     margin: 0,
+    fontSize: 24,
+    fontWeight: 800,
+    color: '#1B2736',
   },
-  tabsContainer: {
+  toggleContainer: {
+    position: 'relative',
     display: 'flex',
-    flexDirection: 'row',
-    padding: `${spacing.small}px ${spacing.medium}px`,
-    borderBottom: '1px solid #E5E7EB',
+    backgroundColor: '#DDE6EE',
+    borderRadius: 999,
+    padding: 4,
+    overflow: 'hidden',
   },
-  tab: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: `12px ${spacing.small}px`,
-    margin: '0 4px',
-    borderRadius: '30px',
-    backgroundColor: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  tabActive: {
-    backgroundColor: '#FF5136',
-  },
-  tabText: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#6B7280',
-    marginLeft: '8px',
-  },
-  tabTextActive: {
-    color: '#FFFFFF',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: `${spacing.medium}px ${spacing.medium}px 20px`,
-    maxWidth: '100%',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-  reservationCard: {
-    display: 'flex',
+  toggleKnob: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    width: 'calc(50% - 4px)',
+    height: 'calc(100% - 8px)',
     backgroundColor: '#FFFFFF',
-    borderRadius: '12px',
-    padding: `${spacing.medium}px`,
-    marginBottom: `${spacing.small}px`,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
-    border: 'none',
-    cursor: 'pointer',
-    textAlign: 'left',
-    width: '100%',
+    borderRadius: 999,
+    transition: 'transform 0.25s ease',
+    boxShadow: '0 4px 10px rgba(44, 72, 88, 0.12)',
   },
-  reservationCardContent: {
+  toggleButton: {
     flex: 1,
+    zIndex: 1,
+    border: 'none',
+    background: 'transparent',
+    padding: '12px 10px',
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#556475',
+    cursor: 'pointer',
+    textAlign: 'center',
+  },
+  toggleButtonActive: {
+    color: '#1F2937',
+    fontWeight: 800,
+  },
+  content: {
+    padding: `${spacing.small}px ${spacing.medium}px ${spacing.medium}px`,
+  },
+  nextReservationCard: {
+    width: '100%',
+    border: '1px dashed #6AB8FF',
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    padding: '12px 12px 14px',
+    marginBottom: 10,
+    textAlign: 'left',
+  },
+  nextCardTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  nextBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    border: '1px solid #FFC778',
+    backgroundColor: '#FFF2DE',
+    padding: '3px 9px',
+  },
+  nextBadgeIcon: {
+    width: 14,
+    height: 14,
+    objectFit: 'contain',
+  },
+  nextBadgeText: {
+    fontSize: 11,
+    fontWeight: 800,
+    color: '#E88700',
+    letterSpacing: 0.2,
+  },
+  nextHoursText: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: '#4B5563',
+    letterSpacing: 0.3,
+  },
+  cardBodyNoArrow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
   },
   cardTopRow: {
     display: 'flex',
-    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '8px',
+    gap: 8,
   },
-  reservationCardName: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#1A1F24',
-    flex: 1,
-  },
-  badgesContainer: {
-    display: 'flex',
-    flexDirection: 'row',
-    gap: '6px',
-    alignItems: 'center',
-  },
-  typeBadgeMini: {
-    padding: '3px 8px',
-    borderRadius: '8px',
-    minWidth: '85px',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  typeBadgeMiniText: {
-    fontSize: '9px',
-    fontWeight: '700',
-    letterSpacing: '0.5px',
-    textAlign: 'center',
-  },
-  statusBadgeMini: {
-    padding: '3px 8px',
-    borderRadius: '8px',
-  },
-  statusBadgeMiniText: {
-    fontSize: '9px',
-    fontWeight: '700',
-    letterSpacing: '0.5px',
-  },
-  locationRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: '8px',
-  },
-  locationText: {
-    fontSize: '13px',
-    color: '#6B7280',
-    marginLeft: '6px',
-  },
-  reservationCardDetails: {
-    marginTop: '4px',
-  },
-  cardDetailRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: '4px',
-  },
-  cardDetailIconContainer: {
-    marginRight: '6px',
-  },
-  cardDetailText: {
-    fontSize: '12px',
-    color: '#6B7280',
-  },
-  arrowIconContainer: {
-    marginLeft: `${spacing.small}px`,
-  },
-  emptyState: {
+  reservationCard: {
+    width: '100%',
+    border: 'none',
+    borderRadius: 16,
     backgroundColor: '#FFFFFF',
-    borderRadius: '16px',
-    padding: `${spacing.extraLarge * 2}px`,
+    padding: '14px 12px',
+    marginBottom: 10,
+    textAlign: 'left',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    cursor: 'pointer',
+  },
+  cardBody: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-    marginTop: `${spacing.large}px`,
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
   },
-  emptyStateIcon: {
-    fontSize: '48px',
-    marginBottom: `${spacing.medium}px`,
-  },
-  emptyStateTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#1A1F24',
-    marginBottom: `${spacing.small}px`,
-    textAlign: 'center',
-  },
-  emptyStateText: {
-    fontSize: '14px',
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: '20px',
-  },
-  activeReservationSection: {
-    backgroundColor: '#F5F7FA',
-    padding: `${spacing.medium}px ${spacing.medium}px ${spacing.small}px`,
-  },
-  activeReservationCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: '12px',
-    padding: `${spacing.medium}px`,
-    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
-  },
-  cardHeader: {
+  nameRow: {
     display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: `${spacing.medium}px`,
+    gap: 8,
   },
-  statusBadge: {
-    backgroundColor: '#D1FAE5',
-    padding: '4px 12px',
-    borderRadius: '12px',
-  },
-  statusBadgeText: {
-    fontSize: '11px',
-    fontWeight: '700',
-    color: '#10B981',
-    letterSpacing: '0.5px',
-  },
-  reservationDate: {
-    fontSize: '12px',
-    color: '#6B7280',
-  },
-  reservationInfo: {
-    marginBottom: `${spacing.medium}px`,
+  leadingIcon: {
+    width: 24,
+    height: 24,
+    objectFit: 'contain',
+    flexShrink: 0,
   },
   customerName: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#1A1F24',
-    marginBottom: '4px',
-  },
-  customerAddress: {
-    fontSize: '14px',
-    color: '#6B7280',
-    marginBottom: `${spacing.small}px`,
-  },
-  reservationDetails: {
-    marginTop: `${spacing.small}px`,
+    fontSize: 17,
+    fontWeight: 800,
+    color: '#1B2736',
+    lineHeight: 1.15,
   },
   detailRow: {
     display: 'flex',
-    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: '4px',
+    gap: 8,
   },
-  detailIconContainer: {
-    marginRight: `${spacing.small}px`,
+  rowIcon: {
+    width: 16,
+    height: 16,
+    objectFit: 'contain',
+    flexShrink: 0,
   },
-  detailText: {
-    fontSize: '14px',
-    color: '#374151',
-  },
-  viewDetailsButton: {
-    backgroundColor: '#FF51361A',
-    padding: '12px',
-    borderRadius: '30px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: 'none',
-    cursor: 'pointer',
-    width: '100%',
-  },
-  viewDetailsButtonText: {
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#FF5136',
-  },
-  // Estilos para Suscripción
-  suscriptionSection: {
-    backgroundColor: '#FFFFFF',
-    padding: `${spacing.medium}px`,
-    borderBottom: '1px solid #E5E7EB',
-  },
-  suscriptionHeader: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: `${spacing.small}px`,
-  },
-  suscriptionTitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#1A1F24',
-    margin: 0,
-  },
-  suscriptionBadge: {
-    backgroundColor: '#D1FAE5',
-    padding: '4px 12px',
-    borderRadius: '12px',
-  },
-  suscriptionBadgeText: {
-    fontSize: '11px',
-    fontWeight: '700',
-    color: '#10B981',
-    letterSpacing: '0.5px',
-  },
-  suscriptionCard: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: '12px',
-    padding: `${spacing.medium}px`,
-    marginTop: `${spacing.small}px`,
-  },
-  suscriptionCardHeader: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '8px',
-  },
-  suscriptionPlanName: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#1A1F24',
-    margin: 0,
-  },
-  suscriptionPrice: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#FF5136',
-  },
-  suscriptionSubtitle: {
-    fontSize: '14px',
-    color: '#6B7280',
-    marginBottom: `${spacing.medium}px`,
-    marginTop: '4px',
-  },
-  progressSection: {
-    marginBottom: `${spacing.medium}px`,
-  },
-  progressHeader: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '8px',
-  },
-  progressLabel: {
-    fontSize: '14px',
-    color: '#374151',
-    fontWeight: '600',
-  },
-  progressCount: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#3B82F6',
-  },
-  progressBar: {
-    width: '100%',
-    height: '8px',
-    backgroundColor: '#E5E7EB',
-    borderRadius: '4px',
+  rowText: {
+    fontSize: 13,
+    color: '#324154',
+    lineHeight: '18px',
     overflow: 'hidden',
-    marginBottom: '8px',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#3B82F6',
-    borderRadius: '4px',
-    transition: 'width 0.3s ease',
+  typeBadge: {
+    fontSize: 10,
+    fontWeight: 800,
+    borderRadius: 999,
+    padding: '3px 8px',
+    flexShrink: 0,
+    letterSpacing: 0.3,
   },
-  progressText: {
-    fontSize: '13px',
-    color: '#6B7280',
-    margin: 0,
+  typeBadgeReservation: {
+    color: '#3158A3',
+    backgroundColor: '#E8EEFF',
   },
-  renewalSection: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: `${spacing.small}px`,
-    borderTop: '1px solid #E5E7EB',
-    marginBottom: `${spacing.medium}px`,
+  typeBadgeSuscription: {
+    color: '#A36117',
+    backgroundColor: '#FFF1DA',
   },
-  renewalLabel: {
-    fontSize: '14px',
-    color: '#6B7280',
+  rightArrow: {
+    width: 20,
+    height: 20,
+    objectFit: 'contain',
+    marginLeft: 10,
+    flexShrink: 0,
   },
-  renewalDate: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#1A1F24',
-  },
-  toggleButton: {
-    backgroundColor: '#FF51361A',
-    padding: '12px',
-    borderRadius: '30px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+  nextActionButton: {
+    width: '100%',
+    marginTop: 10,
     border: 'none',
+    borderRadius: 999,
+    backgroundColor: '#FCE9E8',
+    padding: '11px 14px',
+    color: '#FF4336',
+    fontSize: 16,
+    fontWeight: 800,
     cursor: 'pointer',
-    width: '100%',
-    marginBottom: `${spacing.small}px`,
   },
-  toggleButtonText: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#FF5136',
-    marginRight: '8px',
-  },
-  toggleIcon: {
-    fontSize: '12px',
-    color: '#FF5136',
-    transition: 'transform 0.3s ease',
-  },
-  suscriptionReservationsList: {
-    marginTop: `${spacing.medium}px`,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: `${spacing.small}px`,
-  },
-  suscriptionReservationItem: {
+  emptyState: {
+    borderRadius: 16,
+    padding: spacing.large,
     backgroundColor: '#FFFFFF',
-    borderRadius: '8px',
-    padding: `${spacing.small}px`,
-    border: '1px solid #E5E7EB',
-  },
-  suscriptionReservationHeader: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '4px',
-  },
-  suscriptionReservationNumber: {
-    fontSize: '14px',
-    fontWeight: '700',
-    color: '#1A1F24',
-  },
-  suscriptionReservationStatus: {
-    fontSize: '12px',
-    fontWeight: '600',
-  },
-  suscriptionReservationDate: {
-    fontSize: '13px',
-    color: '#6B7280',
-    margin: '4px 0',
-  },
-  suscriptionReservationButton: {
-    backgroundColor: 'transparent',
-    border: '1px solid #E5E7EB',
-    borderRadius: '6px',
-    padding: '8px 12px',
-    width: '100%',
-    cursor: 'pointer',
-    marginTop: '8px',
-  },
-  suscriptionReservationButtonText: {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#374151',
-  },
-  emptyReservationsText: {
-    fontSize: '14px',
-    color: '#9CA3AF',
     textAlign: 'center',
-    padding: `${spacing.medium}px`,
+    marginTop: spacing.small,
+  },
+  emptyTitle: {
     margin: 0,
+    fontSize: 18,
+    fontWeight: 800,
+    color: '#1B2736',
+  },
+  emptyText: {
+    margin: '8px 0 0',
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: '20px',
   },
 };
 
