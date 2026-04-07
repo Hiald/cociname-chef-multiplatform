@@ -44,10 +44,17 @@ const ReservationScreen = () => {
   }, []);
 
   useEffect(() => {
-    if (location.state?.defaultTab === 'requests') {
+    const tabFromQuery = new URLSearchParams(location.search).get('tab');
+
+    if (tabFromQuery === 'requests' || location.state?.defaultTab === 'requests') {
       setActiveTab('requests');
+      return;
     }
-  }, [location.state]);
+
+    if (tabFromQuery === 'confirmed' || location.state?.defaultTab === 'confirmed') {
+      setActiveTab('confirmed');
+    }
+  }, [location.search, location.state]);
 
   useEffect(() => {
     if (chefData?.id) {
@@ -624,7 +631,10 @@ const ReservationScreen = () => {
       <div style={styles.tabsContainer}>
         <button
           style={{...styles.tab, ...(activeTab === 'confirmed' ? styles.tabActive : {})}}
-          onClick={() => setActiveTab('confirmed')}
+          onClick={() => {
+            setActiveTab('confirmed');
+            navigate('/reservation?tab=confirmed', { state: { defaultTab: 'confirmed' }, replace: true });
+          }}
         >
           <CheckReservation />
           <span style={{...styles.tabText, ...(activeTab === 'confirmed' ? styles.tabTextActive : {})}}>
@@ -634,7 +644,10 @@ const ReservationScreen = () => {
 
         <button
           style={{...styles.tab, ...(activeTab === 'requests' ? styles.tabActive : {})}}
-          onClick={() => setActiveTab('requests')}
+          onClick={() => {
+            setActiveTab('requests');
+            navigate('/reservation?tab=requests', { state: { defaultTab: 'requests' }, replace: true });
+          }}
         >
           <NotificationReservation />
           <span style={{...styles.tabText, ...(activeTab === 'requests' ? styles.tabTextActive : {})}}>

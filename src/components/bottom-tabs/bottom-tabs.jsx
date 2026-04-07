@@ -1,6 +1,12 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Reservation, Profile } from '../../assets/svgs';
+import homeIcon from '../../assets/images/navigation/home.png';
+import homeActiveIcon from '../../assets/images/navigation/home-color.png';
+import reservationIcon from '../../assets/images/navigation/reserva.png';
+import reservationActiveIcon from '../../assets/images/navigation/reserva-color.png';
+import requestIcon from '../../assets/images/navigation/solicitud.png';
+import requestActiveIcon from '../../assets/images/navigation/solicitud-color.png';
+import profileIcon from '../../assets/images/navigation/perfil.png';
 
 // Inject responsive styles
 if (!document.getElementById('bottom-tabs-responsive-styles')) {
@@ -22,25 +28,61 @@ if (!document.getElementById('bottom-tabs-responsive-styles')) {
 const BottomTabs = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const reservationTab = searchParams.get('tab');
 
   const tabs = [
-    { id: 'home', path: '/', label: 'Inicio', Icon: Home },
-    { id: 'reservation', path: '/reservation', label: 'Reservas', Icon: Reservation },
-    { id: 'profile', path: '/profile', label: 'Perfil', Icon: Profile },
+    {
+      id: 'home',
+      path: '/',
+      label: 'Inicio',
+      icon: homeIcon,
+      activeIcon: homeActiveIcon,
+    },
+    {
+      id: 'reservation',
+      path: '/reservation',
+      label: 'Reservas',
+      icon: reservationIcon,
+      activeIcon: reservationActiveIcon,
+    },
+    {
+      id: 'requests',
+      path: '/reservation?tab=requests',
+      label: 'Solicitudes',
+      icon: requestIcon,
+      activeIcon: requestActiveIcon,
+    },
+    {
+      id: 'profile',
+      path: '/profile',
+      label: 'Perfil',
+      icon: profileIcon,
+      activeIcon: profileIcon,
+    },
   ];
 
   const getActiveIndex = () => {
     const currentPath = location.pathname;
     if (currentPath === '/' || currentPath === '/home') return 0;
-    if (currentPath === '/reservation' || currentPath.startsWith('/reservation/')) return 1;
-    if (currentPath === '/profile') return 2;
+    if (currentPath === '/reservation' || currentPath.startsWith('/reservation/')) {
+      return reservationTab === 'requests' ? 2 : 1;
+    }
+    if (currentPath === '/profile' || currentPath === '/availability') return 3;
     return -1; // No active tab for other routes
   };
 
   const activeIndex = getActiveIndex();
 
   const handleClick = (index) => {
-    navigate(tabs[index].path);
+    const tab = tabs[index];
+    const defaultTab = tab.id === 'requests' ? 'requests' : 'confirmed';
+
+    navigate(tab.path, {
+      state: tab.id === 'reservation' || tab.id === 'requests'
+        ? { defaultTab }
+        : undefined,
+    });
   };
 
   const bottomBarStyle = {
@@ -98,8 +140,11 @@ const BottomTabs = () => {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            color: color,
-            transition: 'color 0.2s',
+          };
+          const iconStyle = {
+            width: 24,
+            height: 24,
+            objectFit: 'contain',
           };
           const labelStyle = {
             fontFamily: 'Goldplay, sans-serif',
@@ -122,7 +167,11 @@ const BottomTabs = () => {
               onClick={() => handleClick(index)}
             >
               <div style={iconContainerStyle}>
-                <tab.Icon color="currentColor" />
+                <img
+                  src={isActive ? tab.activeIcon : tab.icon}
+                  alt={tab.label}
+                  style={iconStyle}
+                />
               </div>
               <span style={labelStyle}>
                 {tab.label}
