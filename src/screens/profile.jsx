@@ -1,7 +1,12 @@
 import React, { useMemo } from 'react';
 import { spacing } from '../styles';
 import { useAuth } from '../hooks/useAuth';
-import { Profile, Clock, List, Verified, Logout, WhatsApp, Calendar, ArrowRight } from '../assets/svgs';
+import datosIcon from '../assets/images/perfil/datos.png';
+import seguridadIcon from '../assets/images/perfil/seguridad.png';
+import sanidadIcon from '../assets/images/perfil/sanidad.png';
+import onboardingIcon from '../assets/images/perfil/onboarding.png';
+import firmaIcon from '../assets/images/perfil/firma.png';
+import rightRedIcon from '../assets/images/perfil/right-red.png';
 
 const ProfileScreen = () => {
   const { chefData } = useAuth();
@@ -46,37 +51,42 @@ const ProfileScreen = () => {
     {
       title: 'Verificación de datos',
       description: 'Verificación de identidad y datos personales.',
+      icon: datosIcon,
       status: chefData?.documentNumber ? 'Aprobado' : 'Pendiente',
-      statusColor: chefData?.documentNumber ? '#10B981' : '#F59E0B',
-      statusBg: chefData?.documentNumber ? '#D1FAE5' : '#FEF3C7',
+      statusColor: chefData?.documentNumber ? '#FFFFFF' : '#FFFFFF',
+      statusBg: chefData?.documentNumber ? '#00BA96' : '#FFB125',
     },
     {
       title: 'Filtros de seguridad',
       description: 'Verificación de antecedentes.',
+      icon: seguridadIcon,
       status: chefData?.status ? 'En Revisión' : 'Pendiente',
-      statusColor: '#F59E0B',
-      statusBg: '#FEF3C7',
+      statusColor: '#FFFFFF',
+      statusBg: '#FFB125',
     },
     {
       title: 'Protocolo de sanidad',
       description: 'Capacitación de manipulación de alimentos.',
-      status: chefData?.processDetailtoCooking ? 'Realizado' : 'Pendiente',
-      statusColor: '#10B981',
-      statusBg: '#D1FAE5',
+      icon: sanidadIcon,
+      status: chefData?.processDetailtoCooking ? 'Pendiente' : 'Realizado',
+      statusColor: '#FFFFFF',
+      statusBg: '#FF564A',
     },
     {
       title: 'Onboarding',
       description: 'Recepción de uniformes y fotocheck.',
+      icon: onboardingIcon,
       status: chefData?.emailConfirmed ? 'Realizado' : 'Pendiente',
-      statusColor: '#10B981',
-      statusBg: '#D1FAE5',
+      statusColor: '#FFFFFF',
+      statusBg: '#00BA96',
     },
     {
       title: 'Firma de Documentos',
       description: 'Autorizaciones, contrato y reglamento.',
+      icon: firmaIcon,
       status: chefData?.documentNumber ? 'Realizado' : 'Pendiente',
-      statusColor: '#10B981',
-      statusBg: '#D1FAE5',
+      statusColor: '#FFFFFF',
+      statusBg: '#00BA96',
     },
   ]), [chefData]);
 
@@ -127,9 +137,7 @@ const ProfileScreen = () => {
           <div style={styles.verificationList}>
             {verificationItems.map((item) => (
               <div key={item.title} style={styles.verificationItem}>
-                <div style={styles.verificationIconWrap}>
-                  <Verified />
-                </div>
+                <img src={item.icon} alt={item.title} style={styles.verificationIcon} />
                 <div style={styles.verificationTextWrap}>
                   <p style={styles.verificationTitle}>{item.title}</p>
                   <p style={styles.verificationDescription}>{item.description}</p>
@@ -145,7 +153,7 @@ const ProfileScreen = () => {
         <div style={styles.specialtiesCard}>
           <div style={styles.specialtiesHeader}>
             <p style={styles.sectionHeading}>MIS ESPECIALIDADES</p>
-            <button style={styles.editButton}>Editar <ArrowRight /></button>
+            <button style={styles.editButton}>Editar <img src={rightRedIcon} alt="Editar" style={styles.editIcon} /></button>
           </div>
 
           <div style={styles.chipWrap}>
@@ -316,7 +324,6 @@ const styles = {
     boxShadow: '0 10px 24px rgba(44, 72, 88, 0.06)',
   },
   sectionHeading: {
-    margin: '0 0 10px',
     fontSize: 12,
     fontWeight: 800,
     letterSpacing: 1,
@@ -332,14 +339,11 @@ const styles = {
     alignItems: 'flex-start',
     gap: 10,
   },
-  verificationIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#F3F7FB',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+  verificationIcon: {
+    width: 32,
+    height: 32,
+    objectFit: 'contain',
+    display: 'block',
     flexShrink: 0,
   },
   verificationTextWrap: {
@@ -369,8 +373,8 @@ const styles = {
   },
   specialtiesCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: spacing.medium,
+    borderRadius: 20,
+    padding: '0px 20px 12px',
     marginBottom: spacing.medium,
     boxShadow: '0 10px 24px rgba(44, 72, 88, 0.06)',
   },
@@ -384,12 +388,17 @@ const styles = {
     border: 'none',
     background: 'transparent',
     color: '#FF5136',
-    fontSize: 13,
-    fontWeight: 800,
+    fontSize: 12,
+    fontWeight: 600,
     display: 'flex',
     alignItems: 'center',
     gap: 4,
     cursor: 'pointer',
+  },
+  editIcon: {
+    width: 16,
+    height: 16,
+    objectFit: 'contain',
   },
   chipWrap: {
     display: 'flex',
