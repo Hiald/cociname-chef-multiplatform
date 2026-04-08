@@ -7,6 +7,7 @@ import reservationActiveIcon from '../../assets/images/navigation/reserva-color.
 import requestIcon from '../../assets/images/navigation/solicitud.png';
 import requestActiveIcon from '../../assets/images/navigation/solicitud-color.png';
 import profileIcon from '../../assets/images/navigation/perfil.png';
+import profileActiveIcon from '../../assets/images/navigation/perfil-color.png';
 
 // Inject responsive styles
 if (!document.getElementById('bottom-tabs-responsive-styles')) {
@@ -58,7 +59,7 @@ const BottomTabs = () => {
       path: '/profile',
       label: 'Perfil',
       icon: profileIcon,
-      activeIcon: profileIcon,
+      activeIcon: profileActiveIcon,
     },
   ];
 
