@@ -10,7 +10,7 @@ if (!document.getElementById('sidebar-responsive-styles')) {
   style.id = 'sidebar-responsive-styles';
   style.innerHTML = `
     .sidebar-container {
-      display: none;
+      display: block;
     }
     @media (min-width: 768px) {
       .sidebar-container {
@@ -24,6 +24,7 @@ if (!document.getElementById('sidebar-responsive-styles')) {
 const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const isMobile = window.innerWidth < 768;
   const sidebarWidth = isOpen ? 280 : 0;
 
   const menuItems = [
@@ -43,8 +44,24 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
 
   if (!isOpen) return null;
 
+  const containerStyle = isMobile
+    ? {
+        ...styles.container,
+        width: sidebarWidth,
+        position: 'fixed',
+        top: 60,
+        left: 0,
+        zIndex: 2000,
+        height: 'calc(100vh - 60px)',
+        boxShadow: '8px 0 24px rgba(0, 0, 0, 0.12)',
+      }
+    : {
+        ...styles.container,
+        width: sidebarWidth,
+      };
+
   return (
-    <div className="sidebar-container" style={{...styles.container, width: sidebarWidth}}>
+    <div className="sidebar-container" style={containerStyle}>
       <div style={styles.scrollView}>
         <div style={styles.userSection}>
           <div style={styles.avatar}>

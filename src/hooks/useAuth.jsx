@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api.service';
 
 const AuthContext = createContext(undefined);
@@ -10,39 +10,70 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   // Al iniciar, verificar si hay token guardado
-  useEffect(() => {
-    loadStoredAuth();
+  const hydrateChefData = useCallback(async (authData) => {
+    if (!authData?.chefId) {
+      return authData;
+    }
+
+    try {
+      const chefResponse = await apiService.getChef(authData.chefId);
+      if (chefResponse.success && chefResponse.data) {
+        return {
+          ...chefResponse.data,
+          chefId: authData.chefId,
+          token: authData.token,
+          expirationDate: authData.expirationDate,
+        };
+      }
+    } catch (error) {
+      console.error('Error hydrating chef data:', error);
+    }
+
+    return authData;
   }, []);
 
-  const loadStoredAuth = async () => {
+  const loadStoredAuth = useCallback(async () => {
     try {
       const storedToken = localStorage.getItem('auth_token');
       const storedChefData = localStorage.getItem('chef_data');
       
       if (storedToken && storedChefData) {
-        setToken(storedToken);
-        setChefData(JSON.parse(storedChefData));
-        setIsAuthenticated(true);
         apiService.setToken(storedToken);
+        const parsedChefData = JSON.parse(storedChefData);
+        const hydratedChefData = parsedChefData?.firstName
+          ? parsedChefData
+          : await hydrateChefData({ ...parsedChefData, token: storedToken });
+
+        setToken(storedToken);
+        setChefData(hydratedChefData);
+        setIsAuthenticated(true);
+
+        localStorage.setItem('chef_data', JSON.stringify(hydratedChefData));
       }
     } catch (error) {
       console.error('Error loading auth:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [hydrateChefData]);
+
+  useEffect(() => {
+    void loadStoredAuth();
+  }, [loadStoredAuth]);
 
   const login = async (username, password) => {
     try {
       const result = await apiService.loginChef(username, password);
       
       if (result.success && result.data) {
+        const hydratedChefData = await hydrateChefData(result.data);
+
         // Guardar en localStorage
         localStorage.setItem('auth_token', result.data.token);
-        localStorage.setItem('chef_data', JSON.stringify(result.data));
+        localStorage.setItem('chef_data', JSON.stringify(hydratedChefData));
         
         setToken(result.data.token);
-        setChefData(result.data);
+        setChefData(hydratedChefData);
         setIsAuthenticated(true);
         
         return true;
@@ -60,11 +91,13 @@ export const AuthProvider = ({ children }) => {
       const result = await apiService.loginGoogleChef(idToken);
 
       if (result.success && result.data?.token) {
+        const hydratedChefData = await hydrateChefData(result.data);
+
         localStorage.setItem('auth_token', result.data.token);
-        localStorage.setItem('chef_data', JSON.stringify(result.data));
+        localStorage.setItem('chef_data', JSON.stringify(hydratedChefData));
 
         setToken(result.data.token);
-        setChefData(result.data);
+        setChefData(hydratedChefData);
         setIsAuthenticated(true);
 
         return true;

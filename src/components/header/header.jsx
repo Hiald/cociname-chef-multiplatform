@@ -20,10 +20,11 @@ const Header = ({ onMenuPress, showMenu = true, notificationCount = 0, onNotific
         ...(isMobile && styles.leftSectionMobile),
         ...(!showMenu && styles.centerSection)
       }}>
-        {showMenu && onMenuPress && !isMobile && (
+        {showMenu && onMenuPress && isMobile && (
           <button 
             onClick={onMenuPress} 
-            style={styles.menuButton}
+            style={{ ...styles.menuButton, ...styles.menuButtonMobile }}
+            aria-label="Abrir menú"
           >
             <div style={styles.menuIcon}>
               <div style={styles.menuLine} />
@@ -76,6 +77,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
+    position: 'relative',
   },
   leftSectionMobile: {
     flex: 1,
@@ -92,6 +94,12 @@ const styles = {
     border: 'none',
     cursor: 'pointer',
   },
+  menuButtonMobile: {
+    position: 'absolute',
+    left: 0,
+    marginRight: 0,
+    zIndex: 2,
+  },
   menuIcon: {
     width: 24,
     height: 24,
@@ -102,7 +110,7 @@ const styles = {
   menuLine: {
     width: 24,
     height: 3,
-    backgroundColor: '#1A1F24',
+    backgroundColor: '#FF4336',
     borderRadius: 2,
     marginBottom: 4,
   },

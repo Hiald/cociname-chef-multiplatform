@@ -1,203 +1,159 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo } from 'react';
 import { spacing } from '../styles';
-import { apiService } from '../services/api.service';
 import { useAuth } from '../hooks/useAuth';
-import { Profile, Clock, Restaurant, List, Verified, TyC, Logout, WhatsApp, Calendar, ArrowRight } from '../assets/svgs';
+import { Profile, Clock, List, Verified, Logout, WhatsApp, Calendar, ArrowRight } from '../assets/svgs';
 
 const ProfileScreen = () => {
-  const [, setChefDataLocal] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const { chefData, logout } = useAuth();
-  const chefId = chefData?.chefId; // Obtener del contexto de autenticación
-  const navigate = useNavigate();
+  const { chefData } = useAuth();
 
-  useEffect(() => {
-    loadChefData();
-  }, []);
+  const initials = useMemo(() => {
+    const first = chefData?.firstName?.charAt(0) || 'C';
+    const last = chefData?.lastName?.charAt(0) || 'H';
+    return `${first}${last}`.toUpperCase();
+  }, [chefData]);
 
-  const loadChefData = async () => {
-    try {
-      setLoading(true);
-      const response = await apiService.getChef(chefId);
-      if (response.success && response.data) {
-        setChefDataLocal(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading chef data:', error);
-    } finally {
-      setLoading(false);
+  const fullName = useMemo(() => {
+    const firstName = chefData?.firstName || 'Chef';
+    const lastName = chefData?.lastName || '';
+    return `${firstName} ${lastName}`.trim();
+  }, [chefData]);
+
+  const aboutText = chefData?.description && String(chefData.description).trim() !== ''
+    ? String(chefData.description)
+    : '-';
+
+  const specialties = useMemo(() => {
+    const raw = chefData?.specialty || '';
+    const items = String(raw)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    return items.length > 0
+      ? items
+      : ['Sin especialidad registrada'];
+  }, [chefData]);
+
+  const experienceText = useMemo(() => {
+    const experience = chefData?.experience;
+    if (experience === null || experience === undefined || String(experience).trim() === '') {
+      return '-';
     }
-  };
+    return String(experience);
+  }, [chefData]);
 
-  const getInitials = (firstName, lastName) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-  };
+  const verificationItems = useMemo(() => ([
+    {
+      title: 'Verificación de datos',
+      description: 'Verificación de identidad y datos personales.',
+      status: chefData?.documentNumber ? 'Aprobado' : 'Pendiente',
+      statusColor: chefData?.documentNumber ? '#10B981' : '#F59E0B',
+      statusBg: chefData?.documentNumber ? '#D1FAE5' : '#FEF3C7',
+    },
+    {
+      title: 'Filtros de seguridad',
+      description: 'Verificación de antecedentes.',
+      status: chefData?.status ? 'En Revisión' : 'Pendiente',
+      statusColor: '#F59E0B',
+      statusBg: '#FEF3C7',
+    },
+    {
+      title: 'Protocolo de sanidad',
+      description: 'Capacitación de manipulación de alimentos.',
+      status: chefData?.processDetailtoCooking ? 'Realizado' : 'Pendiente',
+      statusColor: '#10B981',
+      statusBg: '#D1FAE5',
+    },
+    {
+      title: 'Onboarding',
+      description: 'Recepción de uniformes y fotocheck.',
+      status: chefData?.emailConfirmed ? 'Realizado' : 'Pendiente',
+      statusColor: '#10B981',
+      statusBg: '#D1FAE5',
+    },
+    {
+      title: 'Firma de Documentos',
+      description: 'Autorizaciones, contrato y reglamento.',
+      status: chefData?.documentNumber ? 'Realizado' : 'Pendiente',
+      statusColor: '#10B981',
+      statusBg: '#D1FAE5',
+    },
+  ]), [chefData]);
 
-  const handleWhatsAppContact = () => {
-    const url = 'https://wa.me/51963138202?text=Hola!%20Necesito%20ayuda%20con%20mi%20Reserva%20de%20Cocina%20a%20Domicilio';
-    window.open(url, '_blank');
+  const renderStars = () => {
+    const rating = Number(chefData?.rating || 0);
+    const rounded = Math.round(rating);
+    return '★★★★★'.split('').map((star, index) => (
+      <span key={`${star}-${index}`} style={{ color: index < rounded ? '#F59E0B' : '#D1D5DB' }}>{star}</span>
+    ));
   };
-
-  // eslint-disable-next-line no-unused-vars
-  const handleWhatsAppHelp = () => {
-    const url = 'https://wa.me/51963138202?text=Hola!%20Necesito%20ayuda%20con%20mi%20Reserva%20de%20Cocina%20a%20Domicilio';
-    window.open(url, '_blank');
-  };
-
-  const handleLogout = async () => {
-    // Usar el método logout del contexto de autenticación
-    await logout();
-    // Navigate to login
-    navigate('/login', { replace: true });
-  };
-
-  if (loading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner}></div>
-      </div>
-    );
-  }
 
   return (
-    <div style={{...styles.container, ...styles.contentContainer}}>
-      {/* Header con foto de perfil */}
-      <div style={styles.header}>
-        <div style={styles.profileImageContainer}>
-          <span style={styles.profileInitials}>
-            {chefData ? getInitials(chefData.firstName, chefData.lastName) : 'CH'}
-          </span>
+    <div style={styles.container}>
+      <div style={styles.contentContainer}>
+        <div style={styles.pageHeader}>
+          <div style={styles.pageTitleRow}>
+            <h1 style={styles.pageTitle}>Mi perfil</h1>
+          </div>
         </div>
-        <div style={styles.profileInfo}>
-          <h2 style={styles.name}>
-            {chefData ? `${chefData.firstName} ${chefData.lastName}` : 'Chef'}
-          </h2>
-          <p style={styles.role}>Cocinera experta</p>
+
+        <div style={styles.profileCard}>
+          <div style={styles.profileTopRow}>
+            <div style={styles.avatarCircle}>
+              <span style={styles.avatarText}>{initials}</span>
+            </div>
+
+            <div style={styles.profileTextBlock}>
+              <h2 style={styles.profileName}>{fullName}</h2>
+              <p style={styles.profileRole}>{experienceText}</p>
+              <div style={styles.ratingRow}>
+                <div style={styles.starsRow}>{renderStars()}</div>
+                <span style={styles.ratingText}>{Number(chefData?.rating || 0).toFixed(1)} ({chefData?.id ? '127 reseñas' : '0 reseñas'})</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={styles.divider} />
+
+          <div style={styles.sectionBlock}>
+            <p style={styles.sectionLabel}>SOBRE MÍ</p>
+            <p style={styles.aboutText}>{aboutText}</p>
+          </div>
         </div>
-      </div>
 
-      {/* Botones principales */}
-      <div style={styles.buttonSection}>
-        <button style={styles.primaryButton}>
-          <span style={styles.primaryButtonText}>Ver mis reservas</span>
-        </button>
-        <button style={styles.secondaryButton}>
-          <span style={styles.secondaryButtonText}>Completar disponibilidad</span>
-        </button>
-      </div>
+        <div style={styles.verificationCard}>
+          <p style={styles.sectionHeading}>VERIFICACIONES</p>
 
-      {/* Menú principal */}
-      <div style={styles.menuSection}>
-        <button style={styles.menuItem}>
-          <div style={styles.menuItemLeft}>
-            <div style={styles.menuIconContainer}>
-              <List />
-            </div>
-            <span style={styles.menuText}>Mi perfil</span>
+          <div style={styles.verificationList}>
+            {verificationItems.map((item) => (
+              <div key={item.title} style={styles.verificationItem}>
+                <div style={styles.verificationIconWrap}>
+                  <Verified />
+                </div>
+                <div style={styles.verificationTextWrap}>
+                  <p style={styles.verificationTitle}>{item.title}</p>
+                  <p style={styles.verificationDescription}>{item.description}</p>
+                </div>
+                <span style={{ ...styles.verificationStatus, color: item.statusColor, backgroundColor: item.statusBg }}>
+                  {item.status}
+                </span>
+              </div>
+            ))}
           </div>
-          <div style={styles.menuArrowContainer}>
-            <ArrowRight />
-          </div>
-        </button>
+        </div>
 
-        <button style={styles.menuItem}>
-          <div style={styles.menuItemLeft}>
-            <div style={styles.menuIconContainer}>
-              <List />
-            </div>
-            <span style={styles.menuText}>Mi disponibilidad</span>
+        <div style={styles.specialtiesCard}>
+          <div style={styles.specialtiesHeader}>
+            <p style={styles.sectionHeading}>MIS ESPECIALIDADES</p>
+            <button style={styles.editButton}>Editar <ArrowRight /></button>
           </div>
-          <div style={styles.menuArrowContainer}>
-            <ArrowRight />
-          </div>
-        </button>
 
-        <button style={styles.menuItem}>
-          <div style={styles.menuItemLeft}>
-            <div style={styles.menuIconContainer}>
-              <List />
-            </div>
-            <span style={styles.menuText}>Mi cobertura</span>
+          <div style={styles.chipWrap}>
+            {specialties.map((specialty) => (
+              <span key={specialty} style={styles.chip}>{specialty}</span>
+            ))}
           </div>
-          <div style={styles.menuArrowContainer}>
-            <ArrowRight />
-          </div>
-        </button>
-
-        <button style={styles.menuItem}>
-          <div style={styles.menuItemLeft}>
-            <div style={styles.menuIconContainer}>
-              <List />
-            </div>
-            <span style={styles.menuText}>Historial de pagos</span>
-          </div>
-          <div style={styles.menuArrowContainer}>
-            <ArrowRight />
-          </div>
-        </button>
-
-        <button style={styles.menuItem}>
-          <div style={styles.menuItemLeft}>
-            <div style={styles.menuIconContainer}>
-              <List />
-            </div>
-            <span style={styles.menuText}>Beneficios</span>
-          </div>
-          <div style={styles.menuArrowContainer}>
-            <ArrowRight />
-          </div>
-        </button>
-      </div>
-
-      {/* Sección de información */}
-      <div style={styles.infoSection}>
-        <h3 style={styles.sectionTitle}>Información</h3>
-
-        <button style={styles.menuItem}>
-          <div style={styles.menuItemLeft}>
-            <div style={styles.menuIconContainer}>
-              <List />
-            </div>
-            <span style={styles.menuText}>Manuales</span>
-          </div>
-          <div style={styles.menuArrowContainer}>
-            <ArrowRight />
-          </div>
-        </button>
-
-        <button style={styles.menuItem}>
-          <div style={styles.menuItemLeft}>
-            <div style={styles.menuIconContainer}>
-              <TyC />
-            </div>
-            <span style={styles.menuText}>Términos y Condiciones</span>
-          </div>
-          <div style={styles.menuArrowContainer}>
-            <ArrowRight />
-          </div>
-        </button>
-
-        <button style={styles.menuItem} onClick={handleLogout}>
-          <div style={styles.menuItemLeft}>
-            <div style={styles.menuIconContainer}>
-              <Logout />
-            </div>
-            <span style={styles.menuText}>Cerrar sesión</span>
-          </div>
-        </button>
-      </div>
-
-      {/* Sección de ayuda */}
-      <div style={styles.helpSection}>
-        <p style={styles.helpTitle}>¿Necesitas ayuda?</p>
-        <p style={styles.helpSubtitle}>Comunícate con una asesora</p>
-        <button style={styles.whatsappButton} onClick={handleWhatsAppContact}>
-          <div style={styles.whatsappIconContainer}>
-            <WhatsApp />
-          </div>
-          <span style={styles.whatsappButtonText}>Comunícate con nosotros</span>
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -205,192 +161,286 @@ const ProfileScreen = () => {
 
 const styles = {
   container: {
-    display: 'flex',
-    flexDirection: 'column',
     minHeight: '100%',
     width: '100%',
-    maxWidth: '100%',
-    backgroundColor: '#F5F7FA',
-    overflowX: 'hidden',
+    backgroundColor: '#ECF4FA',
   },
   contentContainer: {
     padding: `${spacing.medium}px ${spacing.medium}px 20px`,
-    maxWidth: '100%',
-    width: '100%',
     boxSizing: 'border-box',
+    width: '100%',
+    maxWidth: '100%',
   },
-  loadingContainer: {
+  pageHeader: {
+    marginBottom: spacing.small,
+  },
+  pageTitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pageTitle: {
+    margin: 0,
+    fontSize: 22,
+    fontWeight: 800,
+    color: '#1B2736',
+  },
+  profileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: spacing.medium,
+    boxShadow: '0 12px 26px rgba(44, 72, 88, 0.08)',
+    marginBottom: spacing.medium,
+  },
+  profileTopRow: {
+    display: 'flex',
+    gap: 12,
+    alignItems: 'center',
+  },
+  avatarCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#8CB0C8',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 800,
+    letterSpacing: 0.5,
+  },
+  profileTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  profileName: {
+    margin: '0 0 2px',
+    fontSize: 20,
+    fontWeight: 800,
+    color: '#1B2736',
+  },
+  profileRole: {
+    margin: 0,
+    fontSize: 14,
+    color: '#556475',
+  },
+  ratingRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+    flexWrap: 'wrap',
+  },
+  starsRow: {
+    display: 'flex',
+    gap: 2,
+    fontSize: 14,
+  },
+  ratingText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#E9EEF4',
+    margin: `${spacing.medium}px 0`,
+  },
+  sectionBlock: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100vh',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F7FA',
+    gap: 8,
   },
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '4px solid #f3f4f6',
-    borderTop: '4px solid #FF5136',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-  },
-  header: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: `${spacing.large}px 0`,
-  },
-  profileImageContainer: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '40px',
-    backgroundColor: '#C5D8E7',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: `${spacing.medium}px`,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  profileInitials: {
-    fontSize: '28px',
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  name: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#1A1F24',
-    marginBottom: '4px',
+  sectionLabel: {
     margin: 0,
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: 1,
+    color: '#1B2736',
   },
-  role: {
-    fontSize: '14px',
-    color: '#6B7280',
+  aboutText: {
     margin: 0,
+    fontSize: 15,
+    lineHeight: '22px',
+    color: '#263447',
   },
-  buttonSection: {
-    marginBottom: `${spacing.large}px`,
+  quickActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+    marginBottom: spacing.medium,
   },
-  primaryButton: {
+  primaryAction: {
+    width: '100%',
+    border: 'none',
+    borderRadius: 999,
     backgroundColor: '#FF5136',
-    padding: '16px',
-    borderRadius: '30px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: `${spacing.small}px`,
-    border: 'none',
-    cursor: 'pointer',
-    width: '100%',
-  },
-  primaryButtonText: {
-    fontSize: '16px',
-    fontWeight: '600',
+    padding: '14px 16px',
     color: '#FFFFFF',
-  },
-  secondaryButton: {
-    backgroundColor: '#FFE8E5',
-    padding: '16px',
-    borderRadius: '30px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: 'none',
+    gap: 8,
     cursor: 'pointer',
+    boxShadow: '0 8px 18px rgba(255, 81, 54, 0.22)',
+  },
+  primaryActionText: {
+    fontSize: 15,
+    fontWeight: 800,
+  },
+  secondaryAction: {
     width: '100%',
-  },
-  secondaryButtonText: {
-    fontSize: '16px',
-    fontWeight: '600',
+    border: 'none',
+    borderRadius: 999,
+    backgroundColor: '#FCE8E5',
+    padding: '14px 16px',
     color: '#FF5136',
-  },
-  menuSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: '12px',
-    padding: `${spacing.small}px`,
-    marginBottom: `${spacing.large}px`,
-    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)',
-  },
-  infoSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: '12px',
-    padding: `${spacing.small}px`,
-    marginBottom: `${spacing.large}px`,
-    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)',
-  },
-  sectionTitle: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#1A1F24',
-    padding: `${spacing.small}px ${spacing.medium}px`,
-    margin: 0,
-  },
-  menuItem: {
     display: 'flex',
-    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    cursor: 'pointer',
+  },
+  secondaryActionText: {
+    fontSize: 15,
+    fontWeight: 800,
+  },
+  verificationCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: spacing.medium,
+    marginBottom: spacing.medium,
+    boxShadow: '0 10px 24px rgba(44, 72, 88, 0.06)',
+  },
+  sectionHeading: {
+    margin: '0 0 10px',
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: 1,
+    color: '#1B2736',
+  },
+  verificationList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  verificationItem: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  verificationIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#F3F7FB',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  verificationTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  verificationTitle: {
+    margin: '0 0 2px',
+    fontSize: 14,
+    fontWeight: 800,
+    color: '#1B2736',
+  },
+  verificationDescription: {
+    margin: 0,
+    fontSize: 12,
+    lineHeight: '18px',
+    color: '#556475',
+  },
+  verificationStatus: {
+    minWidth: 82,
+    textAlign: 'center',
+    fontSize: 11,
+    fontWeight: 800,
+    borderRadius: 999,
+    padding: '5px 10px',
+    alignSelf: 'center',
+  },
+  specialtiesCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: spacing.medium,
+    marginBottom: spacing.medium,
+    boxShadow: '0 10px 24px rgba(44, 72, 88, 0.06)',
+  },
+  specialtiesHeader: {
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: `16px ${spacing.medium}px`,
-    background: 'transparent',
+    marginBottom: 12,
+  },
+  editButton: {
     border: 'none',
-    borderBottom: '1px solid #F3F4F6',
+    background: 'transparent',
+    color: '#FF5136',
+    fontSize: 13,
+    fontWeight: 800,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 4,
     cursor: 'pointer',
+  },
+  chipWrap: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    padding: '8px 12px',
+    borderRadius: 999,
+    backgroundColor: '#FFF0EA',
+    color: '#FF5136',
+    fontSize: 13,
+    fontWeight: 700,
+  },
+  menuCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    boxShadow: '0 10px 24px rgba(44, 72, 88, 0.06)',
+    overflow: 'hidden',
+  },
+  menuItem: {
     width: '100%',
+    border: 'none',
+    background: 'transparent',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '16px 18px',
+    cursor: 'pointer',
+    borderBottom: '1px solid #EEF2F7',
     textAlign: 'left',
   },
   menuItemLeft: {
     display: 'flex',
-    flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
   },
   menuIconContainer: {
-    marginRight: `${spacing.medium}px`,
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+    backgroundColor: '#F3F7FB',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   menuText: {
-    fontSize: '15px',
-    color: '#1A1F24',
-  },
-  menuArrowContainer: {
-    // Container for ArrowRight SVG
-  },
-  helpSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    padding: `${spacing.large}px 0`,
-  },
-  helpTitle: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#1A1F24',
-    marginBottom: '4px',
-  },
-  helpSubtitle: {
-    fontSize: '14px',
-    color: '#6B7280',
-    marginBottom: `${spacing.medium}px`,
-  },
-  whatsappButton: {
-    backgroundColor: '#25D366',
-    padding: '14px 24px',
-    borderRadius: '12px',
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  whatsappIconContainer: {
-    marginRight: `${spacing.small}px`,
-  },
-  whatsappButtonText: {
-    fontSize: '15px',
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: 700,
+    color: '#1B2736',
   },
 };
 
