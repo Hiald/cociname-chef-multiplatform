@@ -4,6 +4,7 @@ import { spacing } from '../../styles';
 import { Home, Reservation, Profile } from '../../assets/svgs';
 import { useAuth } from '../../hooks/useAuth';
 import closeIcon from '../../assets/images/sidebar/x.png';
+import rightIcon from '../../assets/images/sidebar/right.png';
 import whatsappIcon from '../../assets/images/sidebar/whatsapp.png';
 
 // Inject responsive styles
@@ -59,8 +60,8 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
   };
 
   const handleAvailabilityClick = () => {
-    navigate('/profile');
-    if (onNavigate) onNavigate('Profile');
+    navigate('/availability');
+    if (onNavigate) onNavigate('Availability');
   };
 
   const handleContactClick = () => {
@@ -139,6 +140,7 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
                   <span style={{...styles.menuItemText, ...(isActive && styles.menuItemTextActive)}}>
                     {item.label}
                   </span>
+                  <img src={rightIcon} alt="" style={styles.rowArrow} />
                 </div>
               </button>
             );
@@ -154,7 +156,7 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
               onClick={item.id === 'logout' ? handleLogout : () => {}}
             >
               <span style={styles.infoItemText}>{item.label}</span>
-              <span style={styles.infoItemArrow}>{'>'}</span>
+              <img src={rightIcon} alt="" style={styles.rowArrow} />
             </button>
           ))}
         </div>
@@ -251,10 +253,10 @@ const styles = {
   primaryButton: {
     border: 'none',
     borderRadius: 999,
-    backgroundColor: '#FF5136',
+    background: 'linear-gradient(97.22deg, #FF6833 2.34%, #FF4336 100%)',
     color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     padding: '11px 16px',
     cursor: 'pointer',
     marginBottom: 10,
@@ -262,10 +264,10 @@ const styles = {
   secondaryButton: {
     border: 'none',
     borderRadius: 999,
-    backgroundColor: '#E6D5D5',
+    backgroundColor: '#FFECEB',
     color: '#FF5136',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     padding: '11px 16px',
     cursor: 'pointer',
   },
@@ -289,6 +291,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
   },
   iconContainer: {
     width: 36,
@@ -311,6 +314,7 @@ const styles = {
     color: '#56688a',
     fontWeight: '500',
     letterSpacing: 0.2,
+    flex: 1,
   },
   menuItemTextActive: {
     color: '#1e2133',
@@ -367,12 +371,13 @@ const styles = {
     fontSize: 16,
     color: '#1F2937',
     fontWeight: '500',
+    flex: 1,
   },
-  infoItemArrow: {
-    fontSize: 20,
-    color: '#A0AEC0',
-    fontWeight: '400',
-    lineHeight: 1,
+  rowArrow: {
+    width: 20,
+    height: 20,
+    objectFit: 'contain',
+    flexShrink: 0,
   },
   contactSection: {
     padding: `${spacing.medium}px`,
