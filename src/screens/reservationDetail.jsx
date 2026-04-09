@@ -3,10 +3,24 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
-import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ArrowRightDetail, ChecklistDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail, HatblueDetail } from '../assets/svgs';
+import { ArrowLeftDetail, ChecklistDetail } from '../assets/svgs';
 import { RecipeModal } from '../components/recipe-modal';
 import { getConceptName } from '../utils/formatters';
 import { useAuth } from '../hooks/useAuth';
+import profileIcon from '../assets/images/detalle/perfil.png';
+import dayIcon from '../assets/images/detalle/dia.png';
+import hourIcon from '../assets/images/detalle/hora.png';
+import menuIcon from '../assets/images/detalle/menu.png';
+import chefIcon from '../assets/images/detalle/chef.png';
+import mapIcon from '../assets/images/detalle/map.png';
+import gainIcon from '../assets/images/detalle/ganancia.png';
+import upIcon from '../assets/images/detalle/up.png';
+import rightIcon from '../assets/images/detalle/right.png';
+import helpIcon from '../assets/images/detalle/ayuda.png';
+import listIcon from '../assets/images/detalle/lista.png';
+
+const SUPPORT_CONTACT_URL = 'https://api.whatsapp.com/send/?phone=51963138202&text=Hola%21+Vengo+de+la+plataforma+y+tengo+una+consulta';
+const CARD_SHADOW = '0px 2px 4px 0px #289FDF0A, 0px 7px 7px 0px #289FDF0A, 0px 15px 9px 0px #289FDF05, 0px 26px 10px 0px #289FDF03, 0px 41px 11px 0px #289FDF00';
 
 const ReservationDetailScreen = () => {
   const [reservation, setReservation] = useState(null);
@@ -22,6 +36,11 @@ const ReservationDetailScreen = () => {
   const [, setChefReservation] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({
+    location: false,
+    dishes: false,
+    gain: false,
+  });
   const { id: reservationId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -372,6 +391,22 @@ const ReservationDetailScreen = () => {
     setRecipeModalVisible(true);
   };
 
+  const getReservationReference = () => {
+    const rawReference = reservation?.reference ?? reservation?.Reference ?? reservation?.referenceText ?? '';
+    return typeof rawReference === 'string' ? rawReference.trim() : String(rawReference ?? '').trim();
+  };
+
+  const handleSupportClick = () => {
+    window.open(SUPPORT_CONTACT_URL, '_blank', 'noopener,noreferrer');
+  };
+
+  const toggleSection = (sectionKey) => {
+    setCollapsedSections((current) => ({
+      ...current,
+      [sectionKey]: !current[sectionKey],
+    }));
+  };
+
   const handleCloseRecipeModal = () => {
     console.log('Closing recipe modal');
     setRecipeModalVisible(false);
@@ -504,28 +539,40 @@ const ReservationDetailScreen = () => {
       <div style={{...styles.scrollView, ...styles.contentContainer}}>
         {/* Customer Name */}
         <div style={styles.customerHeader}>
-          <h2 style={styles.customerName}>
-            {reservation.customerName || 'Cliente'} {reservation.customerLastName || ''}
-          </h2>
+            <div style={styles.customerNameRow}>
+              <img src={profileIcon} alt="" style={styles.headerIcon} />
+              <h2 style={styles.customerName}>
+                {reservation.customerName || 'Cliente'} {reservation.customerLastName || ''}
+              </h2>
+            </div>
         </div>
 
         {/* Info Cards */}
         <div style={styles.infoCardContainer}>
           <div style={styles.infoRow}>
-            <OrderDetail />
-            <span style={styles.infoRowLabel}>{formatDate(reservation.dateReservation).split(',')[0]}</span>
-            <span style={styles.infoRowValue}>{formatDate(reservation.dateReservation).split(', ')[1]}</span>
+              <img src={dayIcon} alt="" style={styles.infoRowIcon} />
+              <span style={styles.infoRowLabel}>{formatDate(reservation.dateReservation)}</span>
           </div>
           <div style={styles.infoRow}>
-            <ClockDetail />
+              <img src={hourIcon} alt="" style={styles.infoRowIcon} />
             <span style={styles.infoRowLabel}>{reservation.hourReservation}</span>
           </div>
           <div style={styles.infoRow}>
-            <ListDetail />
+              <img src={listIcon} alt="" style={styles.infoRowIcon} />
             <span style={styles.infoRowLabel}>{reservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}</span>
           </div>
           <div style={styles.infoRow}>
-            <HatblueDetail />
+              <img src={menuIcon} alt="" style={styles.infoRowIcon} />
+            <span style={styles.infoRowLabel}>
+              {reservation.diner != null && reservation.portionperDay != null
+                ? `${reservation.diner} personas, ${reservation.portionperDay} comidas`
+                : reservation.diner != null && reservation.portionPerDay != null
+                  ? `${reservation.diner} personas, ${reservation.portionPerDay} comidas`
+                  : 'Personas y comidas no disponibles'}
+            </span>
+          </div>
+          <div style={styles.infoRow}>
+              <img src={chefIcon} alt="" style={styles.infoRowIcon} />
             <span style={styles.infoRowLabel}>{reservation.totalPortion} porciones totales</span>
           </div>
         </div>
@@ -566,85 +613,120 @@ const ReservationDetailScreen = () => {
 
         {/* Ubicación */}
         <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <UbicationDetail />
-            <h3 style={styles.sectionTitle}>Ubicación</h3>
-          </div>
-          <div style={styles.card}>
-            <p style={styles.addressText}>{reservation.direction}</p>
-            <p style={styles.districtText}>Distrito {reservation.district}</p>
-            {reservation.reference && (
-              <p style={styles.referenceText}>
-                {reservation.reference}
-              </p>
-            )}
-            <button style={styles.mapButton} onClick={handleOpenMaps}>
-              <span style={styles.mapButtonText}>Abrir en Maps</span>
-            </button>
-          </div>
+          <button style={styles.sectionHeaderButton} onClick={() => toggleSection('location')} type="button">
+            <div style={styles.sectionHeaderLeft}>
+              <img src={mapIcon} alt="" style={styles.sectionHeaderIcon} />
+              <h3 style={styles.sectionTitle}>Ubicación</h3>
+            </div>
+            <img
+              src={upIcon}
+              alt=""
+              style={collapsedSections.location ? {...styles.sectionToggleIcon, ...styles.sectionToggleIconCollapsed} : styles.sectionToggleIcon}
+            />
+          </button>
+          {!collapsedSections.location && (
+            <div style={styles.card}>
+              <p style={styles.addressText}>{reservation.direction}</p>
+              {getReservationReference() ? (
+                <p style={styles.referenceText}>
+                  {getReservationReference()}
+                </p>
+              ) : (
+                <p style={styles.referenceText}>Sin referencia registrada</p>
+              )}
+              <button style={styles.mapButton} onClick={handleOpenMaps}>
+                <span style={styles.mapButtonText}>Abrir en Maps</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Platos Elegidos */}
         <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <RedhatDetail />
-            <h3 style={styles.sectionTitle}>Platos elegidos</h3>
-          </div>
-          <div style={styles.card}>
-            {recipes.length > 0 ? (
-              recipes.map((recipe, index) => (
-                <div key={recipe.key || index} style={styles.dishItem}>
-                  <p style={styles.dishName}>
-                    {recipe.MenuNombre} - {recipe.MasterRecipeNombre}
-                  </p>
-                  <div style={styles.dishFooter}>
-                    <span style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</span>
-                    <button style={styles.viewRecipeButton} onClick={() => handleViewRecipe(recipe)}>
-                      <span style={styles.viewRecipeText}>Ver receta</span>
-                      <div style={styles.arrowIcon}>
-                        <ArrowRightDetail />
-                      </div>
-                    </button>
+          <button style={styles.sectionHeaderButton} onClick={() => toggleSection('dishes')} type="button">
+            <div style={styles.sectionHeaderLeft}>
+              <img src={chefIcon} alt="" style={styles.sectionHeaderIcon} />
+              <h3 style={styles.sectionTitle}>Platos elegidos</h3>
+            </div>
+            <img
+              src={upIcon}
+              alt=""
+              style={collapsedSections.dishes ? {...styles.sectionToggleIcon, ...styles.sectionToggleIconCollapsed} : styles.sectionToggleIcon}
+            />
+          </button>
+          {!collapsedSections.dishes && (
+            <div style={styles.card}>
+              {recipes.length > 0 ? (
+                recipes.map((recipe, index) => (
+                  <div key={recipe.key || index} style={styles.dishCard}>
+                    <p style={styles.dishName}>
+                      {recipe.MenuNombre} - {recipe.MasterRecipeNombre}
+                    </p>
+                    <div style={styles.dishFooter}>
+                      <span style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</span>
+                      <button style={styles.viewRecipeButton} onClick={() => handleViewRecipe(recipe)}>
+                        <span style={styles.viewRecipeText}>Ver receta</span>
+                        <img src={rightIcon} alt="" style={styles.recipeArrowIcon} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p style={styles.emptyText}>No hay platos registrados</p>
-            )}
-          </div>
+                ))
+              ) : (
+                <p style={styles.emptyText}>No hay platos registrados</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Mi garantía */}
         <div style={styles.section}>
-          <div style={styles.sectionHeader}>
-            <MoneyDetail />
-            <h3 style={styles.sectionTitle}>Mi ganancia</h3>
-          </div>
-          <div style={styles.card}>
-            {(() => {
-              try {
-                const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
-                return paymentConcepts.map((concept, index) => (
-                  <div key={index} style={styles.garantiaRow}>
-                    <span style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</span>
-                    <span style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</span>
-                  </div>
-                ));
-              } catch {
-                return (
-                  <div style={styles.garantiaRow}>
-                    <span style={styles.garantiaLabel}>Comisión chef</span>
-                    <span style={styles.garantiaValue}>S/ {reservation.commissiontoChef.toFixed(2)}</span>
-                  </div>
-                );
-              }
-            })()}
-            <div style={styles.divider} />
-            <div style={styles.garantiaRow}>
-              <span style={styles.garantiaTotal}>Total</span>
-              <span style={styles.garantiaTotalValue}>S/ {reservation.commissiontoChef.toFixed(2)}</span>
+          <button style={styles.sectionHeaderButton} onClick={() => toggleSection('gain')} type="button">
+            <div style={styles.sectionHeaderLeft}>
+              <img src={gainIcon} alt="" style={styles.sectionHeaderIcon} />
+              <h3 style={styles.sectionTitle}>Mi ganancia</h3>
             </div>
-          </div>
+            <img
+              src={upIcon}
+              alt=""
+              style={collapsedSections.gain ? {...styles.sectionToggleIcon, ...styles.sectionToggleIconCollapsed} : styles.sectionToggleIcon}
+            />
+          </button>
+          {!collapsedSections.gain && (
+            <div style={styles.card}>
+              {(() => {
+                try {
+                  const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
+                  return paymentConcepts.map((concept, index) => (
+                    <div key={index} style={styles.garantiaRow}>
+                      <span style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</span>
+                      <span style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</span>
+                    </div>
+                  ));
+                } catch {
+                  return (
+                    <div style={styles.garantiaRow}>
+                      <span style={styles.garantiaLabel}>Comisión chef</span>
+                      <span style={styles.garantiaValue}>S/ {reservation.commissiontoChef.toFixed(2)}</span>
+                    </div>
+                  );
+                }
+              })()}
+              <div style={styles.divider} />
+              <div style={styles.garantiaRow}>
+                <span style={styles.garantiaTotal}>Total</span>
+                <span style={styles.garantiaTotalValue}>S/ {reservation.commissiontoChef.toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={styles.helpSection}>
+          <p style={styles.helpTitle}>¿Necesitas ayuda?</p>
+          <p style={styles.helpText}>Comunícate con una asesora</p>
+          <button style={styles.helpButton} onClick={handleSupportClick} type="button">
+            <img src={helpIcon} alt="" style={styles.helpIcon} />
+            <span style={styles.helpButtonText}>Ayuda con el servicio</span>
+          </button>
         </div>
 
         {/* Accept/Reject Buttons - Solo si es una solicitud pendiente */}
@@ -821,10 +903,21 @@ const styles = {
     paddingBottom: `${spacing.small}px`,
     marginBottom: `${spacing.small}px`,
   },
+  customerNameRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  headerIcon: {
+    width: '24px',
+    height: '24px',
+    objectFit: 'contain',
+    flexShrink: 0,
+  },
   customerName: {
-    fontSize: '20px',
+    fontSize: '28px',
     fontWeight: '700',
-    color: '#FF5136',
+    color: '#1C2837',
     margin: 0,
   },
   scrollView: {
@@ -847,28 +940,29 @@ const styles = {
   },
   infoCardContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: '12px',
+    borderRadius: '20px',
     padding: `${spacing.medium}px`,
     marginBottom: `${spacing.medium}px`,
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+    boxShadow: CARD_SHADOW,
   },
   infoRow: {
     display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: '8px 0',
-    borderBottom: '1px solid #F3F4F6',
+    padding: '7px 0',
+    gap: '10px',
+  },
+  infoRowIcon: {
+    width: '18px',
+    height: '18px',
+    objectFit: 'contain',
+    flexShrink: 0,
   },
   infoRowLabel: {
-    fontSize: '13px',
+    fontSize: '14px',
     color: '#1A1F24',
-    marginLeft: `${spacing.small}px`,
     fontWeight: '500',
-    flex: 1,
-  },
-  infoRowValue: {
-    fontSize: '12px',
-    color: '#6B7280',
+    lineHeight: '18px',
   },
   arriveButton: {
     backgroundColor: '#FF5136',
@@ -919,24 +1013,41 @@ const styles = {
   section: {
     marginBottom: `${spacing.large}px`,
   },
-  sectionHeader: {
+  sectionHeaderButton: {
     display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    background: 'transparent',
+    border: 'none',
+    padding: 0,
     marginBottom: `${spacing.small}px`,
+    cursor: 'pointer',
+  },
+  sectionHeaderLeft: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  sectionHeaderIcon: {
+    width: '20px',
+    height: '20px',
+    objectFit: 'contain',
+    flexShrink: 0,
   },
   sectionTitle: {
     fontSize: '16px',
     fontWeight: '700',
     color: '#1A1F24',
-    marginLeft: `${spacing.small}px`,
     margin: 0,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: '12px',
+    borderRadius: '20px',
     padding: `${spacing.medium}px`,
-    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
+    boxShadow: CARD_SHADOW,
   },
   addressText: {
     fontSize: '15px',
@@ -974,6 +1085,13 @@ const styles = {
   dishItem: {
     marginBottom: `${spacing.medium}px`,
   },
+  dishCard: {
+    backgroundColor: '#EAF4FB',
+    borderRadius: '18px',
+    padding: `${spacing.medium}px`,
+    boxShadow: CARD_SHADOW,
+    marginBottom: `${spacing.medium}px`,
+  },
   dishName: {
     fontSize: '14px',
     fontWeight: '600',
@@ -1005,8 +1123,11 @@ const styles = {
     fontWeight: '500',
     marginRight: '4px',
   },
-  arrowIcon: {
-    marginTop: '5px',
+  recipeArrowIcon: {
+    width: '16px',
+    height: '16px',
+    objectFit: 'contain',
+    display: 'block',
   },
   garantiaRow: {
     display: 'flex',
@@ -1075,10 +1196,11 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    marginBottom: `${spacing.large}px`,
   },
   helpTitle: {
     fontSize: '16px',
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1A1F24',
     marginBottom: '4px',
   },
@@ -1088,9 +1210,9 @@ const styles = {
     marginBottom: `${spacing.medium}px`,
   },
   helpButton: {
-    backgroundColor: '#FF5136',
+    backgroundColor: '#FFF0EE',
     padding: `16px ${spacing.medium}px`,
-    borderRadius: '30px',
+    borderRadius: '999px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1098,6 +1220,12 @@ const styles = {
     width: '100%',
     border: 'none',
     cursor: 'pointer',
+  },
+  helpIcon: {
+    width: '18px',
+    height: '18px',
+    objectFit: 'contain',
+    flexShrink: 0,
   },
   helpButtonContent: {
     display: 'flex',
@@ -1107,8 +1235,19 @@ const styles = {
   helpButtonText: {
     fontSize: '16px',
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#FF5136',
     marginLeft: '8px',
+  },
+  sectionToggleIcon: {
+    width: '18px',
+    height: '18px',
+    objectFit: 'contain',
+    display: 'block',
+    transform: 'rotate(0deg)',
+    transition: 'transform 0.2s ease',
+  },
+  sectionToggleIconCollapsed: {
+    transform: 'rotate(180deg)',
   },
   actionButtonsContainer: {
     display: 'flex',
