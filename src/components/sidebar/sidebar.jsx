@@ -7,6 +7,9 @@ import closeIcon from '../../assets/images/sidebar/x.png';
 import rightIcon from '../../assets/images/sidebar/right.png';
 import whatsappIcon from '../../assets/images/sidebar/whatsapp.png';
 
+const WHATSAPP_CONTACT_URL = 'https://api.whatsapp.com/send/?phone=51963138202&text=Hola%21+Vengo+de+la+plataforma+y+tengo+una+consulta';
+const TERMS_AND_CONDITIONS_URL = import.meta.env.VITE_TERMS_AND_CONDITIONS_URL || 'https://cociname.pe/terminos-y-condiciones';
+
 // Inject responsive styles
 if (!document.getElementById('sidebar-responsive-styles')) {
   const style = document.createElement('style');
@@ -41,7 +44,7 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
 
   const infoItems = [
     { id: 'manuals', label: 'Manuales' },
-    { id: 'terms', label: 'Términos y Condiciones' },
+    { id: 'terms', label: 'Términos y Condiciones', url: TERMS_AND_CONDITIONS_URL },
     { id: 'logout', label: 'Cerrar sesión', danger: true },
   ];
 
@@ -65,7 +68,18 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
   };
 
   const handleContactClick = () => {
-    window.open('https://wa.me/', '_blank', 'noopener,noreferrer');
+    window.open(WHATSAPP_CONTACT_URL, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleInfoItemClick = (item) => {
+    if (item.id === 'logout') {
+      void handleLogout();
+      return;
+    }
+
+    if (item.url) {
+      window.open(item.url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const handleClose = () => {
@@ -153,7 +167,7 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
             <button
               key={item.id}
               style={{ ...styles.infoItem, ...(item.danger && styles.infoItemDanger) }}
-              onClick={item.id === 'logout' ? handleLogout : () => {}}
+              onClick={() => handleInfoItemClick(item)}
             >
               <span style={styles.infoItemText}>{item.label}</span>
               <img src={rightIcon} alt="" style={styles.rowArrow} />
