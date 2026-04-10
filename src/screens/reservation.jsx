@@ -13,6 +13,7 @@ import mapIcon from '../assets/images/reservas/map.png';
 import rightIcon from '../assets/images/reservas/right.png';
 import proximaIcon from '../assets/images/reservas/proxima.png';
 import calendarIcon from '../assets/images/home/calendario.png';
+import pastIcon from '../assets/images/sidebar/pasadas.png';
 
 const confirmedStatuses = new Set([
   StatusReservation.Aceptada,
@@ -70,12 +71,16 @@ const getHoursToLabel = (reservation) => {
 const ReservationScreen = () => {
   const [activeTab, setActiveTab] = useState('confirmed');
   const [confirmedReservations, setConfirmedReservations] = useState([]);
+  const [pastReservations, setPastReservations] = useState([]);
   const [requestReservations, setRequestReservations] = useState([]);
+  const [showPastReservations, setShowPastReservations] = useState(false);
   const [loading, setLoading] = useState(true);
   const { chefData } = useAuth();
   const chefId = chefData?.chefId;
   const location = useLocation();
   const navigate = useNavigate();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const showHistoryMode = searchParams.get('history') === 'true' || location.state?.showPast === true;
 
   const syncTabToUrl = useCallback((tab) => {
     navigate(`/reservation?tab=${tab}`, {
@@ -86,11 +91,16 @@ const ReservationScreen = () => {
 
   useEffect(() => {
     const tabFromQuery = new URLSearchParams(location.search).get('tab');
+    const showHistoryFromQuery = new URLSearchParams(location.search).get('history') === 'true';
+
     if (tabFromQuery === 'requests' || location.state?.defaultTab === 'requests') {
       setActiveTab('requests');
+      setShowPastReservations(false);
       return;
     }
+
     setActiveTab('confirmed');
+    setShowPastReservations(showHistoryFromQuery || location.state?.showPast === true);
   }, [location.search, location.state]);
 
   const loadReservations = useCallback(async () => {
@@ -110,11 +120,12 @@ const ReservationScreen = () => {
       ]);
 
       if (confirmedResponse.success && confirmedResponse.data) {
-        const confirmed = confirmedResponse.data
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
+
+        const allConfirmed = confirmedResponse.data
           .filter((reservation) => {
             if (!confirmedStatuses.has(reservation.statusReservation)) return false;
-            const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-            return reservationDate.getTime() >= new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
+            return true;
           })
           .map((reservation) => ({ ...reservation, tipo: 'reserva' }))
           .sort((a, b) => {
@@ -123,9 +134,33 @@ const ReservationScreen = () => {
             return dateA - dateB;
           });
 
+        const confirmed = allConfirmed
+          .filter((reservation) => {
+            const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+            return reservationDate.getTime() >= startOfToday;
+          })
+          .sort((a, b) => {
+            const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
+            const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
+            return dateA - dateB;
+          });
+
+        const past = allConfirmed
+          .filter((reservation) => {
+            const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+            return reservationDate.getTime() < startOfToday;
+          })
+          .sort((a, b) => {
+            const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
+            const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
+            return dateB - dateA;
+          });
+
         setConfirmedReservations(confirmed);
+        setPastReservations(past);
       } else {
         setConfirmedReservations([]);
+        setPastReservations([]);
       }
 
       const normalRequests = requestsResponse.success && requestsResponse.data
@@ -199,6 +234,7 @@ const ReservationScreen = () => {
 
   const handleViewReservation = (reservation, isRequest = false) => {
     const originTab = isRequest ? 'requests' : 'confirmed';
+    const keepHistoryExpanded = !isRequest && showPastReservations;
 
     if (reservation.tipo === 'suscripcion') {
       navigate(`/reservation-suscription/${reservation.id}`, {
@@ -210,6 +246,7 @@ const ReservationScreen = () => {
           isRequest,
           source: 'reservation',
           originTab,
+          showPast: keepHistoryExpanded,
         },
       });
       return;
@@ -225,6 +262,7 @@ const ReservationScreen = () => {
         isRequest,
         source: 'reservation',
         originTab,
+        showPast: keepHistoryExpanded,
       },
     });
   };
@@ -278,45 +316,51 @@ const ReservationScreen = () => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={styles.titleRow}>
-          <img src={calendarIcon} alt="Tus reservas" style={styles.titleIcon} />
-          <h1 style={styles.title}>Tus Reservas</h1>
-        </div>
+        {!showHistoryMode ? (
+          <>
+            <div style={styles.titleRow}>
+              <img src={calendarIcon} alt="Tus reservas" style={styles.titleIcon} />
+              <h1 style={styles.title}>Tus Reservas</h1>
+            </div>
 
-        <div style={styles.toggleContainer}>
-          <div
-            style={{
-              ...styles.toggleKnob,
-              transform: activeTab === 'confirmed' ? 'translateX(0%)' : 'translateX(100%)',
-            }}
-          />
+            <div style={styles.toggleContainer}>
+              <div
+                style={{
+                  ...styles.toggleKnob,
+                  transform: activeTab === 'confirmed' ? 'translateX(0%)' : 'translateX(100%)',
+                }}
+              />
 
-          <button
-            type="button"
-            style={{ ...styles.toggleButton, ...(activeTab === 'confirmed' ? styles.toggleButtonActive : {}) }}
-            onClick={() => {
-              setActiveTab('confirmed');
-              syncTabToUrl('confirmed');
-            }}
-          >
-            Confirmadas
-          </button>
+              <button
+                type="button"
+                style={{ ...styles.toggleButton, ...(activeTab === 'confirmed' ? styles.toggleButtonActive : {}) }}
+                onClick={() => {
+                  setActiveTab('confirmed');
+                  syncTabToUrl('confirmed');
+                }}
+              >
+                Confirmadas
+              </button>
 
-          <button
-            type="button"
-            style={{ ...styles.toggleButton, ...(activeTab === 'requests' ? styles.toggleButtonActive : {}) }}
-            onClick={() => {
-              setActiveTab('requests');
-              syncTabToUrl('requests');
-            }}
-          >
-            Solicitudes ({requestReservations.length})
-          </button>
-        </div>
+              <button
+                type="button"
+                style={{ ...styles.toggleButton, ...(activeTab === 'requests' ? styles.toggleButtonActive : {}) }}
+                onClick={() => {
+                  setActiveTab('requests');
+                  syncTabToUrl('requests');
+                }}
+              >
+                Solicitudes ({requestReservations.length})
+              </button>
+            </div>
+          </>
+        ) : (
+          <div style={styles.historyHeaderSpacer} />
+        )}
       </div>
 
       <div style={styles.content}>
-        {activeTab === 'confirmed' && upcomingReservation && (
+        {!showHistoryMode && activeTab === 'confirmed' && upcomingReservation && (
           <div style={styles.nextReservationCard}>
             <div style={styles.nextCardTop}>
               <div style={styles.nextBadge}>
@@ -361,7 +405,7 @@ const ReservationScreen = () => {
           </div>
         )}
 
-        {visibleReservations.length === 0 ? (
+        {!showHistoryMode && visibleReservations.length === 0 ? (
           <div style={styles.emptyState}>
             <p style={styles.emptyTitle}>
               {activeTab === 'confirmed' ? 'No tienes reservas confirmadas' : 'No tienes solicitudes pendientes'}
@@ -372,8 +416,29 @@ const ReservationScreen = () => {
                 : 'Las nuevas solicitudes apareceran aqui.'}
             </p>
           </div>
-        ) : (
+        ) : !showHistoryMode ? (
           visibleReservations.map((reservation) => renderReservationCard(reservation, activeTab === 'requests'))
+        ) : null}
+
+        {showHistoryMode && (
+          <div style={styles.pastSectionContainer}>
+            <div style={styles.pastSectionHeader}>
+              <div style={styles.pastSectionTitleRow}>
+                <img src={pastIcon} alt="Reservas pasadas" style={styles.pastSectionIcon} />
+                <h2 style={styles.pastSectionTitle}>Reservas pasadas</h2>
+              </div>
+            </div>
+
+            <p style={styles.pastSectionSubtitle}>Aquí verás tu historial</p>
+            {pastReservations.length > 0 ? (
+              pastReservations.map((reservation) => renderReservationCard(reservation, false))
+            ) : (
+              <div style={styles.emptyState}>
+                <p style={styles.emptyTitle}>No tienes reservas pasadas</p>
+                <p style={styles.emptyText}>Tu historial aparecerá aquí.</p>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -420,6 +485,9 @@ const styles = {
     fontSize: 24,
     fontWeight: 800,
     color: '#1B2736',
+  },
+  historyHeaderSpacer: {
+    height: 12,
   },
   toggleContainer: {
     position: 'relative',
@@ -620,6 +688,52 @@ const styles = {
     fontSize: 14,
     color: '#6B7280',
     lineHeight: '20px',
+  },
+  pastSectionContainer: {
+    marginTop: spacing.large,
+  },
+  pastSectionHeader: {
+    width: '100%',
+    border: 'none',
+    backgroundColor: 'transparent',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 2px',
+    cursor: 'pointer',
+  },
+  pastSectionTitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pastSectionIcon: {
+    width: 24,
+    height: 24,
+    objectFit: 'contain',
+    flexShrink: 0,
+  },
+  pastSectionTitle: {
+    margin: 0,
+    fontSize: 20,
+    fontWeight: 800,
+    color: '#1B2736',
+  },
+  pastSectionSubtitle: {
+    margin: '8px 0 14px',
+    fontSize: 14,
+    color: '#324154',
+    lineHeight: '20px',
+  },
+  pastSectionArrow: {
+    width: 20,
+    height: 20,
+    objectFit: 'contain',
+    transform: 'rotate(90deg)',
+    transition: 'transform 0.2s ease',
+  },
+  pastSectionArrowExpanded: {
+    transform: 'rotate(-90deg)',
   },
 };
 

@@ -49,6 +49,7 @@ const ReservationDetailScreen = () => {
   const isRequest = location.state?.isRequest || false;
   const source = location.state?.source || null;
   const originTab = location.state?.originTab || (isRequest ? 'requests' : 'confirmed');
+  const showPast = location.state?.showPast === true;
 
   useEffect(() => {
     let isMounted = true;
@@ -230,8 +231,8 @@ const ReservationDetailScreen = () => {
     }
 
     if (source === 'reservation') {
-      navigate(`/reservation?tab=${originTab}`, {
-        state: { defaultTab: originTab },
+      navigate(`/reservation?tab=${originTab}${showPast && originTab === 'confirmed' ? '&history=true' : ''}`, {
+        state: { defaultTab: originTab, showPast: showPast && originTab === 'confirmed' },
         replace: true,
       });
       return;

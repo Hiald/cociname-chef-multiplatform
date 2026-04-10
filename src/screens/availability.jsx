@@ -437,11 +437,15 @@ const AvailabilityScreen = () => {
 
 const styles = {
 	screen: {
-		minHeight: '100%',
-		width: '100%',
+		position: 'fixed',
+		inset: 0,
+		zIndex: 3000,
+		minHeight: '100vh',
+		width: '100vw',
 		backgroundColor: '#F3F4F6',
 		padding: `${spacing.medium}px ${spacing.medium}px 84px`,
 		boxSizing: 'border-box',
+		overflowY: 'auto',
 	},
 	container: {
 		maxWidth: 520,
