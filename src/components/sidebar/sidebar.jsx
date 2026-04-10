@@ -1,11 +1,16 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { spacing } from '../../styles';
-import { Home, Reservation, Profile } from '../../assets/svgs';
 import { useAuth } from '../../hooks/useAuth';
 import closeIcon from '../../assets/images/sidebar/x.png';
 import rightIcon from '../../assets/images/sidebar/right.png';
 import whatsappIcon from '../../assets/images/sidebar/whatsapp.png';
+import profileIcon from '../../assets/images/sidebar/perfil.png';
+import availabilityIcon from '../../assets/images/sidebar/disponibilidad.png';
+import pastIcon from '../../assets/images/sidebar/pasadas.png';
+import manualIcon from '../../assets/images/sidebar/manual.png';
+import tycIcon from '../../assets/images/sidebar/tyc.png';
+import logoutIcon from '../../assets/images/sidebar/cerrar.png';
 
 const WHATSAPP_CONTACT_URL = 'https://api.whatsapp.com/send/?phone=51963138202&text=Hola%21+Vengo+de+la+plataforma+y+tengo+una+consulta';
 const TERMS_AND_CONDITIONS_URL = import.meta.env.VITE_TERMS_AND_CONDITIONS_URL || 'https://cociname.pe/terminos-y-condiciones';
@@ -35,26 +40,20 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
   const fullName = `${chefData?.firstName || 'Chef'} ${chefData?.lastName || ''}`.trim();
   const experienceText = chefData?.experience ? String(chefData.experience) : '-';
 
-  const menuItems = [
-    { id: 'Home', label: 'Inicio', Icon: Home, path: '/' },
-    { id: 'Reservation', label: 'Reservas', Icon: Reservation, path: '/reservation' },
-    { id: 'Requests', label: 'Solicitudes', Icon: Reservation, path: '/reservation?tab=requests' },
-    { id: 'Profile', label: 'Perfil', Icon: Profile, path: '/profile' },
+  const quickActions = [
+    { id: 'Profile', label: 'Mi perfil', icon: profileIcon },
+    { id: 'Availability', label: 'Mi disponibilidad', icon: availabilityIcon },
+    { id: 'PastReservations', label: 'Reservas pasadas', icon: pastIcon },
   ];
 
   const infoItems = [
-    { id: 'manuals', label: 'Manuales' },
-    { id: 'terms', label: 'Términos y Condiciones', url: TERMS_AND_CONDITIONS_URL },
-    { id: 'logout', label: 'Cerrar sesión', danger: true },
+    { id: 'manuals', label: 'Manuales', icon: manualIcon },
+    { id: 'terms', label: 'Términos y Condiciones', icon: tycIcon, url: TERMS_AND_CONDITIONS_URL },
+    { id: 'logout', label: 'Cerrar sesión', icon: logoutIcon, danger: true },
   ];
 
   const handleLogout = async () => {
     await logout();
-  };
-
-  const handleNavigate = (item) => {
-    navigate(item.path);
-    if (onNavigate) onNavigate(item.id);
   };
 
   const handleReservationClick = () => {
@@ -69,6 +68,27 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
 
   const handleContactClick = () => {
     window.open(WHATSAPP_CONTACT_URL, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleActionClick = (actionId) => {
+    if (actionId === 'Profile') {
+      navigate('/profile');
+      if (onNavigate) onNavigate('Profile');
+      return;
+    }
+
+    if (actionId === 'Availability') {
+      navigate('/availability');
+      if (onNavigate) onNavigate('Availability');
+      return;
+    }
+
+    if (actionId === 'PastReservations') {
+      navigate('/reservation?tab=confirmed&history=true', {
+        state: { defaultTab: 'confirmed', showPast: true },
+      });
+      if (onNavigate) onNavigate('PastReservations');
+    }
   };
 
   const handleInfoItemClick = (item) => {
@@ -132,31 +152,23 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
         </div>
 
         <div style={styles.menuSection}>
-          {menuItems.map((item) => {
+          {quickActions.map((action) => {
             const searchParams = new URLSearchParams(location.search);
-            const reservationTab = searchParams.get('tab');
-            const isReservationRoute =
-              location.pathname === '/reservation' ||
-              location.pathname.startsWith('/reservation/') ||
-              location.pathname.startsWith('/reservation-suscription/');
+            const isPastView = location.pathname === '/reservation' && searchParams.get('history') === 'true';
+            const isActive = action.id === 'PastReservations'
+              ? isPastView
+              : currentRoute === action.id;
 
-            const isActive = item.id === 'Requests'
-              ? (isReservationRoute && reservationTab === 'requests') || currentRoute === 'Requests'
-              : item.id === 'Reservation'
-                ? (isReservationRoute && reservationTab !== 'requests' && currentRoute !== 'Requests') || currentRoute === 'Reservation'
-                : currentRoute === item.id;
             return (
               <button
-                key={item.id}
-                style={{...styles.menuItem, ...(isActive && styles.menuItemActive)}}
-                onClick={() => handleNavigate(item)}
+                key={action.id}
+                style={{ ...styles.menuItem, ...(isActive && styles.menuItemActive) }}
+                onClick={() => handleActionClick(action.id)}
               >
                 <div style={styles.menuItemContent}>
-                  <div style={{...styles.iconContainer, ...(isActive && styles.iconContainerActive)}}>
-                    <item.Icon />
-                  </div>
-                  <span style={{...styles.menuItemText, ...(isActive && styles.menuItemTextActive)}}>
-                    {item.label}
+                  <img src={action.icon} alt="" style={styles.menuItemIcon} />
+                  <span style={{ ...styles.menuItemText, ...(isActive && styles.menuItemTextActive) }}>
+                    {action.label}
                   </span>
                   <img src={rightIcon} alt="" style={styles.rowArrow} />
                 </div>
@@ -173,7 +185,10 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
               style={{ ...styles.infoItem, ...(item.danger && styles.infoItemDanger) }}
               onClick={() => handleInfoItemClick(item)}
             >
-              <span style={styles.infoItemText}>{item.label}</span>
+              <div style={styles.infoItemContent}>
+                <img src={item.icon} alt="" style={styles.infoItemIcon} />
+                <span style={styles.infoItemText}>{item.label}</span>
+              </div>
               <img src={rightIcon} alt="" style={styles.rowArrow} />
             </button>
           ))}
@@ -231,7 +246,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: 12,
-    marginBottom: 12,
+    marginBottom: 4,
   },
   avatar: {
     width: 56,
@@ -303,7 +318,7 @@ const styles = {
     textAlign: 'left',
   },
   menuItemActive: {
-    backgroundColor: '#d9dbf1',
+    backgroundColor: '#EEF5FB',
   },
   menuItemContent: {
     display: 'flex',
@@ -311,52 +326,22 @@ const styles = {
     alignItems: 'center',
     width: '100%',
   },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#F5F7FA',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
+  menuItemIcon: {
+    width: 20,
+    height: 20,
+    objectFit: 'contain',
     marginRight: spacing.medium,
-  },
-  iconContainerActive: {
-    backgroundColor: '#FFFFFF',
-  },
-  iconEmoji: {
-    fontSize: 20,
+    flexShrink: 0,
   },
   menuItemText: {
-    fontSize: 15,
-    color: '#56688a',
+    fontSize: 16,
+    color: '#1F2937',
     fontWeight: '500',
-    letterSpacing: 0.2,
     flex: 1,
   },
   menuItemTextActive: {
-    color: '#1e2133',
+    color: '#111827',
     fontWeight: '700',
-  },
-  logoutSection: {
-    padding: spacing.medium,
-    marginTop: 'auto',
-  },
-  logoutButton: {
-    width: '100%',
-    padding: spacing.medium,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: '1px solid #FEE2E2',
-    cursor: 'pointer',
-  },
-  logoutText: {
-    fontSize: 15,
-    color: '#DC2626',
-    fontWeight: '600',
   },
   infoSection: {
     borderTop: '1px solid #E5E7EB',
@@ -381,6 +366,18 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  infoItemContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: spacing.medium,
+    flex: 1,
+  },
+  infoItemIcon: {
+    width: 20,
+    height: 20,
+    objectFit: 'contain',
+    flexShrink: 0,
   },
   infoItemDanger: {
     color: '#DC2626',
