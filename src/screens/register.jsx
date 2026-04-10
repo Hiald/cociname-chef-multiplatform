@@ -1,9 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarCheck, Restaurant, Verified } from '../assets/svgs';
 import { apiService } from '../services/api.service';
 import { useAuth } from '../hooks/useAuth';
 import logoImg from '../assets/images/logo.png';
+import loginHeroImg from '../assets/images/login/home.png';
+import featureOneIcon from '../assets/images/login/Container.png';
+import featureTwoIcon from '../assets/images/login/Container-1.png';
+import featureThreeIcon from '../assets/images/login/Container-2.png';
+import badgeTopImg from '../assets/images/login/slogan_label_1.png';
+import badgeBottomImg from '../assets/images/login/slogan_label_4.png';
 
 const RegisterScreen = () => {
   const GOOGLE_CLIENT_ID_FALLBACK = '164367639878-13699crmkeg3jt0ksc7hs1ff5np0sm6c.apps.googleusercontent.com';
@@ -26,9 +31,22 @@ const RegisterScreen = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 992);
   const googleButtonContainerRef = useRef(null);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID_FALLBACK;
   const { loginWithGoogleToken } = useAuth();
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 992);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   useEffect(() => {
     if (!googleClientId || !googleButtonContainerRef.current || showVerification) {
@@ -242,16 +260,15 @@ const RegisterScreen = () => {
   const renderLeftSection = () => (
     <div style={styles.leftSection}>
       <div style={styles.leftContent}>
-        <h1 style={styles.leftTitle}>Tu talento<br />transforma hogares</h1>
+        <img src={badgeTopImg} alt="A tu medida" style={styles.topBadge} />
+        <h1 style={styles.leftTitle}>Tu talento transforma hogares</h1>
         <p style={styles.leftSubtitle}>
           Gestiona tus servicios y organiza tu semana de cocina.
         </p>
 
         <div style={styles.featuresContainer}>
           <div style={styles.featureItem}>
-            <div style={styles.iconCircle}>
-              <CalendarCheck />
-            </div>
+            <img src={featureThreeIcon} alt="Horario" style={styles.featureIcon} />
             <div style={styles.featureTextContainer}>
               <h3 style={styles.featureTitle}>Tú decides tu horario</h3>
               <p style={styles.featureDescription}>
@@ -261,9 +278,7 @@ const RegisterScreen = () => {
           </div>
 
           <div style={styles.featureItem}>
-            <div style={styles.iconCircle}>
-              <Restaurant />
-            </div>
+            <img src={featureOneIcon} alt="Sazón" style={styles.featureIcon} />
             <div style={styles.featureTextContainer}>
               <h3 style={styles.featureTitle}>Comparte tu sazón</h3>
               <p style={styles.featureDescription}>
@@ -273,9 +288,7 @@ const RegisterScreen = () => {
           </div>
 
           <div style={styles.featureItem}>
-            <div style={styles.iconCircle}>
-              <Verified />
-            </div>
+            <img src={featureTwoIcon} alt="Seguridad" style={styles.featureIcon} />
             <div style={styles.featureTextContainer}>
               <h3 style={styles.featureTitle}>Respaldo y seguridad</h3>
               <p style={styles.featureDescription}>
@@ -284,6 +297,7 @@ const RegisterScreen = () => {
             </div>
           </div>
         </div>
+        <img src={badgeBottomImg} alt="Rico y Casero" style={styles.bottomBadge} />
       </div>
     </div>
   );
@@ -292,9 +306,9 @@ const RegisterScreen = () => {
     // Vista de verificación de código
     if (showVerification) {
       return (
-        <div style={{...styles.rightSection, overflowY: 'auto'}}>
-          <div style={styles.rightSectionContent}>
-            <div style={styles.formCard}>
+        <div style={styles.rightSection}>
+          <div style={isMobile ? {...styles.rightSectionContent, ...styles.rightSectionContentMobile} : styles.rightSectionContent}>
+            <div style={isMobile ? {...styles.formCard, ...styles.formCardMobile} : styles.formCard}>
               <img 
                 src={logoImg}
                 alt="Logo"
@@ -350,9 +364,9 @@ const RegisterScreen = () => {
 
     // Vista de registro
     return (
-      <div style={{...styles.rightSection, overflowY: 'auto'}}>
-        <div style={styles.rightSectionContent}>
-          <div style={styles.formCard}>
+      <div style={styles.rightSection}>
+        <div style={isMobile ? {...styles.rightSectionContent, ...styles.rightSectionContentMobile} : styles.rightSectionContent}>
+          <div style={isMobile ? {...styles.formCard, ...styles.formCardMobile} : styles.formCard}>
             <img 
               src={logoImg}
               alt="Logo"
@@ -365,7 +379,7 @@ const RegisterScreen = () => {
             </p>
 
             <div style={styles.formContainer}>
-              <div style={styles.rowInputs}>
+              <div style={isMobile ? {...styles.rowInputs, ...styles.rowInputsMobile} : styles.rowInputs}>
                 <div style={styles.halfInput}>
                   <label style={styles.inputLabel}>Nombre</label>
                   <input
@@ -485,7 +499,7 @@ const RegisterScreen = () => {
 
   return (
     <div style={styles.container}>
-      {renderLeftSection()}
+      {!isMobile && renderLeftSection()}
       {renderRightSection()}
     </div>
   );
@@ -494,109 +508,128 @@ const RegisterScreen = () => {
 const styles = {
   container: {
     display: 'flex',
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FF4336',
     minHeight: '100vh',
   },
-  
-  // Left Section
   leftSection: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundImage: `url(${loginHeroImg})`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
     padding: '80px 60px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
   },
   leftContent: {
-    maxWidth: 600,
+    maxWidth: 560,
+    width: '100%',
+    position: 'relative',
+    backgroundColor: 'rgba(48, 59, 64, 0.75)',
+    borderRadius: 24,
+    padding: '44px 36px',
+  },
+  topBadge: {
+    width: 138,
+    position: 'absolute',
+    top: -62,
+    left: -74,
+  },
+  bottomBadge: {
+    width: 138,
+    position: 'absolute',
+    right: -62,
+    bottom: -56,
   },
   leftTitle: {
-    fontSize: 52,
-    fontWeight: 'bold',
-    color: '#1A1F24',
-    marginBottom: 24,
-    lineHeight: '64px',
+    fontSize: 40,
+    fontWeight: 700,
+    color: '#FFFFFF',
+    marginBottom: 16,
+    lineHeight: '52px',
     margin: '0 0 24px 0',
   },
   leftSubtitle: {
-    fontSize: 20,
-    color: '#6B7280',
-    marginBottom: 72,
-    lineHeight: '32px',
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.96)',
+    marginBottom: 34,
+    lineHeight: '24px',
   },
   featuresContainer: {},
   featureItem: {
     display: 'flex',
-    flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 40,
+    gap: 14,
+    marginBottom: 20,
   },
-  iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#E0F2FE',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
+  featureIcon: {
+    width: 50,
+    height: 50,
+    objectFit: 'contain',
     flexShrink: 0,
   },
   featureTextContainer: {
     flex: 1,
-    marginLeft: 20,
   },
   featureTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#1A1F24',
-    marginBottom: 8,
-    margin: '0 0 8px 0',
+    color: '#FFFFFF',
+    margin: '0 0 4px 0',
   },
   featureDescription: {
-    fontSize: 16,
-    color: '#6B7280',
-    lineHeight: '26px',
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    lineHeight: '19px',
     margin: 0,
   },
-
-  // Right Section
   rightSection: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FF4336',
+    overflowY: 'auto',
   },
   rightSectionContent: {
     display: 'flex',
-    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: '80px 60px',
+    padding: '60px',
     minHeight: '100vh',
   },
+  rightSectionContentMobile: {
+    padding: '24px 16px',
+  },
   formCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    boxShadow: '0px 5px 18px 0px rgba(39, 159, 223, 0.15)',
+    padding: '48px',
     width: '100%',
-    maxWidth: 500,
+    maxWidth: 480,
+  },
+  formCardMobile: {
+    padding: '24px 20px',
+    borderRadius: 20,
+    maxWidth: 460,
   },
   logo: {
-    width: 180,
-    height: 48,
+    width: 160,
+    height: 'auto',
     display: 'block',
-    margin: '0 auto 64px auto',
+    margin: '0 auto 32px auto',
   },
   welcomeTitle: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#1A1F24',
+    fontSize: 20,
+    fontWeight: 700,
+    color: '#1A1A1A',
     textAlign: 'center',
-    marginBottom: 12,
-    margin: '0 0 12px 0',
+    margin: '0 0 6px 0',
   },
   welcomeSubtitle: {
-    fontSize: 17,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#666666',
+    lineHeight: '20px',
     textAlign: 'center',
-    marginBottom: 40,
-    margin: '0 0 40px 0',
+    margin: '0 0 28px 0',
   },
   formContainer: {
     width: '100%',
@@ -607,27 +640,31 @@ const styles = {
     gap: '16px',
     marginBottom: 0,
   },
+  rowInputsMobile: {
+    flexDirection: 'column',
+    gap: 0,
+  },
   halfInput: {
     flex: 1,
   },
   inputLabel: {
     display: 'block',
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '500',
-    color: '#374151',
-    marginBottom: 10,
+    color: '#333333',
+    marginBottom: 8,
   },
   input: {
     width: '100%',
-    height: 56,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    border: 'none',
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    border: '1px solid #E0E0E0',
     outline: 'none',
-    padding: '0 20px',
-    fontSize: 16,
+    padding: '0 16px',
+    fontSize: 14,
     color: '#1A1F24',
-    marginBottom: 24,
+    marginBottom: 18,
     boxSizing: 'border-box',
   },
   errorText: {
@@ -639,15 +676,16 @@ const styles = {
   },
   registerButton: {
     width: '100%',
-    height: 56,
-    backgroundColor: '#FF5136',
-    borderRadius: 10,
+    height: 52,
+    background: 'linear-gradient(97.22deg, #FF6833 2.34%, #FF4336 100%)',
+    borderRadius: 20,
     border: 'none',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
     cursor: 'pointer',
+    boxShadow: '0px 5px 18px 0px rgba(255, 67, 54, 0.3)',
   },
   registerButtonDisabled: {
     backgroundColor: '#FFB5A6',
@@ -689,19 +727,20 @@ const styles = {
   },
   activateButton: {
     width: '100%',
-    height: 56,
-    backgroundColor: '#10B981',
-    borderRadius: 10,
+    height: 52,
+    background: 'linear-gradient(97.22deg, #FF6833 2.34%, #FF4336 100%)',
+    borderRadius: 20,
     border: 'none',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     cursor: 'pointer',
     transition: 'background-color 0.2s',
-    marginTop: 8,
+    marginTop: 4,
+    boxShadow: '0px 5px 18px 0px rgba(255, 67, 54, 0.3)',
   },
   activateButtonDisabled: {
-    backgroundColor: '#86EFAC',
+    background: '#FFB5A6',
     opacity: 0.7,
     cursor: 'not-allowed',
   },
@@ -728,20 +767,19 @@ const styles = {
     color: '#6B7280',
   },
   loginText: {
-    fontSize: 15,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#666666',
     textAlign: 'center',
-    marginTop: 24,
-    margin: '24px 0 0 0',
+    margin: '20px 0 0 0',
   },
   loginLink: {
     background: 'none',
     border: 'none',
-    color: '#3B82F6',
-    textDecoration: 'underline',
+    color: '#1391E2',
+    textDecoration: 'none',
     cursor: 'pointer',
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: 600,
     padding: 0,
   },
   phoneInputContainer: {
@@ -749,12 +787,13 @@ const styles = {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    height: 56,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    marginBottom: 24,
-    paddingLeft: 20,
-    paddingRight: 20,
+    height: 48,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    border: '1px solid #E0E0E0',
+    marginBottom: 18,
+    paddingLeft: 16,
+    paddingRight: 16,
     boxSizing: 'border-box',
   },
   phonePrefix: {
