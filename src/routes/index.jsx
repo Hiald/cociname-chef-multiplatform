@@ -164,7 +164,13 @@ const Navigator = () => {
   const getCurrentRoute = () => {
     const path = location.pathname;
     if (path === '/' || path === '/home') return 'Home';
-    if (path === '/reservation' || path.startsWith('/reservation/')) return 'Reservation';
+    if (path === '/reservation') {
+      const tabFromQuery = new URLSearchParams(location.search).get('tab');
+      return tabFromQuery === 'requests' ? 'Requests' : 'Reservation';
+    }
+    if (path.startsWith('/reservation/') || path.startsWith('/reservation-suscription/')) {
+      return location.state?.isRequest ? 'Requests' : 'Reservation';
+    }
     if (path === '/availability') return 'Availability';
     if (path === '/profile') return 'Profile';
     return 'Home';

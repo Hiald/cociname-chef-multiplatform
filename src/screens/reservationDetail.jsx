@@ -47,6 +47,8 @@ const ReservationDetailScreen = () => {
   const { chefData } = useAuth();
   const isActive = location.state?.isActive || false;
   const isRequest = location.state?.isRequest || false;
+  const source = location.state?.source || null;
+  const originTab = location.state?.originTab || (isRequest ? 'requests' : 'confirmed');
 
   useEffect(() => {
     let isMounted = true;
@@ -221,8 +223,25 @@ const ReservationDetailScreen = () => {
     }
   };
 
-  const handleGoBack = () => {
+  const navigateToOrigin = () => {
+    if (source === 'home') {
+      navigate('/', { replace: true });
+      return;
+    }
+
+    if (source === 'reservation') {
+      navigate(`/reservation?tab=${originTab}`, {
+        state: { defaultTab: originTab },
+        replace: true,
+      });
+      return;
+    }
+
     navigate(-1);
+  };
+
+  const handleGoBack = () => {
+    navigateToOrigin();
   };
 
   const handleArriveHome = async () => {
@@ -463,8 +482,11 @@ const ReservationDetailScreen = () => {
 
   const handleCloseAcceptModal = () => {
     setAcceptModalVisible(false);
-    // Navegar a las reservas confirmadas
-    navigate('/', { replace: true });
+    // Navegar al listado de reservas, no al inicio.
+    navigate('/reservation?tab=confirmed', {
+      state: { defaultTab: 'confirmed' },
+      replace: true,
+    });
   };
 
   const handleRejectReservation = async () => {
@@ -518,6 +540,17 @@ const ReservationDetailScreen = () => {
   }
 
   const statusInfo = getStatusInfo(reservation.statusReservation);
+  const headerStatusInfo = (() => {
+    if (source === 'home' && isActive) {
+      return { text: 'EN CURSO', color: '#10B981', bgColor: '#D1FAE5' };
+    }
+
+    if (source === 'reservation' && originTab === 'confirmed' && !isRequest) {
+      return { text: 'PROXIMA', color: '#E88700', bgColor: '#FFF2DE' };
+    }
+
+    return statusInfo;
+  })();
 
   return (
     <div style={styles.container}>
@@ -529,9 +562,9 @@ const ReservationDetailScreen = () => {
             <span style={styles.backButtonText}>Volver</span>
           </div>
         </button>
-        <div style={{...styles.statusBadge, backgroundColor: statusInfo.bgColor}}>
-          <span style={{...styles.statusBadgeText, color: statusInfo.color}}>
-            {statusInfo.text}
+        <div style={{...styles.statusBadge, backgroundColor: headerStatusInfo.bgColor}}>
+          <span style={{...styles.statusBadgeText, color: headerStatusInfo.color}}>
+            {headerStatusInfo.text}
           </span>
         </div>
       </div>

@@ -31,6 +31,8 @@ const BottomTabs = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const reservationTab = searchParams.get('tab');
+  const originTab = location.state?.originTab || null;
+  const isRequestContext = location.state?.isRequest || originTab === 'requests' || reservationTab === 'requests';
 
   const tabs = [
     {
@@ -67,7 +69,10 @@ const BottomTabs = () => {
     const currentPath = location.pathname;
     if (currentPath === '/' || currentPath === '/home') return 0;
     if (currentPath === '/reservation' || currentPath.startsWith('/reservation/')) {
-      return reservationTab === 'requests' ? 2 : 1;
+      return isRequestContext ? 2 : 1;
+    }
+    if (currentPath.startsWith('/reservation-suscription/')) {
+      return isRequestContext ? 2 : 1;
     }
     if (currentPath === '/profile' || currentPath === '/availability') return 3;
     return -1; // No active tab for other routes

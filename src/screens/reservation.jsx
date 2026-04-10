@@ -198,6 +198,8 @@ const ReservationScreen = () => {
   }, [activeTab, confirmedReservations, requestReservations, upcomingReservation]);
 
   const handleViewReservation = (reservation, isRequest = false) => {
+    const originTab = isRequest ? 'requests' : 'confirmed';
+
     if (reservation.tipo === 'suscripcion') {
       navigate(`/reservation-suscription/${reservation.id}`, {
         state: {
@@ -206,6 +208,8 @@ const ReservationScreen = () => {
           isActive: false,
           isSuscription: true,
           isRequest,
+          source: 'reservation',
+          originTab,
         },
       });
       return;
@@ -219,6 +223,8 @@ const ReservationScreen = () => {
         reservationId: reservation.id,
         isActive,
         isRequest,
+        source: 'reservation',
+        originTab,
       },
     });
   };

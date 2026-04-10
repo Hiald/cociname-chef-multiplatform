@@ -135,11 +135,15 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
           {menuItems.map((item) => {
             const searchParams = new URLSearchParams(location.search);
             const reservationTab = searchParams.get('tab');
-            const isReservationRoute = location.pathname === '/reservation' || location.pathname.startsWith('/reservation/');
+            const isReservationRoute =
+              location.pathname === '/reservation' ||
+              location.pathname.startsWith('/reservation/') ||
+              location.pathname.startsWith('/reservation-suscription/');
+
             const isActive = item.id === 'Requests'
-              ? isReservationRoute && reservationTab === 'requests'
+              ? (isReservationRoute && reservationTab === 'requests') || currentRoute === 'Requests'
               : item.id === 'Reservation'
-                ? isReservationRoute && reservationTab !== 'requests'
+                ? (isReservationRoute && reservationTab !== 'requests' && currentRoute !== 'Requests') || currentRoute === 'Reservation'
                 : currentRoute === item.id;
             return (
               <button

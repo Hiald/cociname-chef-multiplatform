@@ -255,7 +255,10 @@ const HomeScreen = () => {
                 </div>
               </div>
 
-              <button style={styles.detailsButton} onClick={() => navigate(`/reservation/${activeReservation.id}`, { state: { isActive: true } })}>
+              <button
+                style={styles.detailsButton}
+                onClick={() => navigate(`/reservation/${activeReservation.id}`, { state: { isActive: true, source: 'home' } })}
+              >
                 Ver Detalles
               </button>
             </div>
