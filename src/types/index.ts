@@ -82,6 +82,27 @@ export interface PendingReservationResponse {
   errorMessage: string | null;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// RESERVATION EVENT - GET /api/reservationEvent/GetPendingEventReservation
+// ═══════════════════════════════════════════════════════════════
+
+export interface GetPendingEventReservationParams {
+  dateFilter?: string;
+  timeFilter?: string;
+  Page?: number;
+  RecordsPerPage?: number;
+}
+
+export interface ReservationEventData {
+  [key: string]: any;
+}
+
+export interface ReservationEventResponse {
+  data: ReservationEventData[];
+  success: boolean;
+  errorMessage: string | null;
+}
+
 export interface Datum {
   reservationCode: string;
   securityCode: string;
