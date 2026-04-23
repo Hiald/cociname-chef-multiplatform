@@ -22,6 +22,7 @@ import {
   ChefReservationResponse,
   GetPendingEventReservationParams,
   ReservationEventResponse,
+  ReservationEventAssignmentRequestDto,
   MarkStartRequest,
   MarkEndRequest,
   AvailabilityListResponse,
@@ -1450,6 +1451,29 @@ class ApiService {
     };
 
     console.log('Calling updateReservationSuscriptionAssignment:', endpoint, requestBody);
+
+    return this.request<any>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
+    });
+  }
+
+  /**
+   * PUT /api/reservationAssignment/ReservationEvent/{chefId}
+   * Registra la asignación de un evento de reserva a una chef
+   */
+  async updateReservationEventAssignment(
+    chefId: number,
+    request: ReservationEventAssignmentRequestDto
+  ): Promise<BaseResponseGeneric<any>> {
+    const endpoint = `reservationAssignment/ReservationEvent/${chefId}`;
+
+    const requestBody = {
+      ...request,
+      chefId,
+    };
+
+    console.log('Calling updateReservationEventAssignment:', endpoint, requestBody);
 
     return this.request<any>(endpoint, {
       method: 'PUT',

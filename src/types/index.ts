@@ -562,6 +562,24 @@ export interface ChefReservationResponse {
   errorMessage: string | null;
 }
 
+export interface ReservationEventAssignmentRequestDto {
+  priority: number;
+  assignmentStatus: number;
+  notifiedAt: string;
+  hourNotifiedAt: string;
+  responseAt: string;
+  hourResponseAt: string;
+  rejectionReason: string;
+  chefId: number;
+  reservationId: number;
+  suscriptionId: number;
+  reservationSuscriptionId: number;
+  eventReservationId: number;
+  status: boolean;
+  createdById: string;
+  createdAt: string;
+}
+
 export interface MarkStartRequest {
   securityCode: string;
   dateReservationStart: string;
