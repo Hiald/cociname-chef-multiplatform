@@ -436,6 +436,40 @@ class ApiService {
   }
 
   /**
+   * GET public reservation by id (no authentication)
+   * Some public flows provide an encrypted token and must fetch reservation
+   * details without requiring the user's bearer token.
+   */
+  async publicGetReservationById(
+    reservationId: number
+  ): Promise<any> {
+    const endpoint = `Reservation/ListReservationById?id=${reservationId}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
+   * GET public reservation by link token endpoint
+   * Endpoint: Reservation/ListReservationByLink?id={entityId}
+   */
+  async publicGetReservationByLink(
+    entityId: number
+  ): Promise<any> {
+    const endpoint = `Reservation/ListReservationByLink?id=${entityId}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
+   * GET public subscription reservation by link token endpoint
+   * Endpoint: reservationSuscription/ListReservationSuscriptionByIdLink?id={entityId}
+   */
+  async publicGetReservationSuscriptionByLink(
+    entityId: number
+  ): Promise<any> {
+    const endpoint = `reservationSuscription/ListReservationSuscriptionByIdLink?id=${entityId}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
    * GET /api/Reservation/GetPendingReservation
    * Obtiene las reservas pendientes con filtros opcionales
    */

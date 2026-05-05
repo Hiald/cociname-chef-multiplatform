@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { decryptToken } from '../utils/crypto';
 import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
@@ -37,7 +37,7 @@ export const PublicReservationScreen = ({ token }) => {
   };
 
   // Función para formatear cantidades con fracciones
-  const formatQuantity = (size, unit) => {
+  const formatQuantity = useCallback((size, unit) => {
     const kilo = 1000;
     let description = '';
     
@@ -81,7 +81,7 @@ export const PublicReservationScreen = ({ token }) => {
     
     // Para otras unidades, retornar con formato estándar
     return size.toFixed(2) + ' ' + getUnitName(unit);
-  };
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -100,8 +100,8 @@ export const PublicReservationScreen = ({ token }) => {
         const id = decryptToken(token);
         console.log('Reservation ID desencriptado:', id);
 
-        // Cargar los detalles de la reserva
-        const response = await apiService.getReservationById(id);
+        // Cargar los detalles de la reserva mediante endpoint por link (petición pública sin auth)
+        const response = await apiService.publicGetReservationByLink(id);
         
         if (response.success && response.data) {
           setReservation(response.data);
@@ -199,7 +199,7 @@ export const PublicReservationScreen = ({ token }) => {
     };
 
     loadReservation();
-  }, [token]);
+  }, [token, formatQuantity]);
 
   if (loading) {
     return (
