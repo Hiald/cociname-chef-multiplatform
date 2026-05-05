@@ -22,6 +22,7 @@ import {
   ChefReservationResponse,
   GetPendingEventReservationParams,
   ReservationEventResponse,
+  ReservationEventData,
   ReservationEventAssignmentRequestDto,
   MarkStartRequest,
   MarkEndRequest,
@@ -583,6 +584,14 @@ class ApiService {
     const queryString = queryParams.toString();
     const endpoint = `reservationEvent/GetPendingEventReservation${queryString ? `?${queryString}` : ''}`;
 
+    // Debug: show constructed query string (no token) and final URL
+    try {
+      console.log('getPendingEventReservation queryString:', queryString);
+      console.log('getPendingEventReservation URL:', `${this.baseUrl}${endpoint}`);
+    } catch (e) {
+      // ignore logging errors
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
@@ -603,17 +612,24 @@ class ApiService {
 
       clearTimeout(timeoutId);
 
-      const data: ReservationEventResponse = await response.json();
+      let data: ReservationEventResponse | null = null;
+      try {
+        data = await response.json();
+      } catch (e) {
+        const text = await response.text();
+        console.error('getPendingEventReservation: failed to parse JSON response:', text);
+      }
 
       if (!response.ok) {
+        console.error('getPendingEventReservation: response error', { status: response.status, body: data });
         return {
           data: [],
           success: false,
-          errorMessage: data.errorMessage || `Error: ${response.status}`,
+          errorMessage: (data && (data as any).errorMessage) || `Error: ${response.status}`,
         };
       }
 
-      return data;
+      return data as ReservationEventResponse;
     } catch (error) {
       return {
         data: [],
@@ -668,6 +684,63 @@ class ApiService {
     } catch (error) {
       return {
         data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
+   * GET /api/reservationEvent/{id}
+   * Obtiene el detalle de un evento específico
+   */
+  async getReservationEventById(
+    eventId: number
+  ): Promise<BaseResponseGeneric<ReservationEventData>> {
+    const endpoint = `reservationEvent/${eventId}`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      let data: BaseResponseGeneric<ReservationEventData> | null = null;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('getReservationEventById: failed to parse JSON response', parseError);
+      }
+
+      if (!response.ok) {
+        console.error('getReservationEventById: response error', { status: response.status, body: data });
+        return {
+          data: null,
+          success: false,
+          errorMessage: (data && (data as any).errorMessage) || `Error: ${response.status}`,
+        };
+      }
+
+      console.log('getReservationEventById: success', { data });
+      return data as BaseResponseGeneric<ReservationEventData>;
+    } catch (error) {
+      console.error('getReservationEventById: exception', error);
+      return {
+        data: null,
         success: false,
         errorMessage: error instanceof Error ? error.message : 'Error de red',
       };
@@ -1475,10 +1548,53 @@ class ApiService {
 
     console.log('Calling updateReservationEventAssignment:', endpoint, requestBody);
 
-    return this.request<any>(endpoint, {
-      method: 'PUT',
-      body: JSON.stringify(requestBody),
-    });
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        const text = await response.text();
+        console.error('updateReservationEventAssignment: failed to parse JSON response:', text);
+      }
+
+      if (!response.ok) {
+        console.error('updateReservationEventAssignment: response error', { status: response.status, body: data });
+        return {
+          data: null,
+          success: false,
+          errorMessage: (data && data.errorMessage) || `Error: ${response.status}`,
+        };
+      }
+
+      return data as BaseResponseGeneric<any>;
+    } catch (error) {
+      console.error('updateReservationEventAssignment: exception', error);
+      return {
+        data: null,
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
   }
 
   /**
