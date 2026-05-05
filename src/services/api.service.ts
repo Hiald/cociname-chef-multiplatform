@@ -1212,7 +1212,20 @@ class ApiService {
 
       console.log('getReservationSuscriptionById response status:', response.status);
 
-      const data: ReservationSuscriptionResponse = await response.json();
+      const rawBody = await response.text();
+      let data: ReservationSuscriptionResponse = {
+        data: {} as any,
+        success: false,
+        errorMessage: null,
+      };
+
+      if (rawBody) {
+        try {
+          data = JSON.parse(rawBody) as ReservationSuscriptionResponse;
+        } catch (parseError) {
+          console.error('getReservationSuscriptionById parse error:', parseError, rawBody);
+        }
+      }
 
       if (!response.ok) {
         return {

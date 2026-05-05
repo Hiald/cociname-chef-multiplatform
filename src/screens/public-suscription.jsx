@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { decryptToken } from '../utils/crypto';
 import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
@@ -38,7 +38,7 @@ export const PublicSuscriptionScreen = ({ token }) => {
   };
 
   // Función para formatear cantidades con fracciones
-  const formatQuantity = (size, unit) => {
+  const formatQuantity = useCallback((size, unit) => {
     const kilo = 1000;
     let description = '';
     
@@ -82,7 +82,7 @@ export const PublicSuscriptionScreen = ({ token }) => {
     
     // Para otras unidades, retornar con formato estándar
     return size.toFixed(2) + ' ' + getUnitName(unit);
-  };
+  }, []);
 
   useEffect(() => {
     if (!token) {
@@ -104,8 +104,8 @@ export const PublicSuscriptionScreen = ({ token }) => {
         const id = decryptToken(token);
         console.log('Reservation Suscription ID desencriptado:', id);
 
-        // Cargar los detalles de la reserva de suscripción
-        const response = await apiService.getReservationSuscriptionById(id);
+        // Cargar los detalles de la reserva de suscripción con endpoint público por link
+        const response = await apiService.publicGetReservationSuscriptionByLink(id);
         
         if (response.success && response.data) {
           const data = response.data;
@@ -216,7 +216,7 @@ export const PublicSuscriptionScreen = ({ token }) => {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, [token, formatQuantity]);
 
   if (loading) {
     return (
