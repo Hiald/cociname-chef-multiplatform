@@ -26,6 +26,7 @@ const ReservationSuscriptionDetailScreen = () => {
   const { chefData } = useAuth();
   const isActive = location.state?.isActive || false;
   const isRequest = location.state?.isRequest || false;
+  const reservationDataFromState = location.state?.reservationData || null;
 
   console.log('🔍 Estado del componente ReservationSuscriptionDetail:', { 
     reservationId, 
@@ -96,6 +97,16 @@ const ReservationSuscriptionDetailScreen = () => {
   const loadReservationDetail = async () => {
     try {
       setLoading(true);
+
+      if (reservationDataFromState) {
+        setReservation(reservationDataFromState);
+        setRecipes([]);
+        setChefReservationId(null);
+        setChefReservation(null);
+        setHasStarted(false);
+        setHasEnded(false);
+        return;
+      }
       
       // Cargar la reserva de suscripción individual (hijo)
       const reservationResponse = await apiService.getReservationSuscriptionById(parseInt(reservationId));

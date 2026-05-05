@@ -50,6 +50,7 @@ const ReservationDetailScreen = () => {
   const source = location.state?.source || null;
   const originTab = location.state?.originTab || (isRequest ? 'requests' : 'confirmed');
   const showPast = location.state?.showPast === true;
+  const reservationDataFromState = location.state?.reservationData || null;
 
   useEffect(() => {
     let isMounted = true;
@@ -57,6 +58,16 @@ const ReservationDetailScreen = () => {
     const loadData = async () => {
       try {
         setLoading(true);
+
+        if (reservationDataFromState) {
+          setReservation(reservationDataFromState);
+          setRecipes([]);
+          setChefReservationId(null);
+          setChefReservation(null);
+          setHasStarted(false);
+          setHasEnded(false);
+          return;
+        }
         
         // Cargar detalle de la reserva
         const reservationResponse = await apiService.getReservationById(reservationId);
@@ -109,7 +120,7 @@ const ReservationDetailScreen = () => {
     return () => {
       isMounted = false;
     };
-  }, [reservationId]);
+  }, [reservationId, reservationDataFromState]);
 
   // Función para verificar si está en el rango de tiempo para marcar llegada (1 hora desde inicio)
   const isWithinArrivalWindow = (reservationDate, reservationHour) => {

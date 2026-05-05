@@ -257,7 +257,13 @@ const HomeScreen = () => {
 
               <button
                 style={styles.detailsButton}
-                onClick={() => navigate(`/reservation/${activeReservation.id}`, { state: { isActive: true, source: 'home' } })}
+                onClick={() => navigate(`/reservation/${activeReservation.id}`, {
+                  state: {
+                    isActive: true,
+                    source: 'home',
+                    reservationData: activeReservation,
+                  },
+                })}
               >
                 Ver Detalles
               </button>

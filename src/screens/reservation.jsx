@@ -247,6 +247,7 @@ const ReservationScreen = () => {
           source: 'reservation',
           originTab,
           showPast: keepHistoryExpanded,
+          reservationData: reservation,
         },
       });
       return;
@@ -263,6 +264,7 @@ const ReservationScreen = () => {
         source: 'reservation',
         originTab,
         showPast: keepHistoryExpanded,
+        reservationData: reservation,
       },
     });
   };
