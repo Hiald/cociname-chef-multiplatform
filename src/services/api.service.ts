@@ -41,6 +41,11 @@ class ApiService {
 
   constructor() {
     this.baseUrl = API_CONFIG.BASE_URL;
+    try {
+      this.token = localStorage.getItem('auth_token');
+    } catch (error) {
+      this.token = null;
+    }
   }
 
   /**
