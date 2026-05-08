@@ -98,37 +98,34 @@ const ReservationSuscriptionDetailScreen = () => {
     try {
       setLoading(true);
 
-      if (reservationDataFromState) {
-        setReservation(reservationDataFromState);
-        setRecipes([]);
-        setChefReservationId(null);
-        setChefReservation(null);
-        setHasStarted(false);
-        setHasEnded(false);
-        return;
+      let reservationData = reservationDataFromState;
+      
+      // Si no hay datos del estado, cargar del API
+      if (!reservationDataFromState) {
+        const reservationResponse = await apiService.getReservationSuscriptionById(parseInt(reservationId));
+        if (reservationResponse.success && reservationResponse.data) {
+          reservationData = reservationResponse.data;
+        }
       }
       
-      // Cargar la reserva de suscripción individual (hijo)
-      const reservationResponse = await apiService.getReservationSuscriptionById(parseInt(reservationId));
-      
-      if (reservationResponse.success && reservationResponse.data) {
-        setReservation(reservationResponse.data);
-        console.log('Reserva de suscripción cargada:', reservationResponse.data);
+      if (reservationData) {
+        setReservation(reservationData);
+        console.log('Reserva de suscripción cargada:', reservationData);
         console.log('🔍 Campos críticos de la reserva:');
-        console.log('  customerId:', reservationResponse.data.customerId);
-        console.log('  totalPrice:', reservationResponse.data.totalPrice);
-        console.log('  commissiontoChef:', reservationResponse.data.commissiontoChef);
-        console.log('  payMethod:', reservationResponse.data.payMethod);
-        console.log('  isPayed:', reservationResponse.data.isPayed);
-        console.log('  suscriptionId:', reservationResponse.data.suscriptionId);
+        console.log('  customerId:', reservationData.customerId);
+        console.log('  totalPrice:', reservationData.totalPrice);
+        console.log('  commissiontoChef:', reservationData.commissiontoChef);
+        console.log('  payMethod:', reservationData.payMethod);
+        console.log('  isPayed:', reservationData.isPayed);
+        console.log('  suscriptionId:', reservationData.suscriptionId);
         
-        // Parsear los platos del jsonRequest y jsonOptional
+        // SIEMPRE cargar los platos del API, incluso si hay datos del estado
         try {
-          const requestedDishes = reservationResponse.data.jsonRequest 
-            ? JSON.parse(reservationResponse.data.jsonRequest) 
+          const requestedDishes = reservationData.jsonRequest 
+            ? JSON.parse(reservationData.jsonRequest) 
             : [];
-          const optionalDishes = reservationResponse.data.jsonOptional 
-            ? JSON.parse(reservationResponse.data.jsonOptional) 
+          const optionalDishes = reservationData.jsonOptional 
+            ? JSON.parse(reservationData.jsonOptional) 
             : [];
           setRecipes([...requestedDishes, ...optionalDishes]);
           console.log('Platos cargados:', [...requestedDishes, ...optionalDishes]);
@@ -165,7 +162,7 @@ const ReservationSuscriptionDetailScreen = () => {
 
   const formatDate = (date) => {
     if (!date) return 'Fecha no especificada';
-    if (typeof date === 'string' && (date === 'string' || date.trim() === '')) {
+    if (typeof date === 'string' && date.trim() === '') {
       return 'Fecha no especificada';
     }
     try {

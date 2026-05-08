@@ -6,6 +6,7 @@ import { StatusReservation } from '../types';
 import { ArrowLeftDetail, ChecklistDetail } from '../assets/svgs';
 import { RecipeModal } from '../components/recipe-modal';
 import { getConceptName } from '../utils/formatters';
+import { formatearFechaConDia } from '../utils/formatters';
 import { useAuth } from '../hooks/useAuth';
 import profileIcon from '../assets/images/detalle/perfil.png';
 import dayIcon from '../assets/images/detalle/dia.png';
@@ -59,23 +60,20 @@ const ReservationDetailScreen = () => {
       try {
         setLoading(true);
 
-        if (reservationDataFromState) {
-          setReservation(reservationDataFromState);
-          setRecipes([]);
-          setChefReservationId(null);
-          setChefReservation(null);
-          setHasStarted(false);
-          setHasEnded(false);
-          return;
+        let reservationData = reservationDataFromState;
+        
+        // Si hay datos del estado, usarlos; si no, cargar del API
+        if (!reservationDataFromState) {
+          const reservationResponse = await apiService.getReservationById(reservationId);
+          if (isMounted && reservationResponse.success && reservationResponse.data) {
+            reservationData = reservationResponse.data;
+          }
         }
         
-        // Cargar detalle de la reserva
-        const reservationResponse = await apiService.getReservationById(reservationId);
-        
-        if (isMounted && reservationResponse.success && reservationResponse.data) {
-          setReservation(reservationResponse.data);
+        if (isMounted && reservationData) {
+          setReservation(reservationData);
           
-          // Cargar recetas de la reserva
+          // SIEMPRE cargar recetas del API, incluso cuando hay datos del estado
           const recipesResponse = await apiService.getReservationRecipes(reservationId);
           
           if (recipesResponse.success && recipesResponse.data && recipesResponse.data.length > 0) {
@@ -215,9 +213,8 @@ const ReservationDetailScreen = () => {
   };
 
   const formatDate = (date) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-    return d.toLocaleDateString('es-ES', options);
+    // Usar la función que maneja correctamente la zona horaria
+    return formatearFechaConDia(date);
   };
 
   const getStatusInfo = (status) => {

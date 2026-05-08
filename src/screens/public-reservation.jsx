@@ -223,9 +223,9 @@ export const PublicReservationScreen = ({ token }) => {
   }
 
   const formatDate = (date) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
+    // Usa UTC para evitar cambios de día por zona horaria
     const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' };
-    return d.toLocaleDateString('es-ES', options);
+    return new Intl.DateTimeFormat('es-PE', options).format(new Date(date));
   };
 
   const handleViewRecipe = (recipe) => {

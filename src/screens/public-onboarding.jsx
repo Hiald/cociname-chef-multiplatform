@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api.service';
 import { CalendarCheck, Restaurant, Verified } from '../assets/svgs';
@@ -6,11 +6,14 @@ import logoImg from '../assets/images/logo.png';
 
 /**
  * Vista pública de onboarding - accesible sin login mediante token encriptado
- * URL: /onboarding/:token
+ * URL: /onboarding/:token o /inicio/:token
  */
-const PublicOnboardingScreen = () => {
-  const { token } = useParams();
+const PublicOnboardingScreen = ({ token: propToken }) => {
+  const { token: paramToken } = useParams();
   const navigate = useNavigate();
+  // Usa el token del prop o del URL param, con fallback al otro
+  const token = propToken || paramToken;
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 992);
   
   // Step 1: Email input
   const [step, setStep] = useState(1); // 1 = email, 2 = code + password
@@ -24,6 +27,18 @@ const PublicOnboardingScreen = () => {
   // UI states
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 992);
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const handleSendCode = async () => {
     setError('');
@@ -248,9 +263,9 @@ const PublicOnboardingScreen = () => {
   // Step 2: Code + Password input
   return (
     <div style={styles.container}>
-      {renderLeftSection()}
+      {!isMobile && renderLeftSection()}
       <div style={styles.rightSection}>
-        <div style={styles.rightSectionContent}>
+        <div style={isMobile ? {...styles.rightSectionContent, ...styles.rightSectionContentMobile} : styles.rightSectionContent}>
           <div style={styles.onboardingCard}>
             <img 
               src={logoImg}
@@ -409,6 +424,10 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     padding: '80px 60px',
+    minHeight: '100vh',
+  },
+  rightSectionContentMobile: {
+    padding: '24px 16px',
     minHeight: '100vh',
   },
   onboardingCard: {
