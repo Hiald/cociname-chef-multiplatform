@@ -250,6 +250,21 @@ const ReservationScreen = () => {
     const originTab = isRequest ? 'requests' : 'confirmed';
     const keepHistoryExpanded = !isRequest && showPastReservations;
 
+    if (reservation.tipo === 'evento') {
+      navigate(`/reservation-event/${reservation.id}`, {
+        state: {
+          eventId: reservation.id,
+          isActive: false,
+          isRequest,
+          source: 'reservation',
+          originTab,
+          showPast: keepHistoryExpanded,
+          reservationData: reservation,
+        },
+      });
+      return;
+    }
+
     if (reservation.tipo === 'suscripcion') {
       navigate(`/reservation-suscription/${reservation.id}`, {
         state: {

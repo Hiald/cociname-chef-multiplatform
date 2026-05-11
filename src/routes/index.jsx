@@ -4,6 +4,7 @@ import LoginScreen from '../screens/login';
 import RegisterScreen from '../screens/register';
 import ReservationDetailScreen from '../screens/reservationDetail';
 import ReservationSuscriptionDetailScreen from '../screens/reservationSuscriptionDetail';
+import ReservationEventDetailScreen from '../screens/reservationEventDetail';
 import HomeScreen from '../screens/home';
 import ReservationScreen from '../screens/reservation';
 import AvailabilityScreen from '../screens/availability';
@@ -178,7 +179,7 @@ const Navigator = () => {
       const tabFromQuery = new URLSearchParams(location.search).get('tab');
       return tabFromQuery === 'requests' ? 'Requests' : 'Reservation';
     }
-    if (path.startsWith('/reservation/') || path.startsWith('/reservation-suscription/')) {
+    if (path.startsWith('/reservation/') || path.startsWith('/reservation-suscription/') || path.startsWith('/reservation-event/')) {
       return location.state?.isRequest ? 'Requests' : 'Reservation';
     }
     if (path === '/availability') return 'Availability';
@@ -233,6 +234,7 @@ const Navigator = () => {
             <Route path="/profile" element={<ProfileScreen />} />
             <Route path="/reservation/:id" element={<ReservationDetailScreen />} />
             <Route path="/reservation-suscription/:id" element={<ReservationSuscriptionDetailScreen />} />
+            <Route path="/reservation-event/:id" element={<ReservationEventDetailScreen />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
