@@ -4,6 +4,7 @@ import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
 import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail } from '../assets/svgs';
 import { formatearFechaConDia } from '../utils/formatters';
+import { useAuth } from '../hooks/useAuth';
 import { RecipeModal } from '../components/recipe-modal';
 import mapIcon from '../assets/images/detalle/map.png';
 import profileIcon from '../assets/images/detalle/perfil.png';
@@ -20,10 +21,16 @@ const ReservationEventDetailScreen = () => {
   const [collapsedSections, setCollapsedSections] = useState({
     dishes: false,
   });
+  const [acceptModalVisible, setAcceptModalVisible] = useState(false);
+  const [rejectModalVisible, setRejectModalVisible] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { id: eventId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { chefData } = useAuth();
   const eventDataFromState = location.state?.reservationData || null;
+  const isRequest = location.state?.isRequest || false;
 
   useEffect(() => {
     let isMounted = true;
@@ -97,6 +104,76 @@ const ReservationEventDetailScreen = () => {
       ...prev,
       [sectionKey]: !prev[sectionKey],
     }));
+  };
+
+  const handleAcceptReservation = async () => {
+    if (!chefData?.chefId || !event?.id) {
+      alert('Error: Datos incompletos');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const response = await apiService.updateReservationEventAssignment(
+        chefData.chefId,
+        {
+          eventReservationId: event.id,
+          chefId: chefData.chefId,
+          assignmentStatus: 1,
+          status: true,
+        }
+      );
+
+      if (response.success) {
+        setAcceptModalVisible(true);
+      } else {
+        alert('Error al aceptar el evento: ' + (response.errorMessage || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error accepting event:', error);
+      alert('Error al aceptar el evento');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCloseAcceptModal = () => {
+    setAcceptModalVisible(false);
+    navigate('/reservation', { state: { defaultTab: 'confirmed' } });
+  };
+
+  const handleRejectReservation = async () => {
+    if (!chefData?.chefId || !event?.id || !rejectionReason.trim()) {
+      alert('Por favor ingresa un motivo de rechazo');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const response = await apiService.updateReservationEventAssignment(
+        chefData.chefId,
+        {
+          eventReservationId: event.id,
+          chefId: chefData.chefId,
+          assignmentStatus: 2,
+          rejectionReason: rejectionReason.trim(),
+          status: false,
+        }
+      );
+
+      if (response.success) {
+        setRejectionReason('');
+        setRejectModalVisible(false);
+        navigate('/reservation', { state: { defaultTab: 'requests' } });
+      } else {
+        alert('Error al rechazar el evento: ' + (response.errorMessage || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error rejecting event:', error);
+      alert('Error al rechazar el evento');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -242,6 +319,28 @@ const ReservationEventDetailScreen = () => {
           </div>
         )}
 
+        {/* Action Buttons for Pending Requests - Solo si es solicitud pendiente */}
+        {isRequest && (
+          <div style={styles.actionButtonsContainer}>
+            <button 
+              style={styles.acceptButton}
+              onClick={handleAcceptReservation}
+              disabled={submitting}
+            >
+              <span style={styles.acceptButtonText}>
+                {submitting ? 'Aceptando...' : 'Aceptar'}
+              </span>
+            </button>
+            <button 
+              style={styles.rejectButton}
+              onClick={() => setRejectModalVisible(true)}
+              disabled={submitting}
+            >
+              <span style={styles.rejectButtonText}>Rechazar</span>
+            </button>
+          </div>
+        )}
+
         {/* Botón de Ayuda */}
         <div style={styles.footer}>
           <a href="https://api.whatsapp.com/send/?phone=51963138202&text=Hola%21+Vengo+de+la+plataforma+y+tengo+una+consulta" style={styles.helpLink}>
@@ -263,6 +362,73 @@ const ReservationEventDetailScreen = () => {
           portions={selectedRecipe.iCantidadPlatos}
           recipeSteps={selectedRecipe.sPasos}
         />
+      )}
+
+      {/* Accept Modal */}
+      {acceptModalVisible && (
+        <div style={styles.modalOverlay} onClick={() => !submitting && handleCloseAcceptModal}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalIconContainer}>
+              <div style={styles.checkIconCircle}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 12l2 2 4-4" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <h3 style={styles.modalTitle}>¿Evento aceptado?</h3>
+            <p style={styles.modalDescription}>
+              Lo verás en tus eventos confirmados.
+            </p>
+            <button 
+              style={{...styles.modalButton, ...styles.modalButtonPrimary}} 
+              onClick={handleCloseAcceptModal}
+            >
+              <span style={styles.modalButtonText}>Ver Eventos</span>
+            </button>
+            <button 
+              style={styles.modalButtonSecondary}
+              onClick={handleCloseAcceptModal}
+            >
+              <span style={styles.modalButtonSecondaryText}>Volver al inicio</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectModalVisible && (
+        <div style={styles.modalOverlay} onClick={() => !submitting && setRejectModalVisible(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalIconContainer}>
+              <div style={styles.closeIconCircle}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 18L18 6M6 6l12 12" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+            <h3 style={styles.modalTitle}>Evento rechazado</h3>
+            <p style={styles.modalDescription}>
+              Gracias por contestar.
+            </p>
+            <textarea
+              style={styles.modalTextarea}
+              placeholder="Motivo de rechazo"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              disabled={submitting}
+              rows={4}
+            />
+            <button 
+              style={{...styles.modalButton, ...styles.modalButtonDanger}} 
+              onClick={handleRejectReservation}
+              disabled={submitting || !rejectionReason.trim()}
+            >
+              <span style={styles.modalButtonText}>
+                {submitting ? 'Rechazando...' : 'Volver al inicio'}
+              </span>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -489,6 +655,146 @@ const styles = {
     textAlign: 'center',
     color: '#EF4444',
     fontSize: 16,
+  },
+  actionButtonsContainer: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: spacing.small,
+    marginBottom: spacing.medium,
+    width: '100%',
+  },
+  acceptButton: {
+    flex: 1,
+    backgroundColor: '#2EBE60',
+    padding: '16px',
+    borderRadius: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  acceptButtonText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  rejectButton: {
+    flex: 1,
+    backgroundColor: '#FF51361A',
+    padding: '16px',
+    borderRadius: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  rejectButtonText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#FF5136',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: spacing.medium,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: '20px',
+    padding: spacing.large,
+    maxWidth: '400px',
+    width: '100%',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
+  },
+  modalIconContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: spacing.medium,
+  },
+  checkIconCircle: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '50%',
+    backgroundColor: '#D1FAE5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeIconCircle: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '50%',
+    backgroundColor: '#FEE2E2',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#1A1F24',
+    textAlign: 'center',
+    marginBottom: spacing.small,
+  },
+  modalDescription: {
+    fontSize: '14px',
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: spacing.medium,
+    lineHeight: '20px',
+  },
+  modalTextarea: {
+    width: '100%',
+    padding: spacing.small,
+    borderRadius: '8px',
+    border: '1px solid #E5E7EB',
+    fontSize: '14px',
+    color: '#1A1F24',
+    marginBottom: spacing.medium,
+    resize: 'vertical',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+  },
+  modalButton: {
+    width: '100%',
+    padding: '16px',
+    borderRadius: '30px',
+    border: 'none',
+    cursor: 'pointer',
+    marginBottom: spacing.small,
+  },
+  modalButtonPrimary: {
+    backgroundColor: '#FF5136',
+  },
+  modalButtonDanger: {
+    backgroundColor: '#EF4444',
+  },
+  modalButtonText: {
+    fontSize: '16px',
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  modalButtonSecondary: {
+    width: '100%',
+    padding: '12px',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+  },
+  modalButtonSecondaryText: {
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6B7280',
   },
 };
 
