@@ -55,7 +55,9 @@ const formatReservationDateTime = (dateReservation, hourReservation) => {
 };
 
 const getTypeLabel = (reservation) => {
-  return reservation.tipo === 'suscripcion' ? 'SUSCRIPCION' : 'RESERVA';
+  if (reservation.tipo === 'suscripcion') return 'SUSCRIPCION';
+  if (reservation.tipo === 'evento') return 'EVENTO';
+  return 'RESERVA';
 };
 
 const getHoursToLabel = (reservation) => {
@@ -113,10 +115,11 @@ const ReservationScreen = () => {
       const dateFilter = now.toISOString().split('T')[0];
       const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
 
-      const [confirmedResponse, requestsResponse, suscriptionResponse] = await Promise.all([
+      const [confirmedResponse, requestsResponse, suscriptionResponse, eventsResponse] = await Promise.all([
         apiService.listReservationByChefId(chefId),
         apiService.getPendingReservations({ dateFilter, timeFilter }),
         apiService.getPendingReservationSuscription({ dateFilter, timeFilter }),
+        apiService.getPendingEventReservation({ dateFilter, timeFilter }),
       ]);
 
       if (confirmedResponse.success && confirmedResponse.data) {
@@ -185,7 +188,18 @@ const ReservationScreen = () => {
             .map((reservation) => ({ ...reservation, tipo: 'suscripcion' }))
         : [];
 
-      const allRequests = [...normalRequests, ...suscriptionRequests].sort((a, b) => {
+      const eventRequests = eventsResponse.success && eventsResponse.data
+        ? eventsResponse.data
+            .filter((event) => (
+              event.chefId === null &&
+              (event.statusEvent === StatusReservation.Creada ||
+                event.statusEvent === StatusReservation.Reprogramada ||
+                event.statusEvent === StatusReservation.ReasignacionCocinera)
+            ))
+            .map((event) => ({ ...event, tipo: 'evento', dateReservation: event.dateEvent, hourReservation: event.hourEvent }))
+        : [];
+
+      const allRequests = [...normalRequests, ...suscriptionRequests, ...eventRequests].sort((a, b) => {
         const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
         const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
         return dateA - dateB;
@@ -281,7 +295,7 @@ const ReservationScreen = () => {
             <div style={styles.nameRow}>
               <span style={styles.customerName}>{formatCustomerName(reservation.customerName, reservation.customerLastName, isRequest)}</span>
             </div>
-            <span style={{ ...styles.typeBadge, ...(reservation.tipo === 'suscripcion' ? styles.typeBadgeSuscription : styles.typeBadgeReservation) }}>
+            <span style={{ ...styles.typeBadge, ...(reservation.tipo === 'suscripcion' ? styles.typeBadgeSuscription : reservation.tipo === 'evento' ? styles.typeBadgeEvento : styles.typeBadgeReservation) }}>
               {getTypeLabel(reservation)}
             </span>
           </div>
@@ -378,7 +392,7 @@ const ReservationScreen = () => {
                   <img src={profileBlackIcon} alt="Perfil" style={styles.leadingIcon} />
                   <span style={styles.customerName}>{formatCustomerName(upcomingReservation.customerName, upcomingReservation.customerLastName, false)}</span>
                 </div>
-                <span style={{ ...styles.typeBadge, ...(upcomingReservation.tipo === 'suscripcion' ? styles.typeBadgeSuscription : styles.typeBadgeReservation) }}>
+                <span style={{ ...styles.typeBadge, ...(upcomingReservation.tipo === 'suscripcion' ? styles.typeBadgeSuscription : upcomingReservation.tipo === 'evento' ? styles.typeBadgeEvento : styles.typeBadgeReservation) }}>
                   {getTypeLabel(upcomingReservation)}
                 </span>
               </div>
@@ -652,6 +666,10 @@ const styles = {
   typeBadgeSuscription: {
     color: '#A36117',
     backgroundColor: '#FFF1DA',
+  },
+  typeBadgeEvento: {
+    color: '#7C3AED',
+    backgroundColor: '#F3E8FF',
   },
   rightArrow: {
     width: 20,

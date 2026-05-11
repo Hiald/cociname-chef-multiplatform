@@ -39,9 +39,10 @@ const Navigator = () => {
       const dateFilter = now.toISOString().split('T')[0];
       const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
 
-      const [requestsResponse, suscriptionResponse] = await Promise.all([
+      const [requestsResponse, suscriptionResponse, eventsResponse] = await Promise.all([
         apiService.getPendingReservations({ dateFilter, timeFilter }),
         apiService.getPendingReservationSuscription({ dateFilter, timeFilter }),
+        apiService.getPendingEventReservation({ dateFilter, timeFilter }),
       ]);
 
       const normalRequests = requestsResponse.success && requestsResponse.data
@@ -62,7 +63,16 @@ const Navigator = () => {
           ))
         : [];
 
-      setPendingNotifications(normalRequests.length + suscriptionRequests.length);
+      const eventRequests = eventsResponse.success && eventsResponse.data
+        ? eventsResponse.data.filter(r => (
+            r.chefId === null &&
+            (r.statusEvent === StatusReservation.Creada ||
+              r.statusEvent === StatusReservation.Reprogramada ||
+              r.statusEvent === StatusReservation.ReasignacionCocinera)
+          ))
+        : [];
+
+      setPendingNotifications(normalRequests.length + suscriptionRequests.length + eventRequests.length);
     } catch (error) {
       console.error('Error loading pending notifications:', error);
     }

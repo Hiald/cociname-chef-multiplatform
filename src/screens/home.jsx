@@ -142,9 +142,10 @@ const HomeScreen = () => {
       const dateFilter = now.toISOString().split('T')[0];
       const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
 
-      const [requestsResponse, suscriptionsResponse] = await Promise.all([
+      const [requestsResponse, suscriptionsResponse, eventsResponse] = await Promise.all([
         apiService.getPendingReservations({ dateFilter, timeFilter }),
         apiService.getPendingReservationSuscription({ dateFilter, timeFilter }),
+        apiService.getPendingEventReservation({ dateFilter, timeFilter }),
       ]);
 
       const normalRequests = requestsResponse.success && requestsResponse.data
@@ -165,7 +166,16 @@ const HomeScreen = () => {
           ))
         : [];
 
-      setRequestReservations([...normalRequests, ...subscriptionRequests]);
+      const eventRequests = eventsResponse.success && eventsResponse.data
+        ? eventsResponse.data.filter((event) => (
+            event.chefId === null &&
+            (event.statusEvent === StatusReservation.Creada ||
+              event.statusEvent === StatusReservation.Reprogramada ||
+              event.statusEvent === StatusReservation.ReasignacionCocinera)
+          ))
+        : [];
+
+      setRequestReservations([...normalRequests, ...subscriptionRequests, ...eventRequests]);
     } catch (error) {
       console.error('Error loading reservations:', error);
       setReservations([]);

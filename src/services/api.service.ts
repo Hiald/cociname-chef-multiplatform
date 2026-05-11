@@ -49,10 +49,26 @@ class ApiService {
   }
 
   /**
+   * Obtiene el token actual desde localStorage (evita desincronización)
+   */
+  private getToken(): string | null {
+    try {
+      return localStorage.getItem('auth_token') || this.token;
+    } catch (error) {
+      return this.token;
+    }
+  }
+
+  /**
    * Guarda el token de autenticación
    */
   setToken(token: string) {
     this.token = token;
+    try {
+      localStorage.setItem('auth_token', token);
+    } catch (error) {
+      console.error('Error saving token:', error);
+    }
   }
 
   /**
@@ -60,6 +76,11 @@ class ApiService {
    */
   clearToken() {
     this.token = null;
+    try {
+      localStorage.removeItem('auth_token');
+    } catch (error) {
+      console.error('Error clearing token:', error);
+    }
   }
 
   /**
@@ -70,6 +91,7 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<BaseResponseGeneric<T>> {
     const url = `${this.baseUrl}${endpoint}`;
+    const token = this.getToken();
     
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -77,8 +99,8 @@ class ApiService {
     };
 
     // Agregar token si existe
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     try {
@@ -350,12 +372,13 @@ class ApiService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
 
+      const token = this.getToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -403,8 +426,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -498,12 +523,13 @@ class ApiService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
 
+      const token = this.getToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -563,11 +589,12 @@ class ApiService {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
 
+      const token = this.getToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -639,8 +666,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -697,8 +726,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -746,8 +777,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -803,8 +836,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -854,8 +889,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -907,8 +944,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -963,8 +1002,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1015,8 +1056,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1090,8 +1133,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1144,8 +1189,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1198,8 +1245,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1265,8 +1314,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1321,8 +1372,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1375,8 +1428,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1437,8 +1492,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1608,8 +1665,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1687,8 +1746,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1740,8 +1801,10 @@ class ApiService {
         'Content-Type': 'application/json',
       };
 
-      if (this.token) {
-        headers['Authorization'] = `Bearer ${this.token}`;
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -1854,3 +1917,4 @@ if (response.success && response.data) {
   console.error('Error:', response.errorMessage);
 }
 */
+
