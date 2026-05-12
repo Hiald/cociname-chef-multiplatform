@@ -60,6 +60,15 @@ const getTypeLabel = (reservation) => {
   return 'RESERVA';
 };
 
+const inProgressEventStatuses = new Set([
+  StatusReservation.Creada,
+  StatusReservation.Aceptada,
+  StatusReservation.Actualizada,
+  StatusReservation.EnCompra,
+  StatusReservation.EnTrayecto,
+  StatusReservation.EnCocina,
+]);
+
 const getHoursToLabel = (reservation) => {
   const now = new Date();
   const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
@@ -110,16 +119,18 @@ const ReservationScreen = () => {
 
     try {
       setLoading(true);
+      let confirmedForDisplay = [];
 
       const now = new Date();
       const dateFilter = now.toISOString().split('T')[0];
       const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
 
-      const [confirmedResponse, requestsResponse, suscriptionResponse, eventsResponse] = await Promise.all([
+      const [confirmedResponse, requestsResponse, suscriptionResponse, eventsResponse, chefEventsResponse] = await Promise.all([
         apiService.listReservationByChefId(chefId),
         apiService.getPendingReservations({ dateFilter, timeFilter }),
         apiService.getPendingReservationSuscription({ dateFilter, timeFilter }),
         apiService.getPendingEventReservation({ dateFilter, timeFilter }),
+        apiService.getReservationEventsByChefId(chefId, 1, 10),
       ]);
 
       if (confirmedResponse.success && confirmedResponse.data) {
@@ -159,10 +170,10 @@ const ReservationScreen = () => {
             return dateB - dateA;
           });
 
-        setConfirmedReservations(confirmed);
+        confirmedForDisplay = confirmed;
         setPastReservations(past);
       } else {
-        setConfirmedReservations([]);
+        confirmedForDisplay = [];
         setPastReservations([]);
       }
 
@@ -199,12 +210,39 @@ const ReservationScreen = () => {
             .map((event) => ({ ...event, tipo: 'evento', dateReservation: event.dateEvent, hourReservation: event.hourEvent }))
         : [];
 
+      const eventsInProgress = chefEventsResponse.success && chefEventsResponse.data
+        ? chefEventsResponse.data
+            .filter((event) => {
+              if (event.chefId === null) return false;
+              const status = event.statusEvent ?? event.statusReservation;
+              return inProgressEventStatuses.has(status);
+            })
+            .map((event) => ({
+              ...event,
+              tipo: 'evento',
+              dateReservation: event.dateEvent || event.dateReservation,
+              hourReservation: event.hourEvent || event.hourReservation,
+            }))
+            .sort((a, b) => {
+              const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
+              const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
+              return dateA - dateB;
+            })
+        : [];
+
+      const combinedConfirmed = [...confirmedForDisplay, ...eventsInProgress].sort((a, b) => {
+        const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
+        const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
+        return dateA - dateB;
+      });
+
       const allRequests = [...normalRequests, ...suscriptionRequests, ...eventRequests].sort((a, b) => {
         const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
         const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
         return dateA - dateB;
       });
 
+      setConfirmedReservations(combinedConfirmed);
       setRequestReservations(allRequests);
     } catch (error) {
       console.error('Error loading reservations:', error);
@@ -755,6 +793,55 @@ const styles = {
     color: '#1B2736',
   },
   pastSectionSubtitle: {
+    margin: '8px 0 14px',
+    fontSize: 14,
+    color: '#324154',
+    lineHeight: '20px',
+  },
+  eventsSectionContainer: {
+    marginBottom: spacing.large,
+  },
+  eventsSectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    padding: '0 2px',
+  },
+  eventsSectionTitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  eventsSectionMarker: {
+    width: 12,
+    height: 12,
+    borderRadius: '50%',
+    backgroundColor: '#7C3AED',
+    boxShadow: '0 0 0 4px rgba(124, 58, 237, 0.12)',
+    flexShrink: 0,
+  },
+  eventsSectionTitle: {
+    margin: 0,
+    fontSize: 20,
+    fontWeight: 800,
+    color: '#1B2736',
+  },
+  eventsSectionCount: {
+    minWidth: 28,
+    height: 28,
+    borderRadius: 999,
+    padding: '0 8px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3E8FF',
+    color: '#6D28D9',
+    fontSize: 13,
+    fontWeight: 800,
+    flexShrink: 0,
+  },
+  eventsSectionSubtitle: {
     margin: '8px 0 14px',
     fontSize: 14,
     color: '#324154',
