@@ -23,6 +23,48 @@ import listIcon from '../assets/images/detalle/lista.png';
 const SUPPORT_CONTACT_URL = 'https://api.whatsapp.com/send/?phone=51963138202&text=Hola%21+Vengo+de+la+plataforma+y+tengo+una+consulta';
 const CARD_SHADOW = '0px 2px 4px 0px #289FDF0A, 0px 7px 7px 0px #289FDF0A, 0px 15px 9px 0px #289FDF05, 0px 26px 10px 0px #289FDF03, 0px 41px 11px 0px #289FDF00';
 
+const getUnitName = (unitNumber) => {
+  const units = {
+    1: 'un',
+    2: 'kg',
+    4: 'lt',
+    6: 'cda',
+    7: 'cdta',
+    8: 'atado',
+    9: 'hojas',
+    10: 'ramita',
+    11: 'tazas',
+  };
+  return units[unitNumber] || 'un';
+};
+
+const formatIngredientQuantity = (size, unit) => {
+  const kilo = 1000;
+
+  if (unit === 1) {
+    return `${Math.round(size)} un`;
+  }
+
+  if (unit === 2) {
+    if (size < 1) {
+      if (size === 0.25) return '1/4 kg';
+      if (size === 0.5) return '1/2 kg';
+      if (size === 0.75) return '3/4 kg';
+      return `${(size * kilo).toFixed(0)} gr`;
+    }
+    return `${size.toFixed(2)} kg`;
+  }
+
+  if (unit === 4) {
+    if (size < 1) {
+      return `${(size * 1000).toFixed(0)} ml`;
+    }
+    return `${size.toFixed(2)} lt`;
+  }
+
+  return `${size.toFixed(2)} ${getUnitName(unit)}`;
+};
+
 const ReservationDetailScreen = () => {
   const [reservation, setReservation] = useState(null);
   const [recipes, setRecipes] = useState([]);
@@ -37,7 +79,10 @@ const ReservationDetailScreen = () => {
   const [, setChefReservation] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
+  const [ingredients, setIngredients] = useState([]);
+  const [checkedIngredients, setCheckedIngredients] = useState({});
   const [collapsedSections, setCollapsedSections] = useState({
+    shopping: false,
     location: false,
     dishes: false,
     gain: false,
@@ -72,6 +117,61 @@ const ReservationDetailScreen = () => {
         
         if (isMounted && reservationData) {
           setReservation(reservationData);
+
+          if (reservationData.puchaseIngredients) {
+            const ingredientsResponse = await apiService.getIngredientChecklistByReservation(parseInt(reservationId, 10));
+
+            if (ingredientsResponse.success && ingredientsResponse.data && ingredientsResponse.data.length > 0) {
+              const checklistData = ingredientsResponse.data[0];
+
+              if (checklistData.jsonIngredientsCheckList) {
+                try {
+                  const parsedIngredients = JSON.parse(checklistData.jsonIngredientsCheckList);
+                  const ingredientsDetails = await Promise.all(
+                    parsedIngredients.map(async (item) => {
+                      try {
+                        const details = await apiService.getIngredientById(item.IngredientId);
+                        if (details.success && details.data) {
+                          const size = parseFloat(item.TotalSize);
+                          return {
+                            id: item.IngredientId,
+                            ingredientName: details.data.name,
+                            quantity: formatIngredientQuantity(size, details.data.unit),
+                          };
+                        }
+                      } catch (ingredientError) {
+                        console.error(`Error cargando ingrediente ${item.IngredientId}:`, ingredientError);
+                      }
+
+                      return {
+                        id: item.IngredientId,
+                        ingredientName: `Ingrediente #${item.IngredientId}`,
+                        quantity: `${parseFloat(item.TotalSize).toFixed(2)} kg`,
+                      };
+                    })
+                  );
+
+                  if (isMounted) {
+                    setIngredients(ingredientsDetails);
+                    const storageKey = `ingredients_reservation_${reservationId}`;
+                    const savedChecks = localStorage.getItem(storageKey);
+                    if (savedChecks) {
+                      try {
+                        setCheckedIngredients(JSON.parse(savedChecks));
+                      } catch (savedChecksError) {
+                        console.error('Error parsing saved checks:', savedChecksError);
+                      }
+                    }
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing jsonIngredientsCheckList:', parseError);
+                }
+              }
+            }
+          } else if (isMounted) {
+            setIngredients([]);
+            setCheckedIngredients({});
+          }
           
           // SIEMPRE cargar recetas del API, incluso cuando hay datos del estado
           const recipesResponse = await apiService.getReservationRecipes(reservationId);
@@ -441,6 +541,17 @@ const ReservationDetailScreen = () => {
     setTimeout(() => setSelectedRecipe(null), 300);
   };
 
+  const handleIngredientCheck = (ingredientId) => {
+    const newChecked = {
+      ...checkedIngredients,
+      [ingredientId]: !checkedIngredients[ingredientId],
+    };
+    setCheckedIngredients(newChecked);
+
+    const storageKey = `ingredients_reservation_${reservationId}`;
+    localStorage.setItem(storageKey, JSON.stringify(newChecked));
+  };
+
   const handleAcceptReservation = async () => {
     console.log('=== ACEPTAR RESERVA ===');
     console.log('chefData:', chefData);
@@ -651,6 +762,50 @@ const ReservationDetailScreen = () => {
               </span>
             </div>
           </button>
+        )}
+
+        {reservation.puchaseIngredients && (
+          <div style={styles.section}>
+            <button style={styles.sectionHeaderButton} onClick={() => toggleSection('shopping')} type="button">
+              <div style={styles.sectionHeaderLeft}>
+                <img src={listIcon} alt="" style={styles.sectionHeaderIcon} />
+                <h3 style={styles.sectionTitle}>Lista de compra</h3>
+              </div>
+              <img
+                src={upIcon}
+                alt=""
+                style={collapsedSections.shopping ? {...styles.sectionToggleIcon, ...styles.sectionToggleIconCollapsed} : styles.sectionToggleIcon}
+              />
+            </button>
+            {!collapsedSections.shopping && (
+              <div style={styles.card}>
+                {ingredients.length > 0 ? (
+                  ingredients.map((ingredient) => (
+                    <div key={ingredient.id} style={styles.ingredientRow}>
+                      <input
+                        type="checkbox"
+                        checked={checkedIngredients[ingredient.id] || false}
+                        onChange={() => handleIngredientCheck(ingredient.id)}
+                        style={styles.checkbox}
+                      />
+                      <div style={styles.ingredientInfo}>
+                        <span style={styles.ingredientName}>{ingredient.ingredientName}</span>
+                        <span style={styles.ingredientQuantity}>{ingredient.quantity}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={styles.emptyText}>No hay ingredientes registrados</p>
+                )}
+                {reservation.comments && (
+                  <div style={styles.commentSection}>
+                    <p style={styles.commentLabel}>Comentarios</p>
+                    <p style={styles.commentText}>{reservation.comments}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Ubicación */}
@@ -1227,6 +1382,36 @@ const styles = {
     fontSize: '14px',
     color: '#1A1F24',
     lineHeight: '20px',
+  },
+  ingredientRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: '10px',
+    paddingBottom: '10px',
+    borderBottom: '1px solid #F3F4F6',
+  },
+  checkbox: {
+    width: '20px',
+    height: '20px',
+    marginRight: `${spacing.small}px`,
+    cursor: 'pointer',
+    accentColor: '#FF5136',
+  },
+  ingredientInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+  },
+  ingredientName: {
+    fontSize: '14px',
+    color: '#1A1F24',
+    fontWeight: '500',
+    marginBottom: '2px',
+  },
+  ingredientQuantity: {
+    fontSize: '12px',
+    color: '#6B7280',
   },
   emptyText: {
     fontSize: '14px',

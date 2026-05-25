@@ -7,6 +7,48 @@ import { RecipeModal } from '../components/recipe-modal';
 import { useAuth } from '../hooks/useAuth';
 import { formatearFechaConDia } from '../utils';
 
+const getUnitName = (unitNumber) => {
+  const units = {
+    1: 'un',
+    2: 'kg',
+    4: 'lt',
+    6: 'cda',
+    7: 'cdta',
+    8: 'atado',
+    9: 'hojas',
+    10: 'ramita',
+    11: 'tazas',
+  };
+  return units[unitNumber] || 'un';
+};
+
+const formatIngredientQuantity = (size, unit) => {
+  const kilo = 1000;
+
+  if (unit === 1) {
+    return `${Math.round(size)} un`;
+  }
+
+  if (unit === 2) {
+    if (size < 1) {
+      if (size === 0.25) return '1/4 kg';
+      if (size === 0.5) return '1/2 kg';
+      if (size === 0.75) return '3/4 kg';
+      return `${(size * kilo).toFixed(0)} gr`;
+    }
+    return `${size.toFixed(2)} kg`;
+  }
+
+  if (unit === 4) {
+    if (size < 1) {
+      return `${(size * 1000).toFixed(0)} ml`;
+    }
+    return `${size.toFixed(2)} lt`;
+  }
+
+  return `${size.toFixed(2)} ${getUnitName(unit)}`;
+};
+
 const ReservationSuscriptionDetailScreen = () => {
   const [reservation, setReservation] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +62,8 @@ const ReservationSuscriptionDetailScreen = () => {
   const [, setChefReservation] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [hasEnded, setHasEnded] = useState(false);
+  const [ingredients, setIngredients] = useState([]);
+  const [checkedIngredients, setCheckedIngredients] = useState({});
   const { id: reservationId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -132,6 +176,59 @@ const ReservationSuscriptionDetailScreen = () => {
         } catch (e) {
           console.error('Error parsing recipes:', e);
           setRecipes([]);
+        }
+
+        if (reservationData.puchaseIngredients) {
+          const ingredientsResponse = await apiService.getIngredientChecklistByReservationSuscription(parseInt(reservationId, 10));
+
+          if (ingredientsResponse.success && ingredientsResponse.data && ingredientsResponse.data.length > 0) {
+            const checklistData = ingredientsResponse.data[0];
+
+            if (checklistData.jsonIngredientsCheckList) {
+              try {
+                const parsedIngredients = JSON.parse(checklistData.jsonIngredientsCheckList);
+                const ingredientsDetails = await Promise.all(
+                  parsedIngredients.map(async (item) => {
+                    try {
+                      const details = await apiService.getIngredientById(item.IngredientId);
+                      if (details.success && details.data) {
+                        const size = parseFloat(item.TotalSize);
+                        return {
+                          id: item.IngredientId,
+                          ingredientName: details.data.name,
+                          quantity: formatIngredientQuantity(size, details.data.unit),
+                        };
+                      }
+                    } catch (ingredientError) {
+                      console.error(`Error cargando ingrediente ${item.IngredientId}:`, ingredientError);
+                    }
+
+                    return {
+                      id: item.IngredientId,
+                      ingredientName: `Ingrediente #${item.IngredientId}`,
+                      quantity: `${parseFloat(item.TotalSize).toFixed(2)} kg`,
+                    };
+                  })
+                );
+
+                setIngredients(ingredientsDetails);
+                const storageKey = `ingredients_suscription_${reservationId}`;
+                const savedChecks = localStorage.getItem(storageKey);
+                if (savedChecks) {
+                  try {
+                    setCheckedIngredients(JSON.parse(savedChecks));
+                  } catch (savedChecksError) {
+                    console.error('Error parsing saved checks:', savedChecksError);
+                  }
+                }
+              } catch (parseError) {
+                console.error('Error parsing jsonIngredientsCheckList:', parseError);
+              }
+            }
+          }
+        } else {
+          setIngredients([]);
+          setCheckedIngredients({});
         }
         
         // Cargar marcaciones de chef si existe reservationSuscriptionId
@@ -348,6 +445,17 @@ const ReservationSuscriptionDetailScreen = () => {
     setTimeout(() => setSelectedRecipe(null), 300);
   };
 
+  const handleIngredientCheck = (ingredientId) => {
+    const newChecked = {
+      ...checkedIngredients,
+      [ingredientId]: !checkedIngredients[ingredientId],
+    };
+    setCheckedIngredients(newChecked);
+
+    const storageKey = `ingredients_suscription_${reservationId}`;
+    localStorage.setItem(storageKey, JSON.stringify(newChecked));
+  };
+
 
   const handleAcceptReservation = async () => {
     console.log('=== ACEPTAR RESERVA DE SUSCRIPCIÓN ===');
@@ -552,6 +660,35 @@ const ReservationSuscriptionDetailScreen = () => {
               </span>
             </div>
           </div>
+
+          {reservation.puchaseIngredients && (
+            <div style={styles.section}>
+              <div style={styles.sectionHeader}>
+                <ListDetail />
+                <h2 style={styles.sectionTitle}>Lista de compra</h2>
+              </div>
+              <div style={styles.card}>
+                {ingredients.length > 0 ? (
+                  ingredients.map((ingredient) => (
+                    <div key={ingredient.id} style={styles.ingredientRow}>
+                      <input
+                        type="checkbox"
+                        checked={checkedIngredients[ingredient.id] || false}
+                        onChange={() => handleIngredientCheck(ingredient.id)}
+                        style={styles.checkbox}
+                      />
+                      <div style={styles.ingredientInfo}>
+                        <span style={styles.ingredientName}>{ingredient.ingredientName}</span>
+                        <span style={styles.ingredientQuantity}>{ingredient.quantity}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p style={styles.emptyText}>No hay ingredientes registrados</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Address Section */}
           <div style={styles.section}>
@@ -959,6 +1096,36 @@ const styles = {
     color: '#9CA3AF',
     textAlign: 'center',
     padding: `${spacing.medium}px 0`,
+  },
+  ingredientRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: '10px',
+    paddingBottom: '10px',
+    borderBottom: '1px solid #F3F4F6',
+  },
+  checkbox: {
+    width: '20px',
+    height: '20px',
+    marginRight: `${spacing.small}px`,
+    cursor: 'pointer',
+    accentColor: '#FF5136',
+  },
+  ingredientInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+  },
+  ingredientName: {
+    fontSize: '14px',
+    color: '#1A1F24',
+    fontWeight: '500',
+    marginBottom: '2px',
+  },
+  ingredientQuantity: {
+    fontSize: '12px',
+    color: '#6B7280',
   },
   arriveButton: {
     backgroundColor: '#FF5136',
