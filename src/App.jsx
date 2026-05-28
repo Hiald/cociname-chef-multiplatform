@@ -10,10 +10,24 @@ import "./App.css";
  */
 function HashRouteInterceptor() {
   useEffect(() => {
-    // Si la URL no tiene hash pero tiene una ruta con parámetros, redirige al hash equivalente
+    // Si la URL apunta a onboarding público, normaliza siempre al hash correcto
     const pathname = window.location.pathname;
     const hash = window.location.hash;
     
+    if (
+      pathname.startsWith('/inicio/') ||
+      pathname.startsWith('/onboarding/') ||
+      pathname.startsWith('/reserva/') ||
+      pathname.startsWith('/suscripcion/')
+    ) {
+      const normalizedHash = pathname + window.location.search;
+
+      if (hash !== `#${normalizedHash}`) {
+        window.location.hash = normalizedHash;
+      }
+      return;
+    }
+
     // Si hay pathname pero no hay hash (o hash vacío), redirige
     if (pathname && pathname !== '/' && (!hash || hash === '#')) {
       window.location.hash = pathname + window.location.search;
