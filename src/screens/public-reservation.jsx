@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { decryptToken } from '../utils/crypto';
 import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
 import { getDistrictName, getConceptName } from '../utils';
@@ -95,17 +94,12 @@ export const PublicReservationScreen = ({ token }) => {
         setLoading(true);
         setError(null);
 
-        // Desencriptar el token para obtener el reservationId
-        console.log('Desencriptando token:', token);
-        const id = decryptToken(token);
-        console.log('Reservation ID desencriptado:', id);
+        const response = await apiService.publicGetReservationByToken(token);
 
-        // Cargar los detalles de la reserva mediante endpoint por link (petición pública sin auth)
-        const response = await apiService.publicGetReservationByLink(id);
-        
         if (response.success && response.data) {
+          const id = response.data.id;
           setReservation(response.data);
-          
+
           // Cargar ingredientes si tiene compras
           if (response.data.puchaseIngredients) {
             const ingredientsResponse = await apiService.getIngredientChecklistByReservation(id);
@@ -371,19 +365,28 @@ export const PublicReservationScreen = ({ token }) => {
             </div>
             <div style={styles.card}>
               {(() => {
+                const total = Number(reservation.commissionToChef ?? reservation.totalPrice ?? 0);
                 try {
                   const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
-                  return paymentConcepts.map((concept, index) => (
-                    <div key={index} style={styles.garantiaRow}>
-                      <span style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</span>
-                      <span style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</span>
+                  if (paymentConcepts.length > 0) {
+                    return paymentConcepts.map((concept, index) => (
+                      <div key={index} style={styles.garantiaRow}>
+                        <span style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</span>
+                        <span style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</span>
+                      </div>
+                    ));
+                  }
+                  return (
+                    <div style={styles.garantiaRow}>
+                      <span style={styles.garantiaLabel}>Servicio</span>
+                      <span style={styles.garantiaValue}>S/ {total.toFixed(2)}</span>
                     </div>
-                  ));
+                  );
                 } catch {
                   return (
                     <div style={styles.garantiaRow}>
                       <span style={styles.garantiaLabel}>Servicio</span>
-                      <span style={styles.garantiaValue}>S/ {reservation.commissiontoChef.toFixed(2)}</span>
+                      <span style={styles.garantiaValue}>S/ {total.toFixed(2)}</span>
                     </div>
                   );
                 }
@@ -391,7 +394,7 @@ export const PublicReservationScreen = ({ token }) => {
               <div style={styles.divider} />
               <div style={styles.garantiaRow}>
                 <span style={styles.garantiaTotal}>Total</span>
-                <span style={styles.garantiaTotalValue}>S/ {reservation.commissiontoChef.toFixed(2)}</span>
+                <span style={styles.garantiaTotalValue}>S/ {Number(reservation.commissionToChef ?? reservation.totalPrice ?? 0).toFixed(2)}</span>
               </div>
             </div>
           </div>

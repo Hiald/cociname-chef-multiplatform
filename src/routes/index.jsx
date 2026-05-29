@@ -29,9 +29,9 @@ const Navigator = () => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [pendingNotifications, setPendingNotifications] = React.useState(0);
   const isPublicRoute =
-    location.pathname.startsWith('/evento/') ||
     location.pathname.startsWith('/reserva/') ||
     location.pathname.startsWith('/suscripcion/') ||
+    location.pathname.startsWith('/evento/') ||
     location.pathname.startsWith('/inicio/') ||
     location.pathname.startsWith('/onboarding/') ||
     location.pathname === '/register';
@@ -124,14 +124,14 @@ const Navigator = () => {
     return <PublicSuscriptionScreen token={token} />;
   };
 
-  const PublicOnboardingWrapper = () => {
-    const { token } = useParams();
-    return <PublicOnboardingScreen token={token} />;
-  };
-
   const PublicEventWrapper = () => {
     const { token } = useParams();
     return <PublicEventScreen token={token} />;
+  };
+
+  const PublicOnboardingWrapper = () => {
+    const { token } = useParams();
+    return <PublicOnboardingScreen token={token} />;
   };
 
   // Ruta pública independiente - NO requiere autenticación
@@ -152,20 +152,19 @@ const Navigator = () => {
     );
   }
 
+  if (location.pathname.startsWith('/evento/')) {
+    return (
+      <Routes>
+        <Route path="/evento/:token" element={<PublicEventWrapper />} />
+      </Routes>
+    );
+  }
+
   // Alias para /inicio/:token -> mismo que /onboarding/:token
   if (location.pathname.startsWith('/inicio/')) {
     return (
       <Routes>
         <Route path="/inicio/:token" element={<PublicOnboardingWrapper />} />
-      </Routes>
-    );
-  }
-
-  // Alias para /evento/:token -> vista pública de evento
-  if (location.pathname.startsWith('/evento/')) {
-    return (
-      <Routes>
-        <Route path="/evento/:token" element={<PublicEventWrapper />} />
       </Routes>
     );
   }

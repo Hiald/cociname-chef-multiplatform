@@ -473,8 +473,9 @@ class ApiService {
   }
 
   /**
-   * GET public reservation by link token endpoint
+   * GET public reservation by link token endpoint (legacy, uses integer ID)
    * Endpoint: Reservation/ListReservationByLink?id={entityId}
+   * @deprecated Use publicGetReservationByToken instead
    */
   async publicGetReservationByLink(
     entityId: number
@@ -484,13 +485,59 @@ class ApiService {
   }
 
   /**
-   * GET public subscription reservation by link token endpoint
+   * GET public reservation by GUID token — no expone IDs enteros en la red
+   * Endpoint: CustomerApp/AppReservation/ByToken/{token}
+   */
+  async publicGetReservationByToken(
+    token: string
+  ): Promise<any> {
+    const endpoint = `CustomerApp/AppReservation/ByToken/${token}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
+   * GET public subscription reservation by link token endpoint (legacy)
    * Endpoint: reservationSuscription/ListReservationSuscriptionByIdLink?id={entityId}
+   * @deprecated Use publicGetReservationSuscriptionByToken instead
    */
   async publicGetReservationSuscriptionByLink(
     entityId: number
   ): Promise<any> {
     const endpoint = `reservationSuscription/ListReservationSuscriptionByIdLink?id=${entityId}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
+   * GET public subscription by GUID token — no expone IDs enteros en la red
+   * Endpoint: AppReservationSuscription/ByToken/{token}
+   */
+  async publicGetReservationSuscriptionByToken(
+    token: string
+  ): Promise<any> {
+    const endpoint = `AppReservationSuscription/ByToken/${token}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
+   * GET public event reservation by link (legacy)
+   * Endpoint: reservationEvent/Link/{id}
+   * @deprecated Use publicGetReservationEventByToken instead
+   */
+  async publicGetReservationEventByLink(
+    entityId: number
+  ): Promise<any> {
+    const endpoint = `reservationEvent/Link/${entityId}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
+   * GET public event by GUID token — no expone IDs enteros en la red
+   * Endpoint: AppReservationEvent/ByToken/{token}
+   */
+  async publicGetReservationEventByToken(
+    token: string
+  ): Promise<any> {
+    const endpoint = `AppReservationEvent/ByToken/${token}`;
     return this.publicRequest<any>(endpoint);
   }
 

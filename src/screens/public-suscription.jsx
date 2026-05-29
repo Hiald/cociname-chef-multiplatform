@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { decryptToken } from '../utils/crypto';
 import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
 import { getDistrictName, getConceptName } from '../utils';
@@ -99,20 +98,15 @@ export const PublicSuscriptionScreen = ({ token }) => {
         setLoading(true);
         setError(null);
 
-        // Desencriptar el token para obtener el reservationSuscriptionId
-        console.log('Desencriptando token:', token);
-        const id = decryptToken(token);
-        console.log('Reservation Suscription ID desencriptado:', id);
+        const response = await apiService.publicGetReservationSuscriptionByToken(token);
 
-        // Cargar los detalles de la reserva de suscripción con endpoint público por link
-        const response = await apiService.publicGetReservationSuscriptionByLink(id);
-        
         if (response.success && response.data) {
           const data = response.data;
-          
+          const id = data.id;
+
           if (!isMounted) return;
           setReservation(data);
-          
+
           // Cargar la información de la suscripción padre PRIMERO (tiene los datos del cliente)
           if (data.suscriptionId) {
             const suscriptionResponse = await apiService.getSuscriptionById(data.suscriptionId);
@@ -413,17 +407,25 @@ export const PublicSuscriptionScreen = ({ token }) => {
               {(() => {
                 try {
                   const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
-                  return paymentConcepts.map((concept, index) => (
-                    <div key={index} style={styles.garantiaRow}>
-                      <span style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</span>
-                      <span style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</span>
+                  if (paymentConcepts.length > 0) {
+                    return paymentConcepts.map((concept, index) => (
+                      <div key={index} style={styles.garantiaRow}>
+                        <span style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</span>
+                        <span style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</span>
+                      </div>
+                    ));
+                  }
+                  return (
+                    <div style={styles.garantiaRow}>
+                      <span style={styles.garantiaLabel}>Servicio</span>
+                      <span style={styles.garantiaValue}>S/ {Number(reservation.totalPrice ?? 0).toFixed(2)}</span>
                     </div>
-                  ));
+                  );
                 } catch {
                   return (
                     <div style={styles.garantiaRow}>
                       <span style={styles.garantiaLabel}>Servicio</span>
-                      <span style={styles.garantiaValue}>S/ 0.00</span>
+                      <span style={styles.garantiaValue}>S/ {Number(reservation.totalPrice ?? 0).toFixed(2)}</span>
                     </div>
                   );
                 }
@@ -435,10 +437,12 @@ export const PublicSuscriptionScreen = ({ token }) => {
                   S/ {(() => {
                     try {
                       const concepts = JSON.parse(reservation.jsonPaymentChef || '[]');
-                      const total = concepts.reduce((sum, c) => sum + parseFloat(c.Monto), 0);
-                      return total.toFixed(2);
+                      if (concepts.length > 0) {
+                        return concepts.reduce((sum, c) => sum + parseFloat(c.Monto), 0).toFixed(2);
+                      }
+                      return Number(reservation.totalPrice ?? 0).toFixed(2);
                     } catch {
-                      return '0.00';
+                      return Number(reservation.totalPrice ?? 0).toFixed(2);
                     }
                   })()}
                 </span>
