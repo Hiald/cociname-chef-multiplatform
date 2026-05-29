@@ -15,6 +15,7 @@ function HashRouteInterceptor() {
     const hash = window.location.hash;
     
     if (
+      pathname.startsWith('/evento/') ||
       pathname.startsWith('/inicio/') ||
       pathname.startsWith('/onboarding/') ||
       pathname.startsWith('/reserva/') ||

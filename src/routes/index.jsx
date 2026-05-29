@@ -11,6 +11,7 @@ import AvailabilityScreen from '../screens/availability';
 import ProfileScreen from '../screens/profile';
 import { PublicReservationScreen } from '../screens/public-reservation';
 import { PublicSuscriptionScreen } from '../screens/public-suscription';
+import { PublicEventScreen } from '../screens/public-event';
 import PublicOnboardingScreen from '../screens/public-onboarding';
 import { Header } from '../components/header';
 import { Sidebar } from '../components/sidebar';
@@ -28,6 +29,7 @@ const Navigator = () => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [pendingNotifications, setPendingNotifications] = React.useState(0);
   const isPublicRoute =
+    location.pathname.startsWith('/evento/') ||
     location.pathname.startsWith('/reserva/') ||
     location.pathname.startsWith('/suscripcion/') ||
     location.pathname.startsWith('/inicio/') ||
@@ -127,6 +129,11 @@ const Navigator = () => {
     return <PublicOnboardingScreen token={token} />;
   };
 
+  const PublicEventWrapper = () => {
+    const { token } = useParams();
+    return <PublicEventScreen token={token} />;
+  };
+
   // Ruta pública independiente - NO requiere autenticación
   // Se verifica DESPUÉS de los hooks pero ANTES de verificar auth
   if (location.pathname.startsWith('/reserva/')) {
@@ -150,6 +157,15 @@ const Navigator = () => {
     return (
       <Routes>
         <Route path="/inicio/:token" element={<PublicOnboardingWrapper />} />
+      </Routes>
+    );
+  }
+
+  // Alias para /evento/:token -> vista pública de evento
+  if (location.pathname.startsWith('/evento/')) {
+    return (
+      <Routes>
+        <Route path="/evento/:token" element={<PublicEventWrapper />} />
       </Routes>
     );
   }
