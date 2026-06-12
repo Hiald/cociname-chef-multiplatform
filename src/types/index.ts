@@ -83,7 +83,7 @@ export interface PendingReservationResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// RESERVATION EVENT - GET /api/reservationEvent/GetPendingEventReservation
+// RESERVATION EVENT - GET /api/AppReservationEvent/GetPendingReservationEvent
 // ═══════════════════════════════════════════════════════════════
 
 export interface GetPendingEventReservationParams {
@@ -99,6 +99,23 @@ export interface ReservationEventData {
 
 export interface ReservationEventResponse {
   data: ReservationEventData[];
+  success: boolean;
+  errorMessage: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// APP PENDING RESERVATIONS
+// GET /api/AppReservationDiet/GetPendingReservationDiet
+// GET /api/AppReservationEvent/GetPendingReservationEvent
+// GET /api/AppReservationServiceTask/GetPendingReservationServiceTask
+// ═══════════════════════════════════════════════════════════════
+
+export interface AppPendingReservationData {
+  [key: string]: any;
+}
+
+export interface AppPendingReservationResponse {
+  data: AppPendingReservationData[];
   success: boolean;
   errorMessage: string | null;
 }

@@ -23,6 +23,7 @@ import {
   GetPendingEventReservationParams,
   ReservationEventResponse,
   ReservationEventData,
+  AppPendingReservationResponse,
   ReservationEventAssignmentRequestDto,
   MarkStartRequest,
   MarkEndRequest,
@@ -626,12 +627,19 @@ class ApiService {
   }
 
   /**
-   * GET /api/reservationEvent/GetPendingEventReservation
-   * Obtiene eventos vacíos/pending con filtros opcionales
+   * GET /api/AppReservationEvent/GetPendingReservationEvent
+   * Obtiene eventos pendientes con filtros opcionales
    */
   async getPendingEventReservation(
     params?: GetPendingEventReservationParams
   ): Promise<ReservationEventResponse> {
+    return this.getAppPendingReservations('AppReservationEvent/GetPendingReservationEvent', params);
+  }
+
+  private async getAppPendingReservations(
+    path: string,
+    params?: GetPendingReservationParams
+  ): Promise<AppPendingReservationResponse> {
     const queryParams = new URLSearchParams();
 
     if (params?.dateFilter) {
@@ -648,15 +656,7 @@ class ApiService {
     }
 
     const queryString = queryParams.toString();
-    const endpoint = `reservationEvent/GetPendingEventReservation${queryString ? `?${queryString}` : ''}`;
-
-    // Debug: show constructed query string (no token) and final URL
-    try {
-      console.log('getPendingEventReservation queryString:', queryString);
-      console.log('getPendingEventReservation URL:', `${this.baseUrl}${endpoint}`);
-    } catch (e) {
-      // ignore logging errors
-    }
+    const endpoint = `${path}${queryString ? `?${queryString}` : ''}`;
 
     try {
       const controller = new AbortController();
@@ -667,7 +667,6 @@ class ApiService {
       };
 
       const token = this.getToken();
-
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
@@ -680,24 +679,17 @@ class ApiService {
 
       clearTimeout(timeoutId);
 
-      let data: ReservationEventResponse | null = null;
-      try {
-        data = await response.json();
-      } catch (e) {
-        const text = await response.text();
-        console.error('getPendingEventReservation: failed to parse JSON response:', text);
-      }
+      const data: AppPendingReservationResponse = await response.json();
 
       if (!response.ok) {
-        console.error('getPendingEventReservation: response error', { status: response.status, body: data });
         return {
           data: [],
           success: false,
-          errorMessage: (data && (data as any).errorMessage) || `Error: ${response.status}`,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
         };
       }
 
-      return data as ReservationEventResponse;
+      return data;
     } catch (error) {
       return {
         data: [],
@@ -705,6 +697,24 @@ class ApiService {
         errorMessage: error instanceof Error ? error.message : 'Error de red',
       };
     }
+  }
+
+  /**
+   * GET /api/AppReservationDiet/GetPendingReservationDiet
+   */
+  async getPendingReservationDiet(
+    params?: GetPendingReservationParams
+  ): Promise<AppPendingReservationResponse> {
+    return this.getAppPendingReservations('AppReservationDiet/GetPendingReservationDiet', params);
+  }
+
+  /**
+   * GET /api/AppReservationServiceTask/GetPendingReservationServiceTask
+   */
+  async getPendingReservationServiceTask(
+    params?: GetPendingReservationParams
+  ): Promise<AppPendingReservationResponse> {
+    return this.getAppPendingReservations('AppReservationServiceTask/GetPendingReservationServiceTask', params);
   }
 
   /**
