@@ -5,6 +5,7 @@ import RegisterScreen from '../screens/register';
 import ReservationDetailScreen from '../screens/reservationDetail';
 import ReservationSuscriptionDetailScreen from '../screens/reservationSuscriptionDetail';
 import ReservationEventDetailScreen from '../screens/reservationEventDetail';
+import { ReservationDietDetailScreen, ReservationServiceTaskDetailScreen } from '../screens/reservationAppDetail';
 import HomeScreen from '../screens/home';
 import ReservationScreen from '../screens/reservation';
 import AvailabilityScreen from '../screens/availability';
@@ -195,7 +196,13 @@ const Navigator = () => {
       const tabFromQuery = new URLSearchParams(location.search).get('tab');
       return tabFromQuery === 'requests' ? 'Requests' : 'Reservation';
     }
-    if (path.startsWith('/reservation/') || path.startsWith('/reservation-suscription/') || path.startsWith('/reservation-event/')) {
+    if (
+      path.startsWith('/reservation/') ||
+      path.startsWith('/reservation-suscription/') ||
+      path.startsWith('/reservation-event/') ||
+      path.startsWith('/reservation-diet/') ||
+      path.startsWith('/reservation-service-task/')
+    ) {
       return location.state?.isRequest ? 'Requests' : 'Reservation';
     }
     if (path === '/availability') return 'Availability';
@@ -251,6 +258,8 @@ const Navigator = () => {
             <Route path="/reservation/:id" element={<ReservationDetailScreen />} />
             <Route path="/reservation-suscription/:id" element={<ReservationSuscriptionDetailScreen />} />
             <Route path="/reservation-event/:id" element={<ReservationEventDetailScreen />} />
+            <Route path="/reservation-diet/:id" element={<ReservationDietDetailScreen />} />
+            <Route path="/reservation-service-task/:id" element={<ReservationServiceTaskDetailScreen />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

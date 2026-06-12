@@ -24,7 +24,9 @@ import {
   ReservationEventResponse,
   ReservationEventData,
   AppPendingReservationResponse,
+  AppPendingReservationData,
   ReservationEventAssignmentRequestDto,
+  ReservationAssignmentRequestDto,
   MarkStartRequest,
   MarkEndRequest,
   AvailabilityListResponse,
@@ -657,46 +659,29 @@ class ApiService {
 
     const queryString = queryParams.toString();
     const endpoint = `${path}${queryString ? `?${queryString}` : ''}`;
+    const result = await this.request<AppPendingReservationData[]>(endpoint);
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      const token = this.getToken();
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+    if (!result.success) {
+      if (result.errorMessage?.toLowerCase().includes('permisos')) {
+        console.warn(
+          `[API] 403 en ${path}: el backend debe autorizar el rol Chef en este controlador (igual que AppReservationEvent).`
+        );
       }
 
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'GET',
-        headers,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      const data: AppPendingReservationResponse = await response.json();
-
-      if (!response.ok) {
-        return {
-          data: [],
-          success: false,
-          errorMessage: data.errorMessage || `Error: ${response.status}`,
-        };
-      }
-
-      return data;
-    } catch (error) {
       return {
         data: [],
         success: false,
-        errorMessage: error instanceof Error ? error.message : 'Error de red',
+        errorMessage: result.errorMessage ?? null,
       };
     }
+
+    const payload = result as unknown as AppPendingReservationResponse;
+
+    return {
+      data: Array.isArray(payload.data) ? payload.data : [],
+      success: payload.success ?? true,
+      errorMessage: payload.errorMessage ?? null,
+    };
   }
 
   /**
@@ -1656,16 +1641,44 @@ class ApiService {
    */
   async updateReservationEventAssignment(
     chefId: number,
-    request: ReservationEventAssignmentRequestDto
+    request: ReservationAssignmentRequestDto
   ): Promise<BaseResponseGeneric<any>> {
-    const endpoint = `reservationAssignment/ReservationEvent/${chefId}`;
+    return this.putReservationAssignment('ReservationEvent', chefId, request);
+  }
+
+  /**
+   * PUT /api/reservationAssignment/ReservationDiet/{chefId}
+   * Acepta o rechaza un plan nutricional
+   */
+  async updateReservationDietAssignment(
+    chefId: number,
+    request: ReservationAssignmentRequestDto
+  ): Promise<BaseResponseGeneric<any>> {
+    return this.putReservationAssignment('ReservationDiet', chefId, request);
+  }
+
+  /**
+   * PUT /api/reservationAssignment/ReservationServiceTask/{chefId}
+   * Acepta o rechaza una actividad de cocina
+   */
+  async updateReservationServiceTaskAssignment(
+    chefId: number,
+    request: ReservationAssignmentRequestDto
+  ): Promise<BaseResponseGeneric<any>> {
+    return this.putReservationAssignment('ReservationServiceTask', chefId, request);
+  }
+
+  private async putReservationAssignment(
+    resourcePath: string,
+    chefId: number,
+    request: ReservationAssignmentRequestDto
+  ): Promise<BaseResponseGeneric<any>> {
+    const endpoint = `reservationAssignment/${resourcePath}/${chefId}`;
 
     const requestBody = {
       ...request,
       chefId,
     };
-
-    console.log('Calling updateReservationEventAssignment:', endpoint, requestBody);
 
     try {
       const controller = new AbortController();
@@ -1690,16 +1703,16 @@ class ApiService {
 
       clearTimeout(timeoutId);
 
-      let data: any = null;
+      let data: BaseResponseGeneric<any> | null = null;
       try {
         data = await response.json();
       } catch (parseError) {
         const text = await response.text();
-        console.error('updateReservationEventAssignment: failed to parse JSON response:', text);
+        console.error(`putReservationAssignment(${resourcePath}): failed to parse JSON response:`, text);
       }
 
       if (!response.ok) {
-        console.error('updateReservationEventAssignment: response error', { status: response.status, body: data });
+        console.error(`putReservationAssignment(${resourcePath}): response error`, { status: response.status, body: data });
         return {
           data: null,
           success: false,
@@ -1709,13 +1722,31 @@ class ApiService {
 
       return data as BaseResponseGeneric<any>;
     } catch (error) {
-      console.error('updateReservationEventAssignment: exception', error);
+      console.error(`putReservationAssignment(${resourcePath}): exception`, error);
       return {
         data: null,
         success: false,
         errorMessage: error instanceof Error ? error.message : 'Error de red',
       };
     }
+  }
+
+  /**
+   * GET /api/AppReservationDiet/{id}
+   */
+  async getReservationDietById(
+    reservationDietId: number
+  ): Promise<BaseResponseGeneric<AppPendingReservationData>> {
+    return this.request<AppPendingReservationData>(`AppReservationDiet/${reservationDietId}`);
+  }
+
+  /**
+   * GET /api/AppReservationServiceTask/{id}
+   */
+  async getReservationServiceTaskById(
+    reservationServiceTaskId: number
+  ): Promise<BaseResponseGeneric<AppPendingReservationData>> {
+    return this.request<AppPendingReservationData>(`AppReservationServiceTask/${reservationServiceTaskId}`);
   }
 
   /**
