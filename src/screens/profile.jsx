@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { spacing } from '../styles';
 import { useAuth } from '../hooks/useAuth';
+import { apiService } from '../services/api.service';
+import { GEO_CONFIG } from '../config';
 import datosIcon from '../assets/images/perfil/datos.png';
 import seguridadIcon from '../assets/images/perfil/seguridad.png';
 import sanidadIcon from '../assets/images/perfil/sanidad.png';
@@ -10,6 +12,24 @@ import rightRedIcon from '../assets/images/perfil/right-red.png';
 
 const ProfileScreen = () => {
   const { chefData } = useAuth();
+
+  // Multi-país: resolver el nombre del distrito (PE) / comuna (CL) de la
+  // cocinera desde el catálogo del API (los campos existían pero no se mostraban)
+  const [districtName, setDistrictName] = useState('');
+
+  useEffect(() => {
+    const districtId = Number(chefData?.district || 0);
+    if (districtId <= 0) {
+      setDistrictName('');
+      return;
+    }
+    apiService.getGeoDivisions(3).then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        const match = res.data.find((d) => d.id === districtId);
+        setDistrictName(match ? match.name : '');
+      }
+    }).catch(() => setDistrictName(''));
+  }, [chefData]);
 
   const initials = useMemo(() => {
     const first = chefData?.firstName?.charAt(0) || 'C';
@@ -128,6 +148,20 @@ const ProfileScreen = () => {
           <div style={styles.sectionBlock}>
             <p style={styles.sectionLabel}>SOBRE MÍ</p>
             <p style={styles.aboutText}>{aboutText}</p>
+          </div>
+
+          <div style={styles.divider} />
+
+          <div style={styles.sectionBlock}>
+            <p style={styles.sectionLabel}>UBICACIÓN</p>
+            <p style={styles.aboutText}>
+              {districtName
+                ? `${GEO_CONFIG.LEVEL3_LABEL}: ${districtName}`
+                : 'Sin ubicación registrada'}
+              {chefData?.coverageRadiusKm
+                ? ` · Cobertura: ${chefData.coverageRadiusKm} km`
+                : ''}
+            </p>
           </div>
         </div>
 
