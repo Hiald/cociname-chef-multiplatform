@@ -9,6 +9,7 @@ import { getConceptName } from '../utils/formatters';
 import { formatearFechaConDia } from '../utils/formatters';
 import { useAuth } from '../hooks/useAuth';
 import { sortIngredientsAlphabetically } from '../utils/ingredients';
+import { getClientComment } from '../utils/formatters';
 import profileIcon from '../assets/images/detalle/perfil.png';
 import dayIcon from '../assets/images/detalle/dia.png';
 import hourIcon from '../assets/images/detalle/hora.png';
@@ -673,6 +674,8 @@ const ReservationDetailScreen = () => {
     return statusInfo;
   })();
 
+  const clientComment = getClientComment(reservation);
+
   return (
     <div style={styles.container}>
       {/* Header */}
@@ -730,6 +733,17 @@ const ReservationDetailScreen = () => {
             <span style={styles.infoRowLabel}>{reservation.totalPortion} porciones totales</span>
           </div>
         </div>
+
+        {clientComment && (
+          <div style={styles.section}>
+            <div style={styles.card}>
+              <div style={styles.commentSection}>
+                <p style={styles.commentLabel}>Comentarios del cliente</p>
+                <p style={styles.commentText}>{clientComment}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Arrive Button - Solo en los primeros 15 minutos y si no ha empezado */}
         {isActive && !hasStarted && chefReservationId && 
@@ -797,12 +811,6 @@ const ReservationDetailScreen = () => {
                   ))
                 ) : (
                   <p style={styles.emptyText}>No hay ingredientes registrados</p>
-                )}
-                {reservation.comments && (
-                  <div style={styles.commentSection}>
-                    <p style={styles.commentLabel}>Comentarios</p>
-                    <p style={styles.commentText}>{reservation.comments}</p>
-                  </div>
                 )}
               </div>
             )}

@@ -5,7 +5,8 @@ import { spacing } from '../styles';
 import { getDistrictName, getConceptName } from '../utils';
 import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail, BuyingDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
-import { sortIngredientsAlphabetically } from '../utils/ingredients';
+import { sortIngredientsAlphabetically, loadIngredientDetailsFromChecklist } from '../utils/ingredients';
+import { getClientComment } from '../utils/formatters';
 
 /**
  * Vista pública de suscripción - accesible sin login mediante token encriptado
@@ -128,60 +129,22 @@ export const PublicSuscriptionScreen = ({ token }) => {
             const ingredientsResponse = await apiService.getIngredientChecklistByReservationSuscription(id);
             
             if (ingredientsResponse.success && ingredientsResponse.data && ingredientsResponse.data.length > 0) {
-              const checklistData = ingredientsResponse.data[0];
-              
-              // Parsear jsonIngredientsCheckList
-              if (checklistData.jsonIngredientsCheckList) {
+              const ingredientsDetails = await loadIngredientDetailsFromChecklist(
+                ingredientsResponse.data,
+                (ingredientId) => apiService.getIngredientById(ingredientId),
+                formatQuantity
+              );
+
+              if (!isMounted) return;
+              setIngredients(ingredientsDetails);
+
+              const storageKey = `ingredients_suscription_${id}`;
+              const savedChecks = localStorage.getItem(storageKey);
+              if (savedChecks) {
                 try {
-                  const parsedIngredients = JSON.parse(checklistData.jsonIngredientsCheckList);
-                  
-                  // Cargar detalles de cada ingrediente
-                  const ingredientsDetails = await Promise.all(
-                    parsedIngredients.map(async (item) => {
-                      try {
-                        const details = await apiService.getIngredientById(item.IngredientId);
-                        if (details.success && details.data) {
-                          const size = parseFloat(item.TotalSize);
-                          return {
-                            id: item.IngredientId,
-                            ingredientId: item.IngredientId,
-                            ingredientName: details.data.name,
-                            quantity: formatQuantity(size, details.data.unit),
-                            unit: details.data.unit,
-                            rawSize: item.TotalSize
-                          };
-                        }
-                      } catch (e) {
-                        console.error(`Error cargando ingrediente ${item.IngredientId}:`, e);
-                      }
-                      
-                      // Fallback si no se puede cargar el detalle
-                      return {
-                        id: item.IngredientId,
-                        ingredientId: item.IngredientId,
-                        ingredientName: `Ingrediente #${item.IngredientId}`,
-                        quantity: parseFloat(item.TotalSize).toFixed(2),
-                        unit: 'kg',
-                        rawSize: item.TotalSize
-                      };
-                    })
-                  );
-                  
-                  if (!isMounted) return;
-                  setIngredients(sortIngredientsAlphabetically(ingredientsDetails));
-                  
-                  // Cargar estado de checkboxes desde localStorage
-                  const storageKey = `ingredients_suscription_${id}`;
-                  const savedChecks = localStorage.getItem(storageKey);
-                  if (savedChecks) {
-                    try {
-                      setCheckedIngredients(JSON.parse(savedChecks));
-                    } catch (e) {
-                      console.error('Error parsing saved checks:', e);
-                    }
-                  }
+                  setCheckedIngredients(JSON.parse(savedChecks));
                 } catch (e) {
-                  console.error('❌ Error parsing jsonIngredientsCheckList:', e);
+                  console.error('Error parsing saved checks:', e);
                 }
               }
             }
@@ -270,6 +233,8 @@ export const PublicSuscriptionScreen = ({ token }) => {
     }
   };
 
+  const clientComment = getClientComment(reservation);
+
   return (
     <div style={styles.container}>
       <div style={styles.scrollView}>
@@ -326,6 +291,17 @@ export const PublicSuscriptionScreen = ({ token }) => {
             </div>
           )}
 
+          {clientComment && (
+            <div style={styles.section}>
+              <div style={styles.card}>
+                <div style={styles.clientCommentBox}>
+                  <p style={styles.commentBoxTitle}>Comentarios del cliente</p>
+                  <p style={styles.commentBoxText}>{clientComment}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Lista de compra */}
           {reservation.puchaseIngredients && ingredients.length > 0 && (
             <div style={styles.section}>
@@ -351,12 +327,6 @@ export const PublicSuscriptionScreen = ({ token }) => {
                     </div>
                   </div>
                 ))}
-                {reservation.comments && (
-                  <div style={styles.clientCommentBox}>
-                    <p style={styles.commentBoxTitle}>Comentarios</p>
-                    <p style={styles.commentBoxText}>{reservation.comments}</p>
-                  </div>
-                )}
               </div>
             </div>
           )}

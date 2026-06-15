@@ -10,6 +10,7 @@ import {
   formatPublicHour,
   getChefDisplay,
   getCustomerFullName,
+  getClientComment,
 } from '../utils/formatters';
 
 /**
@@ -181,6 +182,7 @@ const ReservationDietDetailScreen = () => {
   const planUrl = record.nutritionalPlanUrl || record.NutritionalPlanUrl || '';
   const planName = record.nutritionalPlanFileName || record.NutritionalPlanFileName || 'Plan nutricional';
   const menus = getDietMenus(record);
+  const clientComment = getClientComment(record);
 
   return (
     <div style={styles.container}>
@@ -259,10 +261,10 @@ const ReservationDietDetailScreen = () => {
           </div>
         </section>
 
-        {record.commentsClient || record.CommentsClient ? (
+        {clientComment ? (
           <section style={styles.card}>
             <h2 style={styles.cardTitle}>Comentarios del cliente</h2>
-            <p style={styles.commentText}>{record.commentsClient || record.CommentsClient}</p>
+            <p style={styles.commentText}>{clientComment}</p>
           </section>
         ) : null}
 

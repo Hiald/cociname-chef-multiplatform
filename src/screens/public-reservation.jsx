@@ -6,6 +6,7 @@ import { getDistrictName, getConceptName } from '../utils';
 import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail, BuyingDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
 import { sortIngredientsAlphabetically } from '../utils/ingredients';
+import { getClientComment } from '../utils/formatters';
 
 /**
  * Vista pública de reserva - accesible sin login mediante token encriptado
@@ -253,6 +254,8 @@ export const PublicReservationScreen = ({ token }) => {
     }
   };
 
+  const clientComment = getClientComment(reservation);
+
   return (
     <div style={styles.container}>
       <div style={styles.scrollView}>
@@ -286,6 +289,17 @@ export const PublicReservationScreen = ({ token }) => {
             </div>
           </div>
 
+          {clientComment && (
+            <div style={styles.section}>
+              <div style={styles.card}>
+                <div style={styles.clientCommentBox}>
+                  <p style={styles.commentBoxTitle}>Comentarios del cliente</p>
+                  <p style={styles.commentBoxText}>{clientComment}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Lista de compra */}
           {reservation.puchaseIngredients && ingredients.length > 0 && (
             <div style={styles.section}>
@@ -311,12 +325,6 @@ export const PublicReservationScreen = ({ token }) => {
                     </div>
                   </div>
                 ))}
-                {reservation.comments && (
-                  <div style={styles.clientCommentBox}>
-                    <p style={styles.commentBoxTitle}>Comentarios</p>
-                    <p style={styles.commentBoxText}>{reservation.comments}</p>
-                  </div>
-                )}
               </div>
             </div>
           )}

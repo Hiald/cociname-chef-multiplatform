@@ -10,6 +10,7 @@ import {
   formatPublicHour,
   getChefDisplay,
   getCustomerFullName,
+  getClientComment,
 } from '../utils/formatters';
 
 /**
@@ -175,6 +176,7 @@ const ReservationTareaDetailScreen = () => {
   const totalPrice = record.totalPrice ?? record.TotalPrice ?? 0;
   const activities = getTareaActivities(record);
   const hours = Number(record.estimatedHours ?? record.EstimatedHours ?? record.iaSuggestedHours ?? record.IaSuggestedHours ?? 0);
+  const clientComment = getClientComment(record);
 
   return (
     <div style={styles.container}>
@@ -257,10 +259,10 @@ const ReservationTareaDetailScreen = () => {
           </div>
         </section>
 
-        {record.commentsClient || record.CommentsClient ? (
+        {clientComment ? (
           <section style={styles.card}>
             <h2 style={styles.cardTitle}>Comentarios del cliente</h2>
-            <p style={styles.commentText}>{record.commentsClient || record.CommentsClient}</p>
+            <p style={styles.commentText}>{clientComment}</p>
           </section>
         ) : null}
 

@@ -10,6 +10,7 @@ import {
   formatPublicHour,
   getChefDisplay,
   getCustomerFullName,
+  getClientComment,
 } from '../utils/formatters';
 
 /**
@@ -64,7 +65,7 @@ export const PublicTareaScreen = ({ token }) => {
 
         if (response.success && response.data) {
           setRecord(response.data);
-          const existingComments = response.data.commentsClient || response.data.CommentsClient || '';
+          const existingComments = getClientComment(response.data);
           if (existingComments) setComments(existingComments);
         } else {
           setError(response.errorMessage || 'No se pudo cargar el detalle');
@@ -198,6 +199,7 @@ export const PublicTareaScreen = ({ token }) => {
   const totalPrice = record.totalPrice ?? record.TotalPrice ?? 0;
   const activities = getTareaActivities(record);
   const hours = Number(record.estimatedHours ?? record.EstimatedHours ?? record.iaSuggestedHours ?? record.IaSuggestedHours ?? 0);
+  const clientComment = getClientComment(record);
 
   return (
     <div style={styles.page}>
@@ -258,6 +260,13 @@ export const PublicTareaScreen = ({ token }) => {
               </div>
             </section>
 
+            {isAuthenticated && clientComment && (
+              <section style={styles.card}>
+                <h2 style={styles.cardTitle}>Comentarios del cliente</h2>
+                <p style={styles.commentText}>{clientComment}</p>
+              </section>
+            )}
+
             {canAcceptAsChef && (
               <section style={styles.card}>
                 <h2 style={styles.cardTitle}>Acciones de cocinera</h2>
@@ -272,18 +281,20 @@ export const PublicTareaScreen = ({ token }) => {
               </section>
             )}
 
-            <section style={styles.card}>
-              <h2 style={styles.cardTitle}>¿Tienes algún comentario?</h2>
-              <textarea
-                style={styles.textarea}
-                placeholder="Escríbelo aquí..."
-                value={comments}
-                onChange={(event) => setComments(event.target.value)}
-              />
-              <button type="button" style={styles.primaryButton} onClick={handleSendComments} disabled={submittingComment}>
-                {submittingComment ? 'Enviando...' : 'Enviar comentarios'}
-              </button>
-            </section>
+            {!isAuthenticated && (
+              <section style={styles.card}>
+                <h2 style={styles.cardTitle}>¿Tienes algún comentario?</h2>
+                <textarea
+                  style={styles.textarea}
+                  placeholder="Escríbelo aquí..."
+                  value={comments}
+                  onChange={(event) => setComments(event.target.value)}
+                />
+                <button type="button" style={styles.primaryButton} onClick={handleSendComments} disabled={submittingComment}>
+                  {submittingComment ? 'Enviando...' : 'Enviar comentarios'}
+                </button>
+              </section>
+            )}
           </div>
 
           <div style={styles.rightColumn}>
@@ -560,6 +571,13 @@ const styles = {
     lineHeight: 1.6,
   },
   needsText: {
+    margin: 0,
+    fontSize: 14,
+    color: '#1a2332',
+    lineHeight: 1.6,
+    whiteSpace: 'pre-wrap',
+  },
+  commentText: {
     margin: 0,
     fontSize: 14,
     color: '#1a2332',

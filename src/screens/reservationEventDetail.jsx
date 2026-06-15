@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
 import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail } from '../assets/svgs';
-import { formatearFechaConDia } from '../utils/formatters';
+import { formatearFechaConDia, getClientComment } from '../utils/formatters';
 import { useAuth } from '../hooks/useAuth';
 import { RecipeModal } from '../components/recipe-modal';
 import mapIcon from '../assets/images/detalle/map.png';
@@ -199,6 +199,8 @@ const ReservationEventDetailScreen = () => {
     );
   }
 
+  const clientComment = getClientComment(event);
+
   return (
     <div style={styles.container}>
       <div style={styles.header}>
@@ -308,13 +310,13 @@ const ReservationEventDetailScreen = () => {
         </div>
 
         {/* Comentarios del Cliente */}
-        {event.commentsClient && (
+        {clientComment && (
           <div style={styles.section}>
             <div style={styles.sectionLabel}>
               <span style={styles.sectionTitle}>Comentarios del Cliente</span>
             </div>
             <div style={styles.infoCard}>
-              <span style={styles.infoRowValue}>{event.commentsClient}</span>
+              <span style={styles.infoRowValue}>{clientComment}</span>
             </div>
           </div>
         )}

@@ -262,3 +262,14 @@ export function getChefDisplay(data: Record<string, unknown>) {
     assigned: false,
   };
 }
+
+export function getClientComment(record?: Record<string, unknown> | null) {
+  if (!record) return '';
+
+  const value = record.commentClient
+    ?? record.commentsClient
+    ?? record.CommentClient
+    ?? record.CommentsClient;
+
+  return typeof value === 'string' ? value.trim() : '';
+}

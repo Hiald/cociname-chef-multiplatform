@@ -5,8 +5,8 @@ import { apiService } from '../services/api.service';
 import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail, ArrowRightDetail } from '../assets/svgs';
 import { RecipeModal } from '../components/recipe-modal';
 import { useAuth } from '../hooks/useAuth';
-import { formatearFechaConDia } from '../utils';
-import { sortIngredientsAlphabetically } from '../utils/ingredients';
+import { formatearFechaConDia, getClientComment } from '../utils';
+import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 
 const getUnitName = (unitNumber) => {
   const units = {
@@ -183,47 +183,20 @@ const ReservationSuscriptionDetailScreen = () => {
           const ingredientsResponse = await apiService.getIngredientChecklistByReservationSuscription(parseInt(reservationId, 10));
 
           if (ingredientsResponse.success && ingredientsResponse.data && ingredientsResponse.data.length > 0) {
-            const checklistData = ingredientsResponse.data[0];
+            const ingredientsDetails = await loadIngredientDetailsFromChecklist(
+              ingredientsResponse.data,
+              (ingredientId) => apiService.getIngredientById(ingredientId),
+              formatIngredientQuantity
+            );
 
-            if (checklistData.jsonIngredientsCheckList) {
+            setIngredients(ingredientsDetails);
+            const storageKey = `ingredients_suscription_${reservationId}`;
+            const savedChecks = localStorage.getItem(storageKey);
+            if (savedChecks) {
               try {
-                const parsedIngredients = JSON.parse(checklistData.jsonIngredientsCheckList);
-                const ingredientsDetails = await Promise.all(
-                  parsedIngredients.map(async (item) => {
-                    try {
-                      const details = await apiService.getIngredientById(item.IngredientId);
-                      if (details.success && details.data) {
-                        const size = parseFloat(item.TotalSize);
-                        return {
-                          id: item.IngredientId,
-                          ingredientName: details.data.name,
-                          quantity: formatIngredientQuantity(size, details.data.unit),
-                        };
-                      }
-                    } catch (ingredientError) {
-                      console.error(`Error cargando ingrediente ${item.IngredientId}:`, ingredientError);
-                    }
-
-                    return {
-                      id: item.IngredientId,
-                      ingredientName: `Ingrediente #${item.IngredientId}`,
-                      quantity: `${parseFloat(item.TotalSize).toFixed(2)} kg`,
-                    };
-                  })
-                );
-
-                setIngredients(sortIngredientsAlphabetically(ingredientsDetails));
-                const storageKey = `ingredients_suscription_${reservationId}`;
-                const savedChecks = localStorage.getItem(storageKey);
-                if (savedChecks) {
-                  try {
-                    setCheckedIngredients(JSON.parse(savedChecks));
-                  } catch (savedChecksError) {
-                    console.error('Error parsing saved checks:', savedChecksError);
-                  }
-                }
-              } catch (parseError) {
-                console.error('Error parsing jsonIngredientsCheckList:', parseError);
+                setCheckedIngredients(JSON.parse(savedChecks));
+              } catch (savedChecksError) {
+                console.error('Error parsing saved checks:', savedChecksError);
               }
             }
           }
@@ -564,6 +537,8 @@ const ReservationSuscriptionDetailScreen = () => {
     );
   }
 
+  const clientComment = getClientComment(reservation);
+
   return (
     <div style={styles.container}>
       {/* Header */}
@@ -770,10 +745,10 @@ const ReservationSuscriptionDetailScreen = () => {
                   <p style={styles.commentText}>{reservation.comments}</p>
                 </div>
               )}
-              {reservation.commentClient && (
+              {clientComment && (
                 <div style={styles.commentSection}>
                   <p style={styles.commentLabel}>Comentarios del cliente:</p>
-                  <p style={styles.commentText}>{reservation.commentClient}</p>
+                  <p style={styles.commentText}>{clientComment}</p>
                 </div>
               )}
             </div>

@@ -4,6 +4,7 @@ import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
 import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
+import { getClientComment } from '../utils/formatters';
 
 /**
  * Vista pública de evento - accesible sin login mediante token encriptado
@@ -107,6 +108,8 @@ export const PublicEventScreen = ({ token }) => {
     );
   }
 
+  const clientComment = getClientComment(event);
+
   return (
     <div style={styles.container}>
       <div style={styles.scrollView}>
@@ -195,6 +198,18 @@ export const PublicEventScreen = ({ token }) => {
               )}
             </div>
           </div>
+
+          {clientComment && (
+            <div style={styles.section}>
+              <div style={styles.sectionHeader}>
+                <ListDetail />
+                <h2 style={styles.sectionTitle}>Comentarios del cliente</h2>
+              </div>
+              <div style={styles.card}>
+                <p style={styles.emptyText}>{clientComment}</p>
+              </div>
+            </div>
+          )}
 
           <div style={styles.section}>
             <div style={styles.sectionHeader}>
