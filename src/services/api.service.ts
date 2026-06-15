@@ -498,6 +498,54 @@ class ApiService {
   }
 
   /**
+   * GET /api/FichaPublica/resolve/{token}
+   * Resuelve un GUID público al tipo de reserva e ID numérico
+   */
+  async resolvePublicLink(token: string): Promise<BaseResponseGeneric<{ tipoReserva: number; reservaId: number }>> {
+    return this.publicRequest<{ tipoReserva: number; reservaId: number }>(`FichaPublica/resolve/${token}`);
+  }
+
+  /**
+   * GET /api/AppReservationDiet/ListReservationDietByLink?id={id}
+   */
+  async publicGetReservationDietByLink(entityId: number): Promise<BaseResponseGeneric<AppPendingReservationData>> {
+    return this.publicRequest<AppPendingReservationData>(`AppReservationDiet/ListReservationDietByLink?id=${entityId}`);
+  }
+
+  /**
+   * GET /api/AppReservationServiceTask/ListReservationTaskByLink?id={id}
+   */
+  async publicGetReservationServiceTaskByLink(entityId: number): Promise<BaseResponseGeneric<AppPendingReservationData>> {
+    return this.publicRequest<AppPendingReservationData>(`AppReservationServiceTask/ListReservationTaskByLink?id=${entityId}`);
+  }
+
+  /**
+   * PUT /api/reservationDiet/UpdateClientCommentary
+   */
+  async updateReservationDietClientCommentary(id: number, comments: string): Promise<BaseResponseGeneric<any>> {
+    const query = new URLSearchParams({
+      id: String(id),
+      comments,
+    });
+    return this.publicRequest<any>(`reservationDiet/UpdateClientCommentary?${query.toString()}`, {
+      method: 'PUT',
+    });
+  }
+
+  /**
+   * PUT /api/AppReservationServiceTask/UpdateClientCommentary
+   */
+  async updateReservationServiceTaskClientCommentary(id: number, comments: string): Promise<BaseResponseGeneric<any>> {
+    const query = new URLSearchParams({
+      id: String(id),
+      comments,
+    });
+    return this.publicRequest<any>(`AppReservationServiceTask/UpdateClientCommentary?${query.toString()}`, {
+      method: 'PUT',
+    });
+  }
+
+  /**
    * GET /api/Reservation/GetPendingReservation
    * Obtiene las reservas pendientes con filtros opcionales
    */
@@ -1741,12 +1789,30 @@ class ApiService {
   }
 
   /**
+   * GET /api/AppReservationDiet/ListReservationDietByLink?id={id}
+   */
+  async getReservationDietByLink(
+    reservationDietId: number
+  ): Promise<BaseResponseGeneric<AppPendingReservationData>> {
+    return this.request<AppPendingReservationData>(`AppReservationDiet/ListReservationDietByLink?id=${reservationDietId}`);
+  }
+
+  /**
    * GET /api/AppReservationServiceTask/{id}
    */
   async getReservationServiceTaskById(
     reservationServiceTaskId: number
   ): Promise<BaseResponseGeneric<AppPendingReservationData>> {
     return this.request<AppPendingReservationData>(`AppReservationServiceTask/${reservationServiceTaskId}`);
+  }
+
+  /**
+   * GET /api/AppReservationServiceTask/ListReservationTaskByLink?id={id}
+   */
+  async getReservationServiceTaskByLink(
+    reservationServiceTaskId: number
+  ): Promise<BaseResponseGeneric<AppPendingReservationData>> {
+    return this.request<AppPendingReservationData>(`AppReservationServiceTask/ListReservationTaskByLink?id=${reservationServiceTaskId}`);
   }
 
   /**

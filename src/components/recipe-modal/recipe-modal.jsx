@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiService } from '../../services/api.service';
 import { getCategoryName, formatIngredientQuantity } from '../../utils/formatters';
+import { sortIngredientsAlphabetically } from '../../utils/ingredients';
 import { BuyingDetail, RedhatDetail } from '../../assets/svgs';
 import { spacing } from '../../styles';
 
@@ -51,7 +52,7 @@ const RecipeModal = ({
       }
       
       if (ingredientsResponse.success && ingredientsResponse.data) {
-        setIngredients(ingredientsResponse.data);
+        setIngredients(sortIngredientsAlphabetically(ingredientsResponse.data));
       }
     } catch (error) {
       console.error('Error loading recipe data:', error);

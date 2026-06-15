@@ -6,6 +6,7 @@ import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ClockDetai
 import { RecipeModal } from '../components/recipe-modal';
 import { useAuth } from '../hooks/useAuth';
 import { formatearFechaConDia } from '../utils';
+import { sortIngredientsAlphabetically } from '../utils/ingredients';
 
 const getUnitName = (unitNumber) => {
   const units = {
@@ -211,7 +212,7 @@ const ReservationSuscriptionDetailScreen = () => {
                   })
                 );
 
-                setIngredients(ingredientsDetails);
+                setIngredients(sortIngredientsAlphabetically(ingredientsDetails));
                 const storageKey = `ingredients_suscription_${reservationId}`;
                 const savedChecks = localStorage.getItem(storageKey);
                 if (savedChecks) {

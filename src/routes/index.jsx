@@ -5,7 +5,8 @@ import RegisterScreen from '../screens/register';
 import ReservationDetailScreen from '../screens/reservationDetail';
 import ReservationSuscriptionDetailScreen from '../screens/reservationSuscriptionDetail';
 import ReservationEventDetailScreen from '../screens/reservationEventDetail';
-import { ReservationDietDetailScreen, ReservationServiceTaskDetailScreen } from '../screens/reservationAppDetail';
+import ReservationDietDetailScreen from '../screens/reservationDietDetail';
+import ReservationTareaDetailScreen from '../screens/reservationTareaDetail';
 import HomeScreen from '../screens/home';
 import ReservationScreen from '../screens/reservation';
 import AvailabilityScreen from '../screens/availability';
@@ -13,6 +14,8 @@ import ProfileScreen from '../screens/profile';
 import { PublicReservationScreen } from '../screens/public-reservation';
 import { PublicSuscriptionScreen } from '../screens/public-suscription';
 import { PublicEventScreen } from '../screens/public-event';
+import { PublicDietScreen } from '../screens/public-diet';
+import { PublicTareaScreen } from '../screens/public-tarea';
 import PublicOnboardingScreen from '../screens/public-onboarding';
 import { Header } from '../components/header';
 import { Sidebar } from '../components/sidebar';
@@ -33,6 +36,8 @@ const Navigator = () => {
     location.pathname.startsWith('/evento/') ||
     location.pathname.startsWith('/reserva/') ||
     location.pathname.startsWith('/suscripcion/') ||
+    location.pathname.startsWith('/dieta/') ||
+    location.pathname.startsWith('/tarea/') ||
     location.pathname.startsWith('/inicio/') ||
     location.pathname.startsWith('/onboarding/') ||
     location.pathname === '/register';
@@ -135,6 +140,16 @@ const Navigator = () => {
     return <PublicEventScreen token={token} />;
   };
 
+  const PublicDietWrapper = () => {
+    const { token } = useParams();
+    return <PublicDietScreen token={token} />;
+  };
+
+  const PublicTareaWrapper = () => {
+    const { token } = useParams();
+    return <PublicTareaScreen token={token} />;
+  };
+
   // Ruta pública independiente - NO requiere autenticación
   // Se verifica DESPUÉS de los hooks pero ANTES de verificar auth
   if (location.pathname.startsWith('/reserva/')) {
@@ -171,6 +186,22 @@ const Navigator = () => {
     );
   }
 
+  if (location.pathname.startsWith('/dieta/')) {
+    return (
+      <Routes>
+        <Route path="/dieta/:token" element={<PublicDietWrapper />} />
+      </Routes>
+    );
+  }
+
+  if (location.pathname.startsWith('/tarea/')) {
+    return (
+      <Routes>
+        <Route path="/tarea/:token" element={<PublicTareaWrapper />} />
+      </Routes>
+    );
+  }
+
   // Ruta pública para onboarding
   if (location.pathname.startsWith('/onboarding/')) {
     return (
@@ -201,7 +232,9 @@ const Navigator = () => {
       path.startsWith('/reservation-suscription/') ||
       path.startsWith('/reservation-event/') ||
       path.startsWith('/reservation-diet/') ||
-      path.startsWith('/reservation-service-task/')
+      path.startsWith('/reservation-tarea/') ||
+      path.startsWith('/dieta/') ||
+      path.startsWith('/tarea/')
     ) {
       return location.state?.isRequest ? 'Requests' : 'Reservation';
     }
@@ -259,7 +292,7 @@ const Navigator = () => {
             <Route path="/reservation-suscription/:id" element={<ReservationSuscriptionDetailScreen />} />
             <Route path="/reservation-event/:id" element={<ReservationEventDetailScreen />} />
             <Route path="/reservation-diet/:id" element={<ReservationDietDetailScreen />} />
-            <Route path="/reservation-service-task/:id" element={<ReservationServiceTaskDetailScreen />} />
+            <Route path="/reservation-tarea/:id" element={<ReservationTareaDetailScreen />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>

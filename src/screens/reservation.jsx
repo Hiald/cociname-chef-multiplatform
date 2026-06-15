@@ -384,7 +384,7 @@ const ReservationScreen = () => {
     }
 
     if (reservation.tipo === 'tarea') {
-      navigate(`/reservation-service-task/${reservation.id}`, {
+      navigate(`/reservation-tarea/${reservation.id}`, {
         state: {
           reservationServiceTaskId: reservation.id,
           isActive: false,

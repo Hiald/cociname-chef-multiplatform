@@ -211,3 +211,54 @@ export function getDistrictName(districtId: number): string {
     default: return "-";
   }
 }
+
+export function formatPublicHour(value?: string | null) {
+  if (!value) return 'No especificado';
+  const parts = String(value).split(':');
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1] || '00';
+  const period = hours >= 12 ? 'PM' : 'AM';
+  if (hours === 0) hours = 12;
+  else if (hours > 12) hours -= 12;
+  return `${hours}:${minutes} ${period}`;
+}
+
+export function formatPublicDate(value?: string | Date | null) {
+  if (!value) return 'No especificado';
+  return formatearFechaConDia(value);
+}
+
+export function formatCurrency(value?: number | null) {
+  const amount = Number(value ?? 0);
+  return `S/ ${amount.toFixed(2)}`;
+}
+
+export function getCustomerFullName(data: Record<string, unknown>) {
+  return [data.customerName || data.CustomerName, data.customerLastName || data.CustomerLastName]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+}
+
+export function getChefDisplay(data: Record<string, unknown>) {
+  const chefId = Number(data.chefId ?? data.ChefId ?? 0);
+  const chefName = String(data.chefName || data.ChefName || '').trim();
+  const chefLastName = String(data.chefLastName || data.ChefLastName || '').trim();
+
+  if (chefId > 0 && chefName) {
+    const initials = `${chefName.charAt(0).toUpperCase()}${chefLastName ? chefLastName.charAt(0).toUpperCase() : ''}`;
+    return {
+      name: chefName,
+      lastName: chefLastName,
+      initials: initials || 'C',
+      assigned: true,
+    };
+  }
+
+  return {
+    name: 'Cocinera',
+    lastName: 'no asignada',
+    initials: 'C',
+    assigned: false,
+  };
+}

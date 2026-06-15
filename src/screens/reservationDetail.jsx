@@ -8,6 +8,7 @@ import { RecipeModal } from '../components/recipe-modal';
 import { getConceptName } from '../utils/formatters';
 import { formatearFechaConDia } from '../utils/formatters';
 import { useAuth } from '../hooks/useAuth';
+import { sortIngredientsAlphabetically } from '../utils/ingredients';
 import profileIcon from '../assets/images/detalle/perfil.png';
 import dayIcon from '../assets/images/detalle/dia.png';
 import hourIcon from '../assets/images/detalle/hora.png';
@@ -152,7 +153,7 @@ const ReservationDetailScreen = () => {
                   );
 
                   if (isMounted) {
-                    setIngredients(ingredientsDetails);
+                    setIngredients(sortIngredientsAlphabetically(ingredientsDetails));
                     const storageKey = `ingredients_reservation_${reservationId}`;
                     const savedChecks = localStorage.getItem(storageKey);
                     if (savedChecks) {

@@ -5,6 +5,7 @@ import { spacing } from '../styles';
 import { getDistrictName, getConceptName } from '../utils';
 import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail, BuyingDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
+import { sortIngredientsAlphabetically } from '../utils/ingredients';
 
 /**
  * Vista pública de reserva - accesible sin login mediante token encriptado
@@ -150,7 +151,7 @@ export const PublicReservationScreen = ({ token }) => {
                     })
                   );
                   
-                  setIngredients(ingredientsDetails);
+                  setIngredients(sortIngredientsAlphabetically(ingredientsDetails));
                   
                   // Cargar estado de checkboxes desde localStorage
                   const storageKey = `ingredients_reservation_${id}`;
