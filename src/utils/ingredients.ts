@@ -12,19 +12,34 @@ export function sortIngredientsAlphabetically<T extends { ingredientName?: strin
 
 export interface ChecklistIngredientItem {
   IngredientId?: number | string;
+  ingredientId?: number | string;
   TotalSize?: number | string;
+  totalSize?: number | string;
 }
 
 export interface IngredientChecklistRecord {
   jsonIngredientsCheckList?: string | null;
+  JsonIngredientsCheckList?: string | null;
+}
+
+function getChecklistJson(record: IngredientChecklistRecord) {
+  return record.jsonIngredientsCheckList ?? record.JsonIngredientsCheckList ?? null;
+}
+
+function getChecklistItemId(item: ChecklistIngredientItem) {
+  return Number(item.IngredientId ?? item.ingredientId);
+}
+
+function getChecklistItemSize(item: ChecklistIngredientItem) {
+  return parseFloat(String(item.TotalSize ?? item.totalSize ?? 0));
 }
 
 export function aggregateChecklistIngredients(items: ChecklistIngredientItem[]) {
   const totals = new Map<number, number>();
 
   items.forEach((item) => {
-    const ingredientId = Number(item.IngredientId);
-    const totalSize = parseFloat(String(item.TotalSize ?? 0));
+    const ingredientId = getChecklistItemId(item);
+    const totalSize = getChecklistItemSize(item);
 
     if (!ingredientId || Number.isNaN(totalSize)) return;
 
@@ -41,10 +56,11 @@ export function collectChecklistIngredients(checklistRecords: IngredientChecklis
   const parsedItems: ChecklistIngredientItem[] = [];
 
   checklistRecords.forEach((record) => {
-    if (!record?.jsonIngredientsCheckList) return;
+    const checklistJson = getChecklistJson(record);
+    if (!checklistJson) return;
 
     try {
-      const items = JSON.parse(record.jsonIngredientsCheckList);
+      const items = JSON.parse(checklistJson);
       if (Array.isArray(items)) {
         parsedItems.push(...items);
       }
@@ -54,6 +70,44 @@ export function collectChecklistIngredients(checklistRecords: IngredientChecklis
   });
 
   return aggregateChecklistIngredients(parsedItems);
+}
+
+export interface LoadedIngredientDetail {
+  id: number | string;
+  ingredientId?: number | string;
+  ingredientName: string;
+  quantity: string;
+  unit: number;
+  rawSize: number | string;
+}
+
+export function aggregateIngredientDetailsByName<T extends LoadedIngredientDetail>(
+  items: T[],
+  formatQuantity: (size: number, unit: number) => string
+): T[] {
+  const groups = new Map<string, { item: T; totalSize: number }>();
+
+  items.forEach((item) => {
+    const nameKey = (item.ingredientName || '').trim().toLowerCase();
+    const unit = Number(item.unit ?? 0);
+    const groupKey = `${nameKey}::${unit}`;
+    const size = parseFloat(String(item.rawSize ?? 0));
+
+    if (!nameKey || Number.isNaN(size)) return;
+
+    const existing = groups.get(groupKey);
+    if (existing) {
+      existing.totalSize += size;
+    } else {
+      groups.set(groupKey, { item, totalSize: size });
+    }
+  });
+
+  return Array.from(groups.values()).map(({ item, totalSize }) => ({
+    ...item,
+    rawSize: String(totalSize),
+    quantity: formatQuantity(totalSize, item.unit),
+  }));
 }
 
 export async function loadIngredientDetailsFromChecklist(
@@ -97,5 +151,7 @@ export async function loadIngredientDetailsFromChecklist(
     })
   );
 
-  return sortIngredientsAlphabetically(ingredientsDetails);
+  const mergedByName = aggregateIngredientDetailsByName(ingredientsDetails, formatQuantity);
+
+  return sortIngredientsAlphabetically(mergedByName);
 }
