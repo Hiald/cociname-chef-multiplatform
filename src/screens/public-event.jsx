@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { decryptToken } from '../utils/crypto';
 import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
 import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail } from '../assets/svgs';
@@ -38,8 +37,7 @@ export const PublicEventScreen = ({ token }) => {
         setLoading(true);
         setError(null);
 
-        const id = decryptToken(token);
-        const response = await apiService.getReservationEventById(id);
+        const response = await apiService.publicGetReservationEventByToken(token);
 
         if (!isMounted) return;
 

@@ -1,4 +1,28 @@
-import { API_CONFIG } from '../config';
+import { API_CONFIG, GEO_CONFIG } from '../config';
+
+// ── Geografía multi-país (ver specs/geography.yaml) ─────────────────────────
+export interface GeoDivisionDto {
+  id: number;
+  countryId: number;
+  parentId: number | null;
+  level: number;       // 1..3 (3 = Distrito PE / Comuna CL)
+  name: string;
+  status: boolean;
+}
+
+export interface CountryDto {
+  id: number;
+  isoCode: string;
+  name: string;
+  phonePrefix: string;
+  currencyCode: string;
+  currencySymbol: string;
+  timeZoneId: string;
+  level1Label: string;
+  level2Label: string;
+  level3Label: string;
+  status: boolean;
+}
 import {
   BaseResponseGeneric,
   LoginRequestDto,
@@ -95,9 +119,12 @@ class ApiService {
   ): Promise<BaseResponseGeneric<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     const token = this.getToken();
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      // Multi-país: fallback de x-country-resolution (el claim del JWT manda
+      // cuando existe; este header cubre los flujos previos al login).
+      'X-Country-Id': String(GEO_CONFIG.COUNTRY_ID),
       ...(options.headers as Record<string, string>),
     };
 
@@ -177,9 +204,11 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<BaseResponseGeneric<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      // Multi-país: en peticiones anónimas el header es la única fuente del país
+      'X-Country-Id': String(GEO_CONFIG.COUNTRY_ID),
       ...(options.headers as Record<string, string>),
     };
 
@@ -291,6 +320,28 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify(request),
     });
+  }
+
+  /**
+   * GET /api/geodivision — catálogo geográfico público (multi-país).
+   * level 3 = Distritos (PE) / Comunas (CL) del país del despliegue.
+   * Ver specs/geography.yaml.
+   */
+  async getGeoDivisions(
+    level: number = 3,
+    parentId: number = 0
+  ): Promise<BaseResponseGeneric<GeoDivisionDto[]>> {
+    return this.publicRequest<GeoDivisionDto[]>(
+      `geodivision?countryId=${GEO_CONFIG.COUNTRY_ID}&level=${level}&parentId=${parentId}`,
+      { method: 'GET' }
+    );
+  }
+
+  /**
+   * GET /api/country — países activos (multi-país, público).
+   */
+  async getCountries(): Promise<BaseResponseGeneric<CountryDto[]>> {
+    return this.publicRequest<CountryDto[]>('country', { method: 'GET' });
   }
 
   /**
@@ -476,8 +527,9 @@ class ApiService {
   }
 
   /**
-   * GET public reservation by link token endpoint
+   * GET public reservation by link token endpoint (legacy, uses integer ID)
    * Endpoint: Reservation/ListReservationByLink?id={entityId}
+   * @deprecated Use publicGetReservationByToken instead
    */
   async publicGetReservationByLink(
     entityId: number
@@ -487,8 +539,20 @@ class ApiService {
   }
 
   /**
-   * GET public subscription reservation by link token endpoint
+   * GET public reservation by GUID token — no expone IDs enteros en la red
+   * Endpoint: CustomerApp/AppReservation/ByToken/{token}
+   */
+  async publicGetReservationByToken(
+    token: string
+  ): Promise<any> {
+    const endpoint = `CustomerApp/AppReservation/ByToken/${token}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
+   * GET public subscription reservation by link token endpoint (legacy)
    * Endpoint: reservationSuscription/ListReservationSuscriptionByIdLink?id={entityId}
+   * @deprecated Use publicGetReservationSuscriptionByToken instead
    */
   async publicGetReservationSuscriptionByLink(
     entityId: number
@@ -543,6 +607,40 @@ class ApiService {
     return this.publicRequest<any>(`AppReservationServiceTask/UpdateClientCommentary?${query.toString()}`, {
       method: 'PUT',
     });
+  }
+
+  /**
+   * GET public subscription by GUID token — no expone IDs enteros en la red
+   * Endpoint: AppReservationSuscription/ByToken/{token}
+   */
+  async publicGetReservationSuscriptionByToken(
+    token: string
+  ): Promise<any> {
+    const endpoint = `AppReservationSuscription/ByToken/${token}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
+   * GET public event reservation by link (legacy)
+   * Endpoint: reservationEvent/Link/{id}
+   * @deprecated Use publicGetReservationEventByToken instead
+   */
+  async publicGetReservationEventByLink(
+    entityId: number
+  ): Promise<any> {
+    const endpoint = `reservationEvent/Link/${entityId}`;
+    return this.publicRequest<any>(endpoint);
+  }
+
+  /**
+   * GET public event by GUID token — no expone IDs enteros en la red
+   * Endpoint: AppReservationEvent/ByToken/{token}
+   */
+  async publicGetReservationEventByToken(
+    token: string
+  ): Promise<any> {
+    const endpoint = `AppReservationEvent/ByToken/${token}`;
+    return this.publicRequest<any>(endpoint);
   }
 
   /**

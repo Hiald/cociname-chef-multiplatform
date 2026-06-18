@@ -33,11 +33,11 @@ const Navigator = () => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [pendingNotifications, setPendingNotifications] = React.useState(0);
   const isPublicRoute =
-    location.pathname.startsWith('/evento/') ||
     location.pathname.startsWith('/reserva/') ||
     location.pathname.startsWith('/suscripcion/') ||
     location.pathname.startsWith('/dieta/') ||
     location.pathname.startsWith('/tarea/') ||
+    location.pathname.startsWith('/evento/') ||
     location.pathname.startsWith('/inicio/') ||
     location.pathname.startsWith('/onboarding/') ||
     location.pathname === '/register';
@@ -130,11 +130,6 @@ const Navigator = () => {
     return <PublicSuscriptionScreen token={token} />;
   };
 
-  const PublicOnboardingWrapper = () => {
-    const { token } = useParams();
-    return <PublicOnboardingScreen token={token} />;
-  };
-
   const PublicEventWrapper = () => {
     const { token } = useParams();
     return <PublicEventScreen token={token} />;
@@ -148,6 +143,11 @@ const Navigator = () => {
   const PublicTareaWrapper = () => {
     const { token } = useParams();
     return <PublicTareaScreen token={token} />;
+  };
+
+  const PublicOnboardingWrapper = () => {
+    const { token } = useParams();
+    return <PublicOnboardingScreen token={token} />;
   };
 
   // Ruta pública independiente - NO requiere autenticación
@@ -164,6 +164,14 @@ const Navigator = () => {
     return (
       <Routes>
         <Route path="/suscripcion/:token" element={<PublicSuscriptionWrapper />} />
+      </Routes>
+    );
+  }
+
+  if (location.pathname.startsWith('/evento/')) {
+    return (
+      <Routes>
+        <Route path="/evento/:token" element={<PublicEventWrapper />} />
       </Routes>
     );
   }

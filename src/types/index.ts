@@ -47,7 +47,8 @@ export interface RegisterRequestDto {
   latitude: string;
   longitude: string;
   allergies: string;
-  district: number;
+  district: number;  // GeoDivision nivel 3 (Distrito PE / Comuna CL)
+  province: number;  // GeoDivision nivel 2 — derivada del distrito elegido
   gender: number;
   foodPreferences: string;
 }
@@ -144,6 +145,7 @@ export interface Datum {
   province: number;
   district: number;
   city: number;
+  countryId?: number; // multi-país: 1=Perú, 2=Chile (el API lo devuelve desde jun 2026)
   direction: string;
   numberClient: string;
   reference: string;
@@ -212,6 +214,7 @@ export interface ReservationDetailData {
   province: number;
   district: number;
   city: number;
+  countryId?: number; // multi-país: 1=Perú, 2=Chile (el API lo devuelve desde jun 2026)
   direction: string;
   numberClient: string;
   reference: string;
@@ -376,6 +379,7 @@ export interface ChefData {
   province: number;
   district: number;
   city: number;
+  countryId?: number; // multi-país: 1=Perú, 2=Chile (el API lo devuelve desde jun 2026)
   address: string;
   reference: string;
   deviceToken: string | null;
@@ -428,6 +432,7 @@ export interface SuscriptionData {
   province: number;
   district: number;
   city: number;
+  countryId?: number; // multi-país: 1=Perú, 2=Chile (el API lo devuelve desde jun 2026)
   direction: string;
   numberClient: string;
   reference: string;
@@ -490,6 +495,7 @@ export interface ReservationSuscriptionData {
   province: number;
   district: number;
   city: number;
+  countryId?: number; // multi-país: 1=Perú, 2=Chile (el API lo devuelve desde jun 2026)
   direction: string;
   numberClient: string;
   reference: string;

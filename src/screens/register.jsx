@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api.service';
+import { GEO_CONFIG } from '../config';
 import { useAuth } from '../hooks/useAuth';
 import logoImg from '../assets/images/logo.png';
 import loginHeroImg from '../assets/images/login/home.png';
@@ -22,7 +23,12 @@ const RegisterScreen = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  
+
+  // Multi-país: distrito (PE) / comuna (CL) desde el catálogo del API
+  // (reemplaza el hardcode histórico district: 15)
+  const [district, setDistrict] = useState('');
+  const [districts, setDistricts] = useState([]);
+
   // Verification code step
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
@@ -46,6 +52,17 @@ const RegisterScreen = () => {
     return () => {
       window.removeEventListener('resize', handleResize);
     };
+  }, []);
+
+  // Cargar el catálogo de distritos/comunas del país del despliegue
+  useEffect(() => {
+    apiService.getGeoDivisions(3).then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        setDistricts(res.data);
+      }
+    }).catch(() => {
+      // El select queda vacío; la validación del formulario avisa a la usuaria
+    });
   }, []);
 
   useEffect(() => {
@@ -171,8 +188,13 @@ const RegisterScreen = () => {
       return;
     }
 
+    if (!district) {
+      setError(`Por favor selecciona tu ${GEO_CONFIG.LEVEL3_LABEL.toLowerCase()}`);
+      return;
+    }
+
     setIsLoading(true);
-    
+
     try {
       const requestBody = {
         firstName,
@@ -184,14 +206,18 @@ const RegisterScreen = () => {
         age: 1,
         password,
         confirmPassword,
-        phoneNumber: `+51${phoneNumber}`,
+        // Multi-país: prefijo del país del despliegue (51 PE / 56 CL)
+        phoneNumber: `+${GEO_CONFIG.PHONE_PREFIX}${phoneNumber}`,
         address: "-",
         reference: "-",
         gmapsLink: "-",
         latitude: "-",
         longitude: "-",
         allergies: "-",
-        district: 15,
+        // Multi-país: distrito/comuna real elegido del catálogo (antes: 15 fijo)
+        district: parseInt(district, 10),
+        // Provincia derivada del distrito (el catálogo ya trae parentId)
+        province: (districts.find((d) => d.id === parseInt(district, 10)) || {}).parentId || 0,
         gender: 1,
         foodPreferences: "-"
       };
@@ -426,7 +452,7 @@ const RegisterScreen = () => {
 
               <label style={styles.inputLabel}>Teléfono</label>
               <div style={styles.phoneInputContainer}>
-                <span style={styles.phonePrefix}>+51</span>
+                <span style={styles.phonePrefix}>+{GEO_CONFIG.PHONE_PREFIX}</span>
                 <input
                   style={styles.phoneInput}
                   type="tel"
@@ -436,6 +462,19 @@ const RegisterScreen = () => {
                   disabled={isLoading}
                 />
               </div>
+
+              <label style={styles.inputLabel}>{GEO_CONFIG.LEVEL3_LABEL}</label>
+              <select
+                style={styles.input}
+                value={district}
+                onChange={(e) => setDistrict(e.target.value)}
+                disabled={isLoading}
+              >
+                <option value="">Selecciona tu {GEO_CONFIG.LEVEL3_LABEL.toLowerCase()}</option>
+                {districts.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
 
               <label style={styles.inputLabel}>Contraseña</label>
               <input

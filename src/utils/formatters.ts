@@ -2,6 +2,34 @@
  * Funciones helper para formateo de datos
  */
 
+import { apiService } from '../services/api.service';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Catálogo dinámico de distritos/comunas (multi-país).
+// Se carga del API en el primer uso de getDistrictName(); el switch legacy de
+// Lima queda como fallback síncrono mientras llega la respuesta (o si falla).
+// Con el catálogo nacional cargado (1,874 distritos) y la expansión a Chile,
+// el switch fijo ya no alcanza.
+// ─────────────────────────────────────────────────────────────────────────────
+let geoNombres: Record<number, string> = {};
+let geoCargaIniciada = false;
+
+function asegurarCatalogoGeo(): void {
+  if (geoCargaIniciada) return;
+  geoCargaIniciada = true;
+  apiService.getGeoDivisions(3)
+    .then((res) => {
+      if (res.success && Array.isArray(res.data)) {
+        const mapa: Record<number, string> = {};
+        res.data.forEach((d) => { mapa[d.id] = d.name; });
+        geoNombres = mapa;
+      } else {
+        geoCargaIniciada = false; // reintentar en el próximo uso
+      }
+    })
+    .catch(() => { geoCargaIniciada = false; });
+}
+
 /**
  * Formateador de fechas para Lima, Perú (UTC-5)
  * Evita el error de "un día menos" usando UTC
@@ -160,9 +188,14 @@ export function getConceptName(conceptId: number): string {
 }
 
 /**
- * Retorna el nombre del distrito por su ID
+ * Retorna el nombre del distrito/comuna por su ID.
+ * Multi-país: primero el catálogo del API; el switch legacy de Lima es el
+ * fallback síncrono mientras el catálogo carga.
  */
 export function getDistrictName(districtId: number): string {
+  asegurarCatalogoGeo();
+  if (geoNombres[districtId]) return geoNombres[districtId];
+
   switch (districtId) {
     case 1: return "ANCON";
     case 2: return "ATE";
