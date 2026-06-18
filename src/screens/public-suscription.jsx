@@ -5,7 +5,7 @@ import { getDistrictName, getConceptName } from '../utils';
 import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail, BuyingDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
 import { sortIngredientsAlphabetically, loadIngredientDetailsFromChecklist } from '../utils/ingredients';
-import { getClientComment } from '../utils/formatters';
+import { getClientComment, formatCurrency, getPerVisitPortions, getSubscriptionVisitsPerMonth, parseSubscriptionPaymentConcepts, getSubscriptionChefCommission } from '../utils/formatters';
 
 /**
  * Vista pública de suscripción - accesible sin login mediante token encriptado
@@ -228,6 +228,13 @@ export const PublicSuscriptionScreen = ({ token }) => {
   };
 
   const clientComment = getClientComment(reservation);
+  const visitsPerMonth = getSubscriptionVisitsPerMonth(reservation, suscriptionInfo);
+  const portionsPerVisit = getPerVisitPortions(reservation, suscriptionInfo);
+  const paymentConcepts = parseSubscriptionPaymentConcepts(
+    reservation?.jsonPaymentChef ?? reservation?.JsonPaymentChef,
+    visitsPerMonth
+  );
+  const totalPerVisit = getSubscriptionChefCommission(reservation, suscriptionInfo);
 
   return (
     <div style={styles.container}>
@@ -260,7 +267,7 @@ export const PublicSuscriptionScreen = ({ token }) => {
             </div>
             <div style={styles.infoRow}>
               <HatblueDetail />
-              <span style={styles.infoRowLabel}>{reservation.totalPortion} porciones totales</span>
+              <span style={styles.infoRowLabel}>{portionsPerVisit} porciones</span>
             </div>
           </div>
 
@@ -375,48 +382,23 @@ export const PublicSuscriptionScreen = ({ token }) => {
               <h2 style={styles.sectionTitle}>Detalle del servicio</h2>
             </div>
             <div style={styles.card}>
-              {(() => {
-                try {
-                  const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
-                  if (paymentConcepts.length > 0) {
-                    return paymentConcepts.map((concept, index) => (
-                      <div key={index} style={styles.garantiaRow}>
-                        <span style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</span>
-                        <span style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</span>
-                      </div>
-                    ));
-                  }
-                  return (
-                    <div style={styles.garantiaRow}>
-                      <span style={styles.garantiaLabel}>Servicio</span>
-                      <span style={styles.garantiaValue}>S/ {Number(reservation.totalPrice ?? 0).toFixed(2)}</span>
-                    </div>
-                  );
-                } catch {
-                  return (
-                    <div style={styles.garantiaRow}>
-                      <span style={styles.garantiaLabel}>Servicio</span>
-                      <span style={styles.garantiaValue}>S/ {Number(reservation.totalPrice ?? 0).toFixed(2)}</span>
-                    </div>
-                  );
-                }
-              })()}
+              {paymentConcepts.length > 0 ? (
+                paymentConcepts.map((concept, index) => (
+                  <div key={index} style={styles.garantiaRow}>
+                    <span style={styles.garantiaLabel}>{getConceptName(concept.concept)}</span>
+                    <span style={styles.garantiaValue}>{formatCurrency(concept.amount)}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={styles.garantiaRow}>
+                  <span style={styles.garantiaLabel}>Servicio</span>
+                  <span style={styles.garantiaValue}>{formatCurrency(totalPerVisit)}</span>
+                </div>
+              )}
               <div style={styles.divider} />
               <div style={styles.garantiaRow}>
                 <span style={styles.garantiaTotal}>Total por visita</span>
-                <span style={styles.garantiaTotalValue}>
-                  S/ {(() => {
-                    try {
-                      const concepts = JSON.parse(reservation.jsonPaymentChef || '[]');
-                      if (concepts.length > 0) {
-                        return concepts.reduce((sum, c) => sum + parseFloat(c.Monto), 0).toFixed(2);
-                      }
-                      return Number(reservation.totalPrice ?? 0).toFixed(2);
-                    } catch {
-                      return Number(reservation.totalPrice ?? 0).toFixed(2);
-                    }
-                  })()}
-                </span>
+                <span style={styles.garantiaTotalValue}>{formatCurrency(totalPerVisit)}</span>
               </div>
             </div>
           </div>

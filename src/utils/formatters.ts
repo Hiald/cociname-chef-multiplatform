@@ -306,3 +306,110 @@ export function getClientComment(record?: Record<string, unknown> | null) {
 
   return typeof value === 'string' ? value.trim() : '';
 }
+
+type SubscriptionRecord = Record<string, unknown> | null | undefined;
+
+export function getSubscriptionVisitsPerMonth(
+  reservation?: SubscriptionRecord,
+  suscriptionInfo?: SubscriptionRecord
+): number {
+  const visits = Number(
+    reservation?.visitsPerMonth
+    ?? reservation?.VisitsPerMonth
+    ?? suscriptionInfo?.visitsPerMonth
+    ?? suscriptionInfo?.VisitsPerMonth
+    ?? 0
+  );
+
+  return visits > 0 ? visits : 1;
+}
+
+export function getPerVisitValue(total: number | null | undefined, visitsPerMonth: number): number {
+  const value = Number(total ?? 0);
+  if (!value || visitsPerMonth <= 1) return value;
+  return value / visitsPerMonth;
+}
+
+export function getPerVisitPortions(
+  reservation?: SubscriptionRecord,
+  suscriptionInfo?: SubscriptionRecord
+): number {
+  const visitsPerMonth = getSubscriptionVisitsPerMonth(reservation, suscriptionInfo);
+  const totalPortion = Number(
+    reservation?.totalPortion
+    ?? reservation?.TotalPortion
+    ?? reservation?.suscriptionTotalPortion
+    ?? reservation?.SuscriptionTotalPortion
+    ?? suscriptionInfo?.totalPortion
+    ?? suscriptionInfo?.TotalPortion
+    ?? 0
+  );
+
+  return Math.round(getPerVisitValue(totalPortion, visitsPerMonth));
+}
+
+export interface SubscriptionPaymentConcept {
+  concept: number;
+  amount: number;
+}
+
+export function parseSubscriptionPaymentConcepts(
+  jsonPaymentChef?: string | null,
+  visitsPerMonth = 1
+): SubscriptionPaymentConcept[] {
+  if (!jsonPaymentChef) return [];
+
+  try {
+    const concepts = JSON.parse(jsonPaymentChef);
+    if (!Array.isArray(concepts)) return [];
+
+    return concepts.map((item) => ({
+      concept: Number(item.Concepto ?? item.concepto ?? 0),
+      amount: getPerVisitValue(parseFloat(String(item.Monto ?? item.monto ?? 0)), visitsPerMonth),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export function getSubscriptionChefCommission(
+  reservation?: SubscriptionRecord,
+  suscriptionInfo?: SubscriptionRecord
+): number {
+  const visitsPerMonth = getSubscriptionVisitsPerMonth(reservation, suscriptionInfo);
+  const paymentJson = String(
+    reservation?.jsonPaymentChef
+    ?? reservation?.JsonPaymentChef
+    ?? suscriptionInfo?.jsonPaymentChef
+    ?? suscriptionInfo?.JsonPaymentChef
+    ?? ''
+  );
+
+  const concepts = parseSubscriptionPaymentConcepts(paymentJson, visitsPerMonth);
+  if (concepts.length > 0) {
+    return concepts.reduce((sum, concept) => sum + concept.amount, 0);
+  }
+
+  const commission = Number(
+    reservation?.commissiontoChef
+    ?? reservation?.CommissiontoChef
+    ?? reservation?.CommissionToChef
+    ?? suscriptionInfo?.commissiontoChef
+    ?? suscriptionInfo?.CommissiontoChef
+    ?? 0
+  );
+
+  if (commission > 0) {
+    return getPerVisitValue(commission, visitsPerMonth);
+  }
+
+  const totalPrice = Number(
+    reservation?.totalPrice
+    ?? reservation?.TotalPrice
+    ?? suscriptionInfo?.totalPrice
+    ?? suscriptionInfo?.TotalPrice
+    ?? 0
+  );
+
+  return getPerVisitValue(totalPrice, visitsPerMonth);
+}

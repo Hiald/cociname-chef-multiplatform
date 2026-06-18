@@ -5,7 +5,7 @@ import { apiService } from '../services/api.service';
 import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail, ArrowRightDetail } from '../assets/svgs';
 import { RecipeModal } from '../components/recipe-modal';
 import { useAuth } from '../hooks/useAuth';
-import { formatearFechaConDia, getClientComment } from '../utils';
+import { formatearFechaConDia, getClientComment, getConceptName, formatCurrency, getPerVisitPortions, getSubscriptionVisitsPerMonth, parseSubscriptionPaymentConcepts, getSubscriptionChefCommission } from '../utils';
 import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 
 const getUnitName = (unitNumber) => {
@@ -65,6 +65,7 @@ const ReservationSuscriptionDetailScreen = () => {
   const [hasEnded, setHasEnded] = useState(false);
   const [ingredients, setIngredients] = useState([]);
   const [checkedIngredients, setCheckedIngredients] = useState({});
+  const [suscriptionInfo, setSuscriptionInfo] = useState(null);
   const { id: reservationId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -163,6 +164,13 @@ const ReservationSuscriptionDetailScreen = () => {
         console.log('  payMethod:', reservationData.payMethod);
         console.log('  isPayed:', reservationData.isPayed);
         console.log('  suscriptionId:', reservationData.suscriptionId);
+
+        if (reservationData.suscriptionId) {
+          const suscriptionResponse = await apiService.getSuscriptionById(reservationData.suscriptionId);
+          if (suscriptionResponse.success && suscriptionResponse.data) {
+            setSuscriptionInfo(suscriptionResponse.data);
+          }
+        }
         
         // SIEMPRE cargar los platos del API, incluso si hay datos del estado
         try {
@@ -538,6 +546,13 @@ const ReservationSuscriptionDetailScreen = () => {
   }
 
   const clientComment = getClientComment(reservation);
+  const visitsPerMonth = getSubscriptionVisitsPerMonth(reservation, suscriptionInfo);
+  const portionsPerVisit = getPerVisitPortions(reservation, suscriptionInfo);
+  const paymentConcepts = parseSubscriptionPaymentConcepts(
+    reservation?.jsonPaymentChef ?? reservation?.JsonPaymentChef,
+    visitsPerMonth
+  );
+  const chefCommissionPerVisit = getSubscriptionChefCommission(reservation, suscriptionInfo);
 
   return (
     <div style={styles.container}>
@@ -625,7 +640,7 @@ const ReservationSuscriptionDetailScreen = () => {
             <div style={styles.infoRow}>
               <OrderDetail />
               <span style={styles.infoRowLabel}>Porciones</span>
-              <span style={styles.infoRowValue}>{reservation.totalPortion} porciones</span>
+              <span style={styles.infoRowValue}>{portionsPerVisit} porciones</span>
             </div>
 
             <div style={styles.infoRow}>
@@ -721,9 +736,23 @@ const ReservationSuscriptionDetailScreen = () => {
               <h2 style={styles.sectionTitle}>Detalles de Pago</h2>
             </div>
             <div style={styles.card}>
+              {paymentConcepts.length > 0 ? (
+                paymentConcepts.map((concept, index) => (
+                  <div key={index} style={styles.garantiaRow}>
+                    <span style={styles.garantiaLabel}>{getConceptName(concept.concept)}</span>
+                    <span style={styles.garantiaValue}>{formatCurrency(concept.amount)}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={styles.garantiaRow}>
+                  <span style={styles.garantiaLabel}>Comisión chef</span>
+                  <span style={styles.garantiaValue}>{formatCurrency(chefCommissionPerVisit)}</span>
+                </div>
+              )}
+              <div style={styles.divider} />
               <div style={styles.garantiaRow}>
-                <span style={styles.garantiaLabel}>Comisión chef</span>
-                <span style={styles.garantiaValue}>S/. {reservation.commissiontoChef?.toFixed(2)}</span>
+                <span style={styles.garantiaTotal}>Total por visita</span>
+                <span style={styles.garantiaTotalValue}>{formatCurrency(chefCommissionPerVisit)}</span>
               </div>
             </div>
           </div>
