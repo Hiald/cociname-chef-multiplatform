@@ -39,8 +39,6 @@ export async function subscribePushNotifications(chefId: number): Promise<void> 
     const p256dh = subJson.keys?.p256dh ?? '';
     const auth = subJson.keys?.auth ?? '';
 
-    localStorage.setItem(PUSH_ENDPOINT_KEY, endpoint);
-
     await apiService.subscribePush({
       chefId,
       endpoint,
@@ -48,6 +46,9 @@ export async function subscribePushNotifications(chefId: number): Promise<void> 
       auth,
       userAgent: navigator.userAgent.slice(0, 200),
     });
+
+    // Guardar endpoint solo DESPUÉS de que el API lo aceptó exitosamente
+    localStorage.setItem(PUSH_ENDPOINT_KEY, endpoint);
   } catch (error) {
     console.error('[Push] Error subscribing:', error);
   }
