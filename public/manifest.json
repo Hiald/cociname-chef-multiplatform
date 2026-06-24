@@ -1,0 +1,10 @@
+{
+  "name": "Cociname Chef",
+  "short_name": "Cociname",
+  "description": "App de gestión para cocineras Cociname",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAFA",
+  "theme_color": "#FF6B35",
+  "icons": []
+}

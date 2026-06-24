@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiService } from '../services/api.service';
+import { unsubscribePushNotifications } from './usePushNotifications';
 
 const AuthContext = createContext(undefined);
 
@@ -112,9 +113,11 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      await unsubscribePushNotifications();
+
       localStorage.removeItem('auth_token');
       localStorage.removeItem('chef_data');
-      
+
       setToken(null);
       setChefData(null);
       setIsAuthenticated(false);

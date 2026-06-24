@@ -22,6 +22,7 @@ import { Sidebar } from '../components/sidebar';
 import BottomTabs from '../components/bottom-tabs/bottom-tabs';
 import { useAuth } from '../hooks/useAuth';
 import { useSignalR } from '../hooks/useSignalR';
+import { subscribePushNotifications } from '../hooks/usePushNotifications';
 import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
 import './routes.css';
@@ -29,7 +30,7 @@ import './routes.css';
 const Navigator = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, chefData, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const [pendingNotifications, setPendingNotifications] = React.useState(0);
   const isPublicRoute =
@@ -86,6 +87,13 @@ const Navigator = () => {
       console.error('Error loading pending notifications:', error);
     }
   }, []);
+
+  // Subscribe to push notifications once the chef is authenticated
+  React.useEffect(() => {
+    if (isAuthenticated && chefData?.chefId) {
+      void subscribePushNotifications(chefData.chefId);
+    }
+  }, [isAuthenticated, chefData?.chefId]);
 
   useSignalR(() => {
     void loadPendingNotifications();

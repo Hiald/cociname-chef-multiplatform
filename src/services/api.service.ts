@@ -2069,12 +2069,38 @@ class ApiService {
     request: MarkEndRequest
   ): Promise<BaseResponseGeneric<any>> {
     const endpoint = `ChefReservation/mark-end/${chefReservationId}`;
-    
+
     console.log('Calling markReservationEnd:', endpoint, request);
-    
+
     return this.request<any>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(request),
+    });
+  }
+
+  // ── Push Notifications ──────────────────────────────────────────────────────
+
+  async getPushVapidPublicKey(): Promise<BaseResponseGeneric<{ publicKey: string }>> {
+    return this.request<{ publicKey: string }>('Push/vapid-public-key');
+  }
+
+  async subscribePush(dto: {
+    chefId: number;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    userAgent?: string;
+  }): Promise<BaseResponseGeneric<{ success: boolean }>> {
+    return this.request<{ success: boolean }>('Push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    });
+  }
+
+  async unsubscribePush(endpoint: string): Promise<BaseResponseGeneric<{ success: boolean }>> {
+    return this.request<{ success: boolean }>('Push/unsubscribe', {
+      method: 'DELETE',
+      body: JSON.stringify({ endpoint }),
     });
   }
 }
