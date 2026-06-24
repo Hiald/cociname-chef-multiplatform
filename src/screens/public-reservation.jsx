@@ -4,7 +4,7 @@ import { spacing } from '../styles';
 import { getDistrictName, getConceptName } from '../utils';
 import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail, BuyingDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
-import { sortIngredientsAlphabetically } from '../utils/ingredients';
+import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 import { getClientComment } from '../utils/formatters';
 
 /**
@@ -107,59 +107,21 @@ export const PublicReservationScreen = ({ token }) => {
             const ingredientsResponse = await apiService.getIngredientChecklistByReservation(id);
             
             if (ingredientsResponse.success && ingredientsResponse.data && ingredientsResponse.data.length > 0) {
-              const checklistData = ingredientsResponse.data[0];
-              
-              // Parsear jsonIngredientsCheckList
-              if (checklistData.jsonIngredientsCheckList) {
+              const ingredientsDetails = await loadIngredientDetailsFromChecklist(
+                ingredientsResponse.data,
+                (ingredientId) => apiService.getIngredientById(ingredientId),
+                formatQuantity
+              );
+
+              setIngredients(ingredientsDetails);
+
+              const storageKey = `ingredients_reservation_${id}`;
+              const savedChecks = localStorage.getItem(storageKey);
+              if (savedChecks) {
                 try {
-                  const parsedIngredients = JSON.parse(checklistData.jsonIngredientsCheckList);
-                  
-                  // Cargar detalles de cada ingrediente
-                  const ingredientsDetails = await Promise.all(
-                    parsedIngredients.map(async (item) => {
-                      try {
-                        const details = await apiService.getIngredientById(item.IngredientId);
-                        if (details.success && details.data) {
-                          const size = parseFloat(item.TotalSize);
-                          return {
-                            id: item.IngredientId,
-                            ingredientId: item.IngredientId,
-                            ingredientName: details.data.name,
-                            quantity: formatQuantity(size, details.data.unit),
-                            unit: details.data.unit,
-                            rawSize: item.TotalSize
-                          };
-                        }
-                      } catch (e) {
-                        console.error(`Error cargando ingrediente ${item.IngredientId}:`, e);
-                      }
-                      
-                      // Fallback si no se puede cargar el detalle
-                      return {
-                        id: item.IngredientId,
-                        ingredientId: item.IngredientId,
-                        ingredientName: `Ingrediente #${item.IngredientId}`,
-                        quantity: parseFloat(item.TotalSize).toFixed(2),
-                        unit: 'kg',
-                        rawSize: item.TotalSize
-                      };
-                    })
-                  );
-                  
-                  setIngredients(sortIngredientsAlphabetically(ingredientsDetails));
-                  
-                  // Cargar estado de checkboxes desde localStorage
-                  const storageKey = `ingredients_reservation_${id}`;
-                  const savedChecks = localStorage.getItem(storageKey);
-                  if (savedChecks) {
-                    try {
-                      setCheckedIngredients(JSON.parse(savedChecks));
-                    } catch (e) {
-                      console.error('Error parsing saved checks:', e);
-                    }
-                  }
+                  setCheckedIngredients(JSON.parse(savedChecks));
                 } catch (e) {
-                  console.error('❌ Error parsing jsonIngredientsCheckList:', e);
+                  console.error('Error parsing saved checks:', e);
                 }
               }
             }

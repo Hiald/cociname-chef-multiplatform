@@ -8,7 +8,7 @@ import { RecipeModal } from '../components/recipe-modal';
 import { getConceptName } from '../utils/formatters';
 import { formatearFechaConDia } from '../utils/formatters';
 import { useAuth } from '../hooks/useAuth';
-import { sortIngredientsAlphabetically } from '../utils/ingredients';
+import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 import { getClientComment } from '../utils/formatters';
 import profileIcon from '../assets/images/detalle/perfil.png';
 import dayIcon from '../assets/images/detalle/dia.png';
@@ -124,49 +124,22 @@ const ReservationDetailScreen = () => {
             const ingredientsResponse = await apiService.getIngredientChecklistByReservation(parseInt(reservationId, 10));
 
             if (ingredientsResponse.success && ingredientsResponse.data && ingredientsResponse.data.length > 0) {
-              const checklistData = ingredientsResponse.data[0];
+              const ingredientsDetails = await loadIngredientDetailsFromChecklist(
+                ingredientsResponse.data,
+                (ingredientId) => apiService.getIngredientById(ingredientId),
+                formatIngredientQuantity
+              );
 
-              if (checklistData.jsonIngredientsCheckList) {
-                try {
-                  const parsedIngredients = JSON.parse(checklistData.jsonIngredientsCheckList);
-                  const ingredientsDetails = await Promise.all(
-                    parsedIngredients.map(async (item) => {
-                      try {
-                        const details = await apiService.getIngredientById(item.IngredientId);
-                        if (details.success && details.data) {
-                          const size = parseFloat(item.TotalSize);
-                          return {
-                            id: item.IngredientId,
-                            ingredientName: details.data.name,
-                            quantity: formatIngredientQuantity(size, details.data.unit),
-                          };
-                        }
-                      } catch (ingredientError) {
-                        console.error(`Error cargando ingrediente ${item.IngredientId}:`, ingredientError);
-                      }
-
-                      return {
-                        id: item.IngredientId,
-                        ingredientName: `Ingrediente #${item.IngredientId}`,
-                        quantity: `${parseFloat(item.TotalSize).toFixed(2)} kg`,
-                      };
-                    })
-                  );
-
-                  if (isMounted) {
-                    setIngredients(sortIngredientsAlphabetically(ingredientsDetails));
-                    const storageKey = `ingredients_reservation_${reservationId}`;
-                    const savedChecks = localStorage.getItem(storageKey);
-                    if (savedChecks) {
-                      try {
-                        setCheckedIngredients(JSON.parse(savedChecks));
-                      } catch (savedChecksError) {
-                        console.error('Error parsing saved checks:', savedChecksError);
-                      }
-                    }
+              if (isMounted) {
+                setIngredients(ingredientsDetails);
+                const storageKey = `ingredients_reservation_${reservationId}`;
+                const savedChecks = localStorage.getItem(storageKey);
+                if (savedChecks) {
+                  try {
+                    setCheckedIngredients(JSON.parse(savedChecks));
+                  } catch (savedChecksError) {
+                    console.error('Error parsing saved checks:', savedChecksError);
                   }
-                } catch (parseError) {
-                  console.error('Error parsing jsonIngredientsCheckList:', parseError);
                 }
               }
             }
