@@ -348,6 +348,38 @@ export function getPerVisitPortions(
   return Math.round(getPerVisitValue(totalPortion, visitsPerMonth));
 }
 
+export function getSubscriptionMonthlyChefTotal(
+  reservation?: SubscriptionRecord,
+  suscriptionInfo?: SubscriptionRecord
+): number {
+  return Number(
+    suscriptionInfo?.commissiontoChef
+    ?? suscriptionInfo?.CommissiontoChef
+    ?? reservation?.commissiontoChef
+    ?? reservation?.CommissiontoChef
+    ?? 0
+  );
+}
+
+/**
+ * jsonPaymentChef suele traer el monto por sesión (ej. 60).
+ * Solo se divide entre visitas si el monto coincide con el total mensual
+ * (suscripciones automáticas que guardaron 240 en lugar de 60).
+ */
+export function normalizeSubscriptionSessionPayment(
+  amount: number,
+  visitsPerMonth: number,
+  monthlyChefTotal = 0
+): number {
+  if (!amount || visitsPerMonth <= 1) return amount;
+
+  if (monthlyChefTotal > 0 && Math.abs(amount - monthlyChefTotal) < 0.02) {
+    return amount / visitsPerMonth;
+  }
+
+  return amount;
+}
+
 export interface SubscriptionPaymentConcept {
   concept: number;
   amount: number;
@@ -355,18 +387,25 @@ export interface SubscriptionPaymentConcept {
 
 export function parseSubscriptionPaymentConcepts(
   jsonPaymentChef?: string | null,
-  visitsPerMonth = 1
+  options: { visitsPerMonth?: number; monthlyChefTotal?: number } = {}
 ): SubscriptionPaymentConcept[] {
   if (!jsonPaymentChef) return [];
+
+  const visitsPerMonth = options.visitsPerMonth ?? 1;
+  const monthlyChefTotal = options.monthlyChefTotal ?? 0;
 
   try {
     const concepts = JSON.parse(jsonPaymentChef);
     if (!Array.isArray(concepts)) return [];
 
-    return concepts.map((item) => ({
-      concept: Number(item.Concepto ?? item.concepto ?? 0),
-      amount: getPerVisitValue(parseFloat(String(item.Monto ?? item.monto ?? 0)), visitsPerMonth),
-    }));
+    return concepts.map((item) => {
+      const rawAmount = parseFloat(String(item.Monto ?? item.monto ?? 0));
+
+      return {
+        concept: Number(item.Concepto ?? item.concepto ?? 0),
+        amount: normalizeSubscriptionSessionPayment(rawAmount, visitsPerMonth, monthlyChefTotal),
+      };
+    });
   } catch {
     return [];
   }
@@ -377,6 +416,7 @@ export function getSubscriptionChefCommission(
   suscriptionInfo?: SubscriptionRecord
 ): number {
   const visitsPerMonth = getSubscriptionVisitsPerMonth(reservation, suscriptionInfo);
+  const monthlyChefTotal = getSubscriptionMonthlyChefTotal(reservation, suscriptionInfo);
   const paymentJson = String(
     reservation?.jsonPaymentChef
     ?? reservation?.JsonPaymentChef
@@ -385,22 +425,17 @@ export function getSubscriptionChefCommission(
     ?? ''
   );
 
-  const concepts = parseSubscriptionPaymentConcepts(paymentJson, visitsPerMonth);
+  const concepts = parseSubscriptionPaymentConcepts(paymentJson, {
+    visitsPerMonth,
+    monthlyChefTotal,
+  });
+
   if (concepts.length > 0) {
     return concepts.reduce((sum, concept) => sum + concept.amount, 0);
   }
 
-  const commission = Number(
-    reservation?.commissiontoChef
-    ?? reservation?.CommissiontoChef
-    ?? reservation?.CommissionToChef
-    ?? suscriptionInfo?.commissiontoChef
-    ?? suscriptionInfo?.CommissiontoChef
-    ?? 0
-  );
-
-  if (commission > 0) {
-    return getPerVisitValue(commission, visitsPerMonth);
+  if (monthlyChefTotal > 0) {
+    return getPerVisitValue(monthlyChefTotal, visitsPerMonth);
   }
 
   const totalPrice = Number(

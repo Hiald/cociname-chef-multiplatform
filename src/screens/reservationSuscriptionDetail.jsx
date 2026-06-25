@@ -5,7 +5,7 @@ import { apiService } from '../services/api.service';
 import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail, ArrowRightDetail } from '../assets/svgs';
 import { RecipeModal } from '../components/recipe-modal';
 import { useAuth } from '../hooks/useAuth';
-import { formatearFechaConDia, getClientComment, getConceptName, formatCurrency, getPerVisitPortions, getSubscriptionVisitsPerMonth, parseSubscriptionPaymentConcepts, getSubscriptionChefCommission } from '../utils';
+import { formatearFechaConDia, getClientComment, getConceptName, formatCurrency, getPerVisitPortions, getSubscriptionVisitsPerMonth, getSubscriptionMonthlyChefTotal, parseSubscriptionPaymentConcepts, getSubscriptionChefCommission } from '../utils';
 import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 
 const getUnitName = (unitNumber) => {
@@ -547,10 +547,11 @@ const ReservationSuscriptionDetailScreen = () => {
 
   const clientComment = getClientComment(reservation);
   const visitsPerMonth = getSubscriptionVisitsPerMonth(reservation, suscriptionInfo);
+  const monthlyChefTotal = getSubscriptionMonthlyChefTotal(reservation, suscriptionInfo);
   const portionsPerVisit = getPerVisitPortions(reservation, suscriptionInfo);
   const paymentConcepts = parseSubscriptionPaymentConcepts(
     reservation?.jsonPaymentChef ?? reservation?.JsonPaymentChef,
-    visitsPerMonth
+    { visitsPerMonth, monthlyChefTotal }
   );
   const chefCommissionPerVisit = getSubscriptionChefCommission(reservation, suscriptionInfo);
 

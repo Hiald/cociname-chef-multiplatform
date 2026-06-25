@@ -5,7 +5,7 @@ import { getDistrictName, getConceptName } from '../utils';
 import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail, BuyingDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
 import { sortIngredientsAlphabetically, loadIngredientDetailsFromChecklist } from '../utils/ingredients';
-import { getClientComment, formatCurrency, getPerVisitPortions, getSubscriptionVisitsPerMonth, parseSubscriptionPaymentConcepts, getSubscriptionChefCommission } from '../utils/formatters';
+import { getClientComment, formatCurrency, getPerVisitPortions, getSubscriptionVisitsPerMonth, getSubscriptionMonthlyChefTotal, parseSubscriptionPaymentConcepts, getSubscriptionChefCommission } from '../utils/formatters';
 
 /**
  * Vista pública de suscripción - accesible sin login mediante token encriptado
@@ -229,10 +229,11 @@ export const PublicSuscriptionScreen = ({ token }) => {
 
   const clientComment = getClientComment(reservation);
   const visitsPerMonth = getSubscriptionVisitsPerMonth(reservation, suscriptionInfo);
+  const monthlyChefTotal = getSubscriptionMonthlyChefTotal(reservation, suscriptionInfo);
   const portionsPerVisit = getPerVisitPortions(reservation, suscriptionInfo);
   const paymentConcepts = parseSubscriptionPaymentConcepts(
     reservation?.jsonPaymentChef ?? reservation?.JsonPaymentChef,
-    visitsPerMonth
+    { visitsPerMonth, monthlyChefTotal }
   );
   const totalPerVisit = getSubscriptionChefCommission(reservation, suscriptionInfo);
 
