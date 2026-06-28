@@ -12,6 +12,23 @@ export interface BaseResponseGeneric<T> extends BaseResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// RECUPERAR CONTRASEÑA CHEF
+// ═══════════════════════════════════════════════════════════════
+
+export interface ForgotPasswordChefRequestDto {
+  email: string;
+}
+
+export interface VerifyResetLinkRequestDto {
+  tokenLink: string;
+}
+
+export interface CompletePasswordResetRequestDto {
+  tokenLink: string;
+  nuevaPassword: string;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // LOGIN - POST /api/users/LoginChef
 // ═══════════════════════════════════════════════════════════════
 

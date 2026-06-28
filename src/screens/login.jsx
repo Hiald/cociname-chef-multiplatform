@@ -219,7 +219,7 @@ const LoginScreen = () => {
                 <span style={styles.rememberMeText}>Recordarme</span>
               </div>
 
-              <button style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}} disabled={isLoading}>
+              <button style={{background: 'none', border: 'none', cursor: 'pointer', padding: 0}} disabled={isLoading} onClick={() => navigate('/recuperar')}>
                 <span style={styles.forgotPasswordText}>¿Olvidaste tu contraseña?</span>
               </button>
             </div>

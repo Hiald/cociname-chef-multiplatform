@@ -21,7 +21,8 @@ function HashRouteInterceptor() {
       pathname.startsWith('/reserva/') ||
       pathname.startsWith('/suscripcion/') ||
       pathname.startsWith('/dieta/') ||
-      pathname.startsWith('/tarea/')
+      pathname.startsWith('/tarea/') ||
+      pathname.startsWith('/recuperar/')
     ) {
       const normalizedHash = pathname + window.location.search;
 

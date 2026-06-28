@@ -12,16 +12,17 @@ export const AuthProvider = ({ children }) => {
 
   // Al iniciar, verificar si hay token guardado
   const hydrateChefData = useCallback(async (authData) => {
-    if (!authData?.chefId) {
+    const chefId = authData?.chefId || authData?.clientId;
+    if (!chefId) {
       return authData;
     }
 
     try {
-      const chefResponse = await apiService.getChef(authData.chefId);
+      const chefResponse = await apiService.getChef(chefId);
       if (chefResponse.success && chefResponse.data) {
         return {
           ...chefResponse.data,
-          chefId: authData.chefId,
+          chefId,
           token: authData.token,
           expirationDate: authData.expirationDate,
         };

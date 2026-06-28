@@ -2103,6 +2103,39 @@ class ApiService {
       body: JSON.stringify({ endpoint }),
     });
   }
+
+  /**
+   * POST /api/users/forgot-password-chef-link
+   * Envía email con link de recuperación a socia.cociname.pe (exclusivo cocineras).
+   */
+  async forgotPasswordChefLink(email: string): Promise<BaseResponseGeneric<boolean>> {
+    return this.publicRequest<boolean>('users/forgot-password-chef-link', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  /**
+   * POST /api/users/verify-reset-link
+   * Verifica que el token del link de recuperación sea válido.
+   */
+  async verifyResetLink(tokenLink: string): Promise<BaseResponseGeneric<boolean>> {
+    return this.publicRequest<boolean>('users/verify-reset-link', {
+      method: 'POST',
+      body: JSON.stringify({ tokenLink }),
+    });
+  }
+
+  /**
+   * POST /api/users/complete-password-reset-link
+   * Guarda la nueva contraseña usando el token del link.
+   */
+  async completePasswordResetLink(tokenLink: string, nuevaPassword: string): Promise<BaseResponseGeneric<boolean>> {
+    return this.publicRequest<boolean>('users/complete-password-reset-link', {
+      method: 'POST',
+      body: JSON.stringify({ tokenLink, nuevaPassword }),
+    });
+  }
 }
 
 // Exporta una instancia única del servicio (Singleton)
