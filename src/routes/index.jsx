@@ -17,6 +17,7 @@ import { PublicEventScreen } from '../screens/public-event';
 import { PublicDietScreen } from '../screens/public-diet';
 import { PublicTareaScreen } from '../screens/public-tarea';
 import PublicOnboardingScreen from '../screens/public-onboarding';
+import PublicPasswordResetScreen from '../screens/public-password-reset';
 import { Header } from '../components/header';
 import { Sidebar } from '../components/sidebar';
 import BottomTabs from '../components/bottom-tabs/bottom-tabs';
@@ -41,6 +42,7 @@ const Navigator = () => {
     location.pathname.startsWith('/evento/') ||
     location.pathname.startsWith('/inicio/') ||
     location.pathname.startsWith('/onboarding/') ||
+    location.pathname.startsWith('/recuperar') ||
     location.pathname === '/register';
 
   const loadPendingNotifications = React.useCallback(async () => {
@@ -158,6 +160,11 @@ const Navigator = () => {
     return <PublicOnboardingScreen token={token} />;
   };
 
+  const PublicPasswordResetWrapper = () => {
+    const { token } = useParams();
+    return <PublicPasswordResetScreen token={token} />;
+  };
+
   // Ruta pública independiente - NO requiere autenticación
   // Se verifica DESPUÉS de los hooks pero ANTES de verificar auth
   if (location.pathname.startsWith('/reserva/')) {
@@ -223,6 +230,16 @@ const Navigator = () => {
     return (
       <Routes>
         <Route path="/onboarding/:token" element={<PublicOnboardingWrapper />} />
+      </Routes>
+    );
+  }
+
+  // Ruta pública para recuperación de contraseña (con o sin token)
+  if (location.pathname.startsWith('/recuperar')) {
+    return (
+      <Routes>
+        <Route path="/recuperar/:token" element={<PublicPasswordResetWrapper />} />
+        <Route path="/recuperar" element={<PublicPasswordResetScreen />} />
       </Routes>
     );
   }
