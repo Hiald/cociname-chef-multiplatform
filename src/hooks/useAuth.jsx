@@ -3,6 +3,58 @@ import { apiService } from '../services/api.service';
 import { unsubscribePushNotifications } from './usePushNotifications';
 
 const AuthContext = createContext(undefined);
+const AUTH_EXPIRED_EVENT = 'auth:expired';
+
+const getAuthExpirationDate = (authData) => {
+  if (!authData) {
+    return null;
+  }
+
+  if (authData.expirationDate) {
+    const expirationDate = new Date(authData.expirationDate);
+    if (!Number.isNaN(expirationDate.getTime())) {
+      return expirationDate;
+    }
+  }
+
+  if (authData.token && authData.token.split('.').length === 3 && typeof window !== 'undefined') {
+    try {
+      const payload = authData.token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const paddedPayload = payload.padEnd(payload.length + ((4 - (payload.length % 4)) % 4), '=');
+      const decodedPayload = JSON.parse(window.atob(paddedPayload));
+
+      if (typeof decodedPayload.exp === 'number') {
+        const expirationDate = new Date(decodedPayload.exp * 1000);
+        if (!Number.isNaN(expirationDate.getTime())) {
+          return expirationDate;
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing token expiration:', error);
+    }
+  }
+
+  return null;
+};
+
+const isExpiredAuthData = (authData) => {
+  const expirationDate = getAuthExpirationDate(authData);
+  return expirationDate ? expirationDate.getTime() <= Date.now() : false;
+};
+
+const isUnauthorizedMessage = (message) => {
+  if (!message) {
+    return false;
+  }
+
+  const normalizedMessage = String(message).toLowerCase();
+  return (
+    normalizedMessage.includes('sesión expirada') ||
+    normalizedMessage.includes('sesion expirada') ||
+    normalizedMessage.includes('unauthorized') ||
+    normalizedMessage.includes('401')
+  );
+};
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,6 +78,10 @@ export const AuthProvider = ({ children }) => {
           expirationDate: authData.expirationDate,
         };
       }
+
+      if (isUnauthorizedMessage(chefResponse.errorMessage)) {
+        return null;
+      }
     } catch (error) {
       console.error('Error hydrating chef data:', error);
     }
@@ -33,17 +89,48 @@ export const AuthProvider = ({ children }) => {
     return authData;
   }, []);
 
+  const clearAuthState = useCallback(() => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('chef_data');
+
+    setToken(null);
+    setChefData(null);
+    setIsAuthenticated(false);
+    apiService.clearToken();
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await unsubscribePushNotifications();
+    } catch (error) {
+      console.error('Error unsubscribing push notifications:', error);
+    } finally {
+      clearAuthState();
+    }
+  }, [clearAuthState]);
+
   const loadStoredAuth = useCallback(async () => {
     try {
       const storedToken = localStorage.getItem('auth_token');
       const storedChefData = localStorage.getItem('chef_data');
       
       if (storedToken && storedChefData) {
-        apiService.setToken(storedToken);
         const parsedChefData = JSON.parse(storedChefData);
+
+        if (isExpiredAuthData({ ...parsedChefData, token: storedToken })) {
+          clearAuthState();
+          return;
+        }
+
+        apiService.setToken(storedToken);
         const hydratedChefData = parsedChefData?.firstName
           ? parsedChefData
           : await hydrateChefData({ ...parsedChefData, token: storedToken });
+
+        if (!hydratedChefData) {
+          clearAuthState();
+          return;
+        }
 
         setToken(storedToken);
         setChefData(hydratedChefData);
@@ -56,11 +143,49 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, [hydrateChefData]);
+  }, [clearAuthState, hydrateChefData]);
 
   useEffect(() => {
     void loadStoredAuth();
   }, [loadStoredAuth]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      void logout();
+    };
+
+    window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+
+    return () => {
+      window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+    };
+  }, [logout]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !chefData?.expirationDate) {
+      return undefined;
+    }
+
+    const expirationDate = getAuthExpirationDate(chefData);
+    if (!expirationDate) {
+      return undefined;
+    }
+
+    const remainingTime = expirationDate.getTime() - Date.now();
+
+    if (remainingTime <= 0) {
+      void logout();
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void logout();
+    }, remainingTime);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [chefData, isAuthenticated, logout]);
 
   const login = async (username, password) => {
     try {
@@ -108,22 +233,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Google login error:', error);
       return false;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await unsubscribePushNotifications();
-
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('chef_data');
-
-      setToken(null);
-      setChefData(null);
-      setIsAuthenticated(false);
-      apiService.clearToken();
-    } catch (error) {
-      console.error('Logout error:', error);
     }
   };
 

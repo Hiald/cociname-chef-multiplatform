@@ -49,14 +49,16 @@ import {
   ReservationEventData,
   AppPendingReservationResponse,
   AppPendingReservationData,
-  ReservationEventAssignmentRequestDto,
   ReservationAssignmentRequestDto,
   MarkStartRequest,
   MarkEndRequest,
   AvailabilityListResponse,
   GetAvailabilityByWeekAndDateParams,
-  AvailabilityRequestDto
+  AvailabilityRequestDto,
+  ChefData
 } from '../types'; 
+
+const AUTH_EXPIRED_EVENT = 'auth:expired';
 
 // ═══════════════════════════════════════════════════════════════
 // Servicio API REST para Cociname
@@ -65,6 +67,12 @@ import {
 class ApiService {
   private baseUrl: string;
   private token: string | null = null;
+
+  private notifyAuthExpired() {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+    }
+  }
 
   constructor() {
     this.baseUrl = API_CONFIG.BASE_URL;
@@ -155,6 +163,7 @@ class ApiService {
         
         if (response.status === 401) {
           errorMessage = 'Sesión expirada. Por favor inicia sesión nuevamente.';
+          this.notifyAuthExpired();
         } else if (response.status === 403) {
           errorMessage = 'No tienes permisos para realizar esta acción.';
         }
@@ -1188,47 +1197,15 @@ class ApiService {
    */
   async getChef(chefId: number): Promise<ChefResponse> {
     const endpoint = `Chef/${chefId}`;
-    
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+    const result = await this.request<ChefData>(endpoint, {
+      method: 'GET',
+    });
 
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      const token = this.getToken();
-
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'GET',
-        headers,
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      const data: ChefResponse = await response.json();
-
-      if (!response.ok) {
-        return {
-          data: {} as any,
-          success: false,
-          errorMessage: data.errorMessage || `Error: ${response.status}`,
-        };
-      }
-
-      return data;
-    } catch (error) {
-      return {
-        data: {} as any,
-        success: false,
-        errorMessage: error instanceof Error ? error.message : 'Error de red',
-      };
-    }
+    return {
+      data: (result.data ?? {}) as ChefData,
+      success: result.success,
+      errorMessage: result.errorMessage ?? null,
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════
