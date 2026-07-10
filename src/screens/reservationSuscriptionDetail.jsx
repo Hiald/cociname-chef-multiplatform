@@ -7,6 +7,18 @@ import { RecipeModal } from '../components/recipe-modal';
 import { useAuth } from '../hooks/useAuth';
 import { formatearFechaConDia, getClientComment, getConceptName, formatCurrency, getPerVisitPortions, getSubscriptionVisitsPerMonth, getSubscriptionMonthlyChefTotal, parseSubscriptionPaymentConcepts, getSubscriptionChefCommission } from '../utils';
 import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
+import { RequestDetailShell } from '../components/request-detail/RequestDetailShell';
+import {
+  buildSubscriptionScheduleRows,
+  getDistrictLabel,
+  getReferenceLabel,
+  getRequestAllergies,
+  getRequestClientComment,
+  getRequestCustomerName,
+  getRequestServiceAmount,
+  getRequestServiceTitle,
+  mapRecipesToDishes,
+} from '../utils/requestDetail';
 
 const getUnitName = (unitNumber) => {
   const units = {
@@ -554,6 +566,66 @@ const ReservationSuscriptionDetailScreen = () => {
     { visitsPerMonth, monthlyChefTotal }
   );
   const chefCommissionPerVisit = getSubscriptionChefCommission(reservation, suscriptionInfo);
+
+  if (isRequest) {
+    return (
+      <>
+        <RequestDetailShell
+          onBack={() => navigate('/reservation?tab=requests')}
+          serviceTitle={getRequestServiceTitle('suscripcion')}
+          clientName={getRequestCustomerName(reservation)}
+          scheduleRows={buildSubscriptionScheduleRows(reservation, suscriptionInfo)}
+          allergies={getRequestAllergies(reservation)}
+          district={getDistrictLabel(reservation)}
+          reference={getReferenceLabel(reservation) || reservation.direction || ''}
+          dishes={mapRecipesToDishes(recipes, handleViewRecipe)}
+          serviceAmount={getRequestServiceAmount({ ...reservation, tipo: 'suscripcion' }, suscriptionInfo)}
+          clientComment={getRequestClientComment(reservation)}
+          onAccept={handleAcceptReservation}
+          onReject={() => setRejectModalVisible(true)}
+          submitting={submitting}
+        />
+
+        {selectedRecipe && (
+          <RecipeModal
+            visible={recipeModalVisible}
+            onClose={handleCloseRecipeModal}
+            recipeName={`${selectedRecipe.MenuNombre} - ${selectedRecipe.MasterRecipeNombre}`}
+            masterRecipeId={parseInt(selectedRecipe.MasterRecipeId, 10)}
+            portions={selectedRecipe.iCantidadPlatos}
+            recipeSteps={selectedRecipe.sPasos}
+          />
+        )}
+
+        {rejectModalVisible && (
+          <div style={styles.modalOverlay}>
+            <div style={styles.modalContent}>
+              <div style={styles.modalIconContainer}>
+                <div style={styles.closeIconCircle}>✕</div>
+              </div>
+              <h3 style={styles.modalTitle}>¿Rechazar esta reserva?</h3>
+              <p style={styles.modalDescription}>Por favor indica el motivo del rechazo</p>
+              <textarea
+                style={styles.modalTextarea}
+                placeholder="Escribe el motivo..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+              />
+              <button
+                style={{...styles.modalButton, ...styles.modalButtonDanger}}
+                onClick={handleRejectReservation}
+                disabled={submitting || !rejectionReason.trim()}
+                type="button"
+              >
+                <span style={styles.modalButtonText}>{submitting ? 'Procesando...' : 'Rechazar'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div style={styles.container}>

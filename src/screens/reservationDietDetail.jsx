@@ -12,6 +12,18 @@ import {
   getCustomerFullName,
   getClientComment,
 } from '../utils/formatters';
+import { RequestDetailShell } from '../components/request-detail/RequestDetailShell';
+import {
+  buildDietScheduleRows,
+  getDistrictLabel,
+  getReferenceLabel,
+  getRequestAllergies,
+  getRequestClientComment,
+  getRequestCustomerName,
+  getRequestServiceAmount,
+  getRequestServiceTitle,
+  mapDietMenusToDishes,
+} from '../utils/requestDetail';
 
 /**
  * Detalle de reserva de plan nutricional para cocinera
@@ -183,6 +195,64 @@ const ReservationDietDetailScreen = () => {
   const planName = record.nutritionalPlanFileName || record.NutritionalPlanFileName || 'Plan nutricional';
   const menus = getDietMenus(record);
   const clientComment = getClientComment(record);
+
+  if (isRequest) {
+    return (
+      <>
+        <RequestDetailShell
+          onBack={() => navigate('/reservation?tab=requests')}
+          serviceTitle={getRequestServiceTitle('dieta')}
+          clientName={getRequestCustomerName(record)}
+          scheduleRows={buildDietScheduleRows(record, getDateValue, getHourValue)}
+          allergies={getRequestAllergies(record)}
+          district={getDistrictLabel(record) || direction}
+          reference={reference || direction}
+          dishes={mapDietMenusToDishes(menus, record)}
+          serviceAmount={getRequestServiceAmount({ ...record, tipo: 'dieta' })}
+          clientComment={getRequestClientComment(record)}
+          onAccept={handleAcceptReservation}
+          onReject={() => setRejectModalVisible(true)}
+          submitting={submitting}
+        />
+
+        {acceptModalVisible && (
+          <div style={styles.modalOverlay} onClick={() => !submitting && handleCloseAcceptModal()}>
+            <div style={styles.modalContent} onClick={(event) => event.stopPropagation()}>
+              <h3 style={styles.modalTitle}>¿Plan nutricional aceptado?</h3>
+              <p style={styles.modalDescription}>Lo verás en tus reservas confirmadas.</p>
+              <button type="button" style={styles.modalButtonPrimary} onClick={handleCloseAcceptModal}>
+                Ver reservas
+              </button>
+            </div>
+          </div>
+        )}
+
+        {rejectModalVisible && (
+          <div style={styles.modalOverlay} onClick={() => !submitting && setRejectModalVisible(false)}>
+            <div style={styles.modalContent} onClick={(event) => event.stopPropagation()}>
+              <h3 style={styles.modalTitle}>Plan nutricional rechazado</h3>
+              <textarea
+                style={styles.modalTextarea}
+                placeholder="Motivo de rechazo"
+                value={rejectionReason}
+                onChange={(event) => setRejectionReason(event.target.value)}
+                disabled={submitting}
+                rows={4}
+              />
+              <button
+                type="button"
+                style={styles.modalButtonDanger}
+                onClick={handleRejectReservation}
+                disabled={submitting || !rejectionReason.trim()}
+              >
+                {submitting ? 'Procesando...' : 'Confirmar rechazo'}
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div style={styles.container}>

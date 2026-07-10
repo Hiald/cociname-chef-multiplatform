@@ -10,6 +10,18 @@ import { formatearFechaConDia } from '../utils/formatters';
 import { useAuth } from '../hooks/useAuth';
 import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 import { getClientComment } from '../utils/formatters';
+import { RequestDetailShell } from '../components/request-detail/RequestDetailShell';
+import {
+  buildReservationScheduleRows,
+  getDistrictLabel,
+  getReferenceLabel,
+  getRequestAllergies,
+  getRequestClientComment,
+  getRequestCustomerName,
+  getRequestServiceAmount,
+  getRequestServiceTitle,
+  mapRecipesToDishes,
+} from '../utils/requestDetail';
 import profileIcon from '../assets/images/detalle/perfil.png';
 import dayIcon from '../assets/images/detalle/dia.png';
 import hourIcon from '../assets/images/detalle/hora.png';
@@ -648,6 +660,90 @@ const ReservationDetailScreen = () => {
   })();
 
   const clientComment = getClientComment(reservation);
+
+  if (isRequest) {
+    return (
+      <>
+        <RequestDetailShell
+          onBack={() => navigate('/reservation?tab=requests')}
+          serviceTitle={getRequestServiceTitle('reserva')}
+          clientName={getRequestCustomerName(reservation)}
+          scheduleRows={buildReservationScheduleRows(reservation)}
+          allergies={getRequestAllergies(reservation)}
+          district={getDistrictLabel(reservation)}
+          reference={getReferenceLabel(reservation) || reservation.direction || ''}
+          dishes={mapRecipesToDishes(recipes, handleViewRecipe)}
+          serviceAmount={getRequestServiceAmount(reservation)}
+          clientComment={getRequestClientComment(reservation)}
+          onAccept={handleAcceptReservation}
+          onReject={() => setRejectModalVisible(true)}
+          submitting={submitting}
+        />
+
+        {selectedRecipe && (
+          <RecipeModal
+            visible={recipeModalVisible}
+            onClose={handleCloseRecipeModal}
+            recipeName={`${selectedRecipe.MenuNombre} - ${selectedRecipe.MasterRecipeNombre}`}
+            masterRecipeId={parseInt(selectedRecipe.MasterRecipeId, 10)}
+            portions={selectedRecipe.iCantidadPlatos}
+            recipeSteps={selectedRecipe.sPasos}
+          />
+        )}
+
+        {acceptModalVisible && (
+          <div style={styles.modalOverlay} onClick={() => !submitting && setAcceptModalVisible(false)}>
+            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalIconContainer}>
+                <div style={styles.checkIconCircle}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 12l2 2 4-4" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+              <h3 style={styles.modalTitle}>¿Reserva aceptada?</h3>
+              <p style={styles.modalDescription}>La verás en tus reservas confirmadas.</p>
+              <button style={{...styles.modalButton, ...styles.modalButtonPrimary}} onClick={handleCloseAcceptModal} type="button">
+                <span style={styles.modalButtonText}>Ver Reservas</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {rejectModalVisible && (
+          <div style={styles.modalOverlay} onClick={() => !submitting && setRejectModalVisible(false)}>
+            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalIconContainer}>
+                <div style={styles.closeIconCircle}>
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
+                    <path d="M6 18L18 6M6 6l12 12" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+              </div>
+              <h3 style={styles.modalTitle}>Reserva rechazada</h3>
+              <p style={styles.modalDescription}>Gracias por contestar.</p>
+              <textarea
+                style={styles.modalTextarea}
+                placeholder="Motivo de rechazo"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                disabled={submitting}
+                rows={4}
+              />
+              <button
+                style={{...styles.modalButton, ...styles.modalButtonDanger}}
+                onClick={handleRejectReservation}
+                disabled={submitting || !rejectionReason.trim()}
+                type="button"
+              >
+                <span style={styles.modalButtonText}>{submitting ? 'Procesando...' : 'Confirmar rechazo'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div style={styles.container}>

@@ -12,6 +12,18 @@ import {
   getCustomerFullName,
   getClientComment,
 } from '../utils/formatters';
+import { RequestDetailShell } from '../components/request-detail/RequestDetailShell';
+import {
+  buildTareaScheduleRows,
+  getDistrictLabel,
+  getReferenceLabel,
+  getRequestAllergies,
+  getRequestClientComment,
+  getRequestCustomerName,
+  getRequestServiceAmount,
+  getRequestServiceTitle,
+  mapActivitiesToDishes,
+} from '../utils/requestDetail';
 
 /**
  * Detalle de reserva de tarea de servicio para cocinera
@@ -177,6 +189,67 @@ const ReservationTareaDetailScreen = () => {
   const activities = getTareaActivities(record);
   const hours = Number(record.estimatedHours ?? record.EstimatedHours ?? record.iaSuggestedHours ?? record.IaSuggestedHours ?? 0);
   const clientComment = getClientComment(record);
+  const needsDescription = record.needsDescription || record.NeedsDescription || '';
+  const tareaComment = [needsDescription, clientComment].filter(Boolean).join('\n\n');
+
+  if (isRequest) {
+    return (
+      <>
+        <RequestDetailShell
+          onBack={() => navigate('/reservation?tab=requests')}
+          serviceTitle={getRequestServiceTitle('tarea')}
+          clientName={getRequestCustomerName(record)}
+          scheduleRows={buildTareaScheduleRows(record, getDateValue, getHourValue, hours)}
+          allergies={getRequestAllergies(record)}
+          district={getDistrictLabel(record) || direction}
+          reference={reference || direction}
+          dishes={mapActivitiesToDishes(activities)}
+          dishesSectionTitle="Actividades solicitadas"
+          serviceAmount={getRequestServiceAmount({ ...record, tipo: 'tarea' })}
+          clientComment={tareaComment}
+          onAccept={handleAcceptReservation}
+          onReject={() => setRejectModalVisible(true)}
+          submitting={submitting}
+        />
+
+        {acceptModalVisible && (
+          <div style={styles.modalOverlay} onClick={() => !submitting && handleCloseAcceptModal()}>
+            <div style={styles.modalContent} onClick={(event) => event.stopPropagation()}>
+              <h3 style={styles.modalTitle}>¿Actividad aceptada?</h3>
+              <p style={styles.modalDescription}>Lo verás en tus reservas confirmadas.</p>
+              <button type="button" style={styles.modalButtonPrimary} onClick={handleCloseAcceptModal}>
+                Ver reservas
+              </button>
+            </div>
+          </div>
+        )}
+
+        {rejectModalVisible && (
+          <div style={styles.modalOverlay} onClick={() => !submitting && setRejectModalVisible(false)}>
+            <div style={styles.modalContent} onClick={(event) => event.stopPropagation()}>
+              <h3 style={styles.modalTitle}>Actividad rechazada</h3>
+              <textarea
+                style={styles.modalTextarea}
+                placeholder="Motivo de rechazo"
+                value={rejectionReason}
+                onChange={(event) => setRejectionReason(event.target.value)}
+                disabled={submitting}
+                rows={4}
+              />
+              <button
+                type="button"
+                style={styles.modalButtonDanger}
+                onClick={handleRejectReservation}
+                disabled={submitting || !rejectionReason.trim()}
+              >
+                {submitting ? 'Procesando...' : 'Confirmar rechazo'}
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div style={styles.container}>

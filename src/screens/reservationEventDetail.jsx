@@ -6,6 +6,18 @@ import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ClockDetai
 import { formatearFechaConDia, getClientComment } from '../utils/formatters';
 import { useAuth } from '../hooks/useAuth';
 import { RecipeModal } from '../components/recipe-modal';
+import { RequestDetailShell } from '../components/request-detail/RequestDetailShell';
+import {
+  buildEventScheduleRows,
+  getDistrictLabel,
+  getReferenceLabel,
+  getRequestAllergies,
+  getRequestClientComment,
+  getRequestCustomerName,
+  getRequestServiceAmount,
+  getRequestServiceTitle,
+  mapRecipesToDishes,
+} from '../utils/requestDetail';
 import mapIcon from '../assets/images/detalle/map.png';
 import profileIcon from '../assets/images/detalle/perfil.png';
 import menuIcon from '../assets/images/detalle/menu.png';
@@ -200,6 +212,78 @@ const ReservationEventDetailScreen = () => {
   }
 
   const clientComment = getClientComment(event);
+
+  if (isRequest) {
+    const eventComment = [clientComment, event.customMenuRequest].filter(Boolean).join('\n\n');
+
+    return (
+      <>
+        <RequestDetailShell
+          onBack={() => navigate('/reservation?tab=requests')}
+          serviceTitle={getRequestServiceTitle('evento')}
+          clientName={getRequestCustomerName(event)}
+          isEvent
+          scheduleRows={buildEventScheduleRows(event)}
+          allergies={getRequestAllergies(event)}
+          district={getDistrictLabel(event) || event.direction || ''}
+          reference={getReferenceLabel(event)}
+          dishes={mapRecipesToDishes(recipes, handleViewRecipe)}
+          serviceAmount={getRequestServiceAmount({ ...event, tipo: 'evento' })}
+          clientComment={eventComment}
+          onAccept={handleAcceptReservation}
+          onReject={() => setRejectModalVisible(true)}
+          submitting={submitting}
+        />
+
+        {selectedRecipe && (
+          <RecipeModal
+            visible={recipeModalVisible}
+            onClose={handleCloseRecipeModal}
+            recipeName={`${selectedRecipe.MenuNombre} - ${selectedRecipe.MasterRecipeNombre}`}
+            masterRecipeId={parseInt(selectedRecipe.MasterRecipeId, 10)}
+            portions={selectedRecipe.iCantidadPlatos}
+            recipeSteps={selectedRecipe.sPasos}
+          />
+        )}
+
+        {acceptModalVisible && (
+          <div style={styles.modalOverlay} onClick={() => !submitting && setAcceptModalVisible(false)}>
+            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <h3 style={styles.modalTitle}>¿Evento aceptado?</h3>
+              <p style={styles.modalDescription}>Lo verás en tus reservas confirmadas.</p>
+              <button style={styles.modalButton} onClick={handleCloseAcceptModal} type="button">
+                Ver reservas
+              </button>
+            </div>
+          </div>
+        )}
+
+        {rejectModalVisible && (
+          <div style={styles.modalOverlay} onClick={() => !submitting && setRejectModalVisible(false)}>
+            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <h3 style={styles.modalTitle}>Evento rechazado</h3>
+              <textarea
+                style={styles.modalTextarea}
+                placeholder="Motivo de rechazo"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                disabled={submitting}
+                rows={4}
+              />
+              <button
+                style={styles.modalButtonDanger}
+                onClick={handleRejectReservation}
+                disabled={submitting || !rejectionReason.trim()}
+                type="button"
+              >
+                {submitting ? 'Procesando...' : 'Confirmar rechazo'}
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div style={styles.container}>

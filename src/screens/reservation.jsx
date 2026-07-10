@@ -1,19 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { spacing } from '../styles';
+import { appScreenTheme as theme, mockup, getReservationEmoji, getReservationTileBg } from '../styles';
+import {
+  getRequestServiceTitle,
+  getRequestPriceText,
+  getRequestCardSubtitle,
+  getRequestCustomerName,
+} from '../utils/requestDetail';
 import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useSignalR } from '../hooks/useSignalR';
-import { formatearFechaConDia } from '../utils/formatters';
-import profileBlackIcon from '../assets/images/reservas/perfil-black.png';
-import clockIcon from '../assets/images/reservas/clock.png';
-import listIcon from '../assets/images/reservas/list.png';
-import mapIcon from '../assets/images/reservas/map.png';
-import rightIcon from '../assets/images/reservas/right.png';
-import proximaIcon from '../assets/images/reservas/proxima.png';
-import calendarIcon from '../assets/images/home/calendario.png';
-import pastIcon from '../assets/images/sidebar/pasadas.png';
 
 const confirmedStatuses = new Set([
   StatusReservation.Aceptada,
@@ -37,21 +34,29 @@ if (!document.getElementById('reservation-loader-style')) {
   document.head.appendChild(loaderStyle);
 }
 
+const isValidDate = (date) => date instanceof Date && !Number.isNaN(date.getTime());
+
 const parseLocalDateTime = (dateString, timeString = '00:00') => {
+  if (!dateString) return null;
   const [year, month, day] = String(dateString).split('-').map(Number);
-  const [hours, minutes] = String(timeString).split(':').map(Number);
-  return new Date(year, month - 1, day, Number.isNaN(hours) ? 0 : hours, Number.isNaN(minutes) ? 0 : minutes, 0, 0);
+  if (!year || !month || !day) return null;
+  const [hours, minutes] = String(timeString || '00:00').split(':').map(Number);
+  const dt = new Date(
+    year,
+    month - 1,
+    day,
+    Number.isNaN(hours) ? 0 : hours,
+    Number.isNaN(minutes) ? 0 : minutes,
+    0,
+    0,
+  );
+  return isValidDate(dt) ? dt : null;
 };
 
 const formatCustomerName = (firstName, lastName, isRequest) => {
   if (!firstName) return 'Cliente';
   if (!isRequest) return `${firstName} ${lastName || ''}`.trim();
   return `${firstName} ${lastName ? `${lastName.charAt(0)}.` : ''}`.trim();
-};
-
-const formatReservationDateTime = (dateReservation, hourReservation) => {
-  if (!dateReservation) return 'Fecha y hora por confirmar';
-  return `${formatearFechaConDia(dateReservation)} - ${hourReservation || 'Hora no especificada'}`;
 };
 
 const getTypeLabel = (reservation) => {
@@ -89,14 +94,84 @@ const isPendingRequest = (item, statusValue) => (
   item.chefId === null && pendingRequestStatuses.has(statusValue)
 );
 
-const getHoursToLabel = (reservation) => {
+const getWeekCount = (reservations) => {
   const now = new Date();
-  const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-  const diffMs = reservationDate.getTime() - now.getTime();
-  const diffHours = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60)));
+  const day = now.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const start = new Date(now);
+  start.setDate(now.getDate() + mondayOffset);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+  return reservations.filter((reservation) => {
+    const dt = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+    return dt && dt >= start && dt < end;
+  }).length;
+};
 
-  if (diffHours <= 1) return 'EN MENOS DE 1 HORA';
-  return `EN ${diffHours} HORAS`;
+const formatDayGroupLabel = (dateString) => {
+  if (!dateString || dateString === 'sin-fecha') return 'FECHA POR CONFIRMAR';
+  const dt = parseLocalDateTime(dateString, '12:00');
+  if (!dt) return 'FECHA POR CONFIRMAR';
+  const label = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' }).format(dt);
+  return label.toUpperCase();
+};
+
+const formatCardTime = (dateReservation, hourReservation) => {
+  const dt = parseLocalDateTime(dateReservation, hourReservation);
+  if (!dt) return 'Por confirmar';
+  return new Intl.DateTimeFormat('es-PE', { hour: 'numeric', minute: '2-digit', hour12: true }).format(dt);
+};
+
+const getReservationDateKey = (reservation) => {
+  if (!reservation?.dateReservation) return 'sin-fecha';
+  const dt = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation || '12:00');
+  return dt ? reservation.dateReservation : 'sin-fecha';
+};
+
+const getReservationSubline = (reservation, isRequest) => {
+  const type = getTypeLabel(reservation);
+  const purchases = reservation.puchaseIngredients ? 'Con compras' : 'Sin compras';
+  if (isRequest) return `${type} · ${purchases}`;
+  return `${purchases} · ${reservation.direction || 'Sin dirección'}`;
+};
+
+const compareByDateTime = (a, b, direction = 1) => {
+  const dtA = parseLocalDateTime(a.dateReservation, a.hourReservation);
+  const dtB = parseLocalDateTime(b.dateReservation, b.hourReservation);
+  if (!dtA && !dtB) return 0;
+  if (!dtA) return 1;
+  if (!dtB) return -1;
+  return (dtA.getTime() - dtB.getTime()) * direction;
+};
+
+const groupReservationsByDay = (reservations) => {
+  const map = new Map();
+  reservations.forEach((reservation) => {
+    const key = getReservationDateKey(reservation);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(reservation);
+  });
+
+  return Array.from(map.entries())
+    .sort(([dateA], [dateB]) => {
+      if (dateA === 'sin-fecha') return 1;
+      if (dateB === 'sin-fecha') return -1;
+      const dtA = parseLocalDateTime(dateA, '12:00');
+      const dtB = parseLocalDateTime(dateB, '12:00');
+      if (!dtA || !dtB) return 0;
+      return dtA.getTime() - dtB.getTime();
+    })
+    .map(([date, items]) => ({
+      date,
+      dayUpper: formatDayGroupLabel(date),
+      items: items.sort((a, b) => {
+        const dtA = parseLocalDateTime(a.dateReservation, a.hourReservation);
+        const dtB = parseLocalDateTime(b.dateReservation, b.hourReservation);
+        if (!dtA || !dtB) return 0;
+        return dtA.getTime() - dtB.getTime();
+      }),
+    }));
 };
 
 const ReservationScreen = () => {
@@ -104,21 +179,15 @@ const ReservationScreen = () => {
   const [confirmedReservations, setConfirmedReservations] = useState([]);
   const [pastReservations, setPastReservations] = useState([]);
   const [requestReservations, setRequestReservations] = useState([]);
-  const [showPastReservations, setShowPastReservations] = useState(false);
+  const [viewMode, setViewMode] = useState('lista');
+  const [listFilter, setListFilter] = useState('proximas');
+  const [requestTypeFilter, setRequestTypeFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const { chefData } = useAuth();
   const chefId = chefData?.chefId;
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const showHistoryMode = searchParams.get('history') === 'true' || location.state?.showPast === true;
-
-  const syncTabToUrl = useCallback((tab) => {
-    navigate(`/reservation?tab=${tab}`, {
-      state: { defaultTab: tab },
-      replace: true,
-    });
-  }, [navigate]);
 
   useEffect(() => {
     const tabFromQuery = new URLSearchParams(location.search).get('tab');
@@ -126,12 +195,14 @@ const ReservationScreen = () => {
 
     if (tabFromQuery === 'requests' || location.state?.defaultTab === 'requests') {
       setActiveTab('requests');
-      setShowPastReservations(false);
+      setListFilter('proximas');
       return;
     }
 
     setActiveTab('confirmed');
-    setShowPastReservations(showHistoryFromQuery || location.state?.showPast === true);
+    if (showHistoryFromQuery || location.state?.showPast === true) {
+      setListFilter('pasadas');
+    }
   }, [location.search, location.state]);
 
   const loadReservations = useCallback(async () => {
@@ -174,33 +245,21 @@ const ReservationScreen = () => {
             return true;
           })
           .map((reservation) => ({ ...reservation, tipo: 'reserva' }))
-          .sort((a, b) => {
-            const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
-            const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
-            return dateA - dateB;
-          });
+          .sort((a, b) => compareByDateTime(a, b));
 
         const confirmed = allConfirmed
           .filter((reservation) => {
             const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-            return reservationDate.getTime() >= startOfToday;
+            return reservationDate && reservationDate.getTime() >= startOfToday;
           })
-          .sort((a, b) => {
-            const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
-            const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
-            return dateA - dateB;
-          });
+          .sort((a, b) => compareByDateTime(a, b));
 
         const past = allConfirmed
           .filter((reservation) => {
             const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-            return reservationDate.getTime() < startOfToday;
+            return reservationDate && reservationDate.getTime() < startOfToday;
           })
-          .sort((a, b) => {
-            const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
-            const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
-            return dateB - dateA;
-          });
+          .sort((a, b) => compareByDateTime(a, b, -1));
 
         confirmedForDisplay = confirmed;
         setPastReservations(past);
@@ -282,18 +341,10 @@ const ReservationScreen = () => {
               dateReservation: event.dateEvent || event.dateReservation,
               hourReservation: event.hourEvent || event.hourReservation,
             }))
-            .sort((a, b) => {
-              const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
-              const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
-              return dateA - dateB;
-            })
+            .sort((a, b) => compareByDateTime(a, b))
         : [];
 
-      const combinedConfirmed = [...confirmedForDisplay, ...eventsInProgress].sort((a, b) => {
-        const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
-        const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
-        return dateA - dateB;
-      });
+      const combinedConfirmed = [...confirmedForDisplay, ...eventsInProgress].sort((a, b) => compareByDateTime(a, b));
 
       const allRequests = [
         ...normalRequests,
@@ -301,11 +352,7 @@ const ReservationScreen = () => {
         ...eventRequests,
         ...dietRequests,
         ...serviceTaskRequests,
-      ].sort((a, b) => {
-        const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
-        const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
-        return dateA - dateB;
-      });
+      ].sort((a, b) => compareByDateTime(a, b));
 
       setConfirmedReservations(combinedConfirmed);
       setRequestReservations(allRequests);
@@ -327,31 +374,42 @@ const ReservationScreen = () => {
   }, { playSound: false });
 
   const upcomingReservation = useMemo(() => {
-    if (activeTab !== 'confirmed') return null;
     const now = new Date();
-    const nearestUpcoming = confirmedReservations
-      .filter((reservation) => {
-        const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-        return reservationDate.getTime() >= now.getTime();
-      })
-      .sort((a, b) => {
-        const dateA = parseLocalDateTime(a.dateReservation, a.hourReservation).getTime();
-        const dateB = parseLocalDateTime(b.dateReservation, b.hourReservation).getTime();
-        return dateA - dateB;
-      });
+    return confirmedReservations.find((reservation) => {
+      const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+      return reservationDate && reservationDate.getTime() >= now.getTime();
+    }) || null;
+  }, [confirmedReservations]);
 
-    return nearestUpcoming[0] || null;
-  }, [activeTab, confirmedReservations]);
+  const weekCount = useMemo(() => getWeekCount(confirmedReservations), [confirmedReservations]);
 
-  const visibleReservations = useMemo(() => {
-    const list = activeTab === 'confirmed' ? confirmedReservations : requestReservations;
-    if (activeTab !== 'confirmed' || !upcomingReservation) return list;
-    return list.filter((reservation) => reservation.id !== upcomingReservation.id);
-  }, [activeTab, confirmedReservations, requestReservations, upcomingReservation]);
+  const listaReservations = useMemo(() => {
+    if (activeTab !== 'confirmed') return [];
+    return listFilter === 'pasadas' ? pastReservations : confirmedReservations;
+  }, [activeTab, listFilter, confirmedReservations, pastReservations]);
+
+  const groupedLista = useMemo(() => {
+    if (activeTab !== 'confirmed') return [];
+    return groupReservationsByDay(listaReservations);
+  }, [activeTab, listaReservations]);
+
+  const requestFilterTabs = useMemo(() => ([
+    { id: 'all', label: 'Todas', count: requestReservations.length },
+    { id: 'reserva', label: 'Reservas', count: requestReservations.filter((r) => r.tipo === 'reserva').length },
+    { id: 'suscripcion', label: 'Suscripciones', count: requestReservations.filter((r) => r.tipo === 'suscripcion').length },
+    { id: 'evento', label: 'Eventos', count: requestReservations.filter((r) => r.tipo === 'evento').length },
+    { id: 'dieta', label: 'Dietas', count: requestReservations.filter((r) => r.tipo === 'dieta').length },
+    { id: 'tarea', label: 'Tareas', count: requestReservations.filter((r) => r.tipo === 'tarea').length },
+  ]), [requestReservations]);
+
+  const filteredRequests = useMemo(() => {
+    if (requestTypeFilter === 'all') return requestReservations;
+    return requestReservations.filter((item) => item.tipo === requestTypeFilter);
+  }, [requestReservations, requestTypeFilter]);
 
   const handleViewReservation = (reservation, isRequest = false) => {
     const originTab = isRequest ? 'requests' : 'confirmed';
-    const keepHistoryExpanded = !isRequest && showPastReservations;
+    const keepHistoryExpanded = !isRequest && listFilter === 'pasadas';
 
     if (reservation.tipo === 'evento') {
       navigate(`/reservation-event/${reservation.id}`, {
@@ -431,40 +489,63 @@ const ReservationScreen = () => {
     });
   };
 
-  const renderReservationCard = (reservation, isRequest = false) => {
+  const renderListaCard = (reservation, isRequest = false) => (
+    <button
+      key={`${reservation.tipo || 'reserva'}-${reservation.id}`}
+      type="button"
+      style={styles.listaCard}
+      onClick={() => handleViewReservation(reservation, isRequest)}
+    >
+      <div style={{ ...styles.listaTile, background: getReservationTileBg(reservation.tipo) }}>
+        {getReservationEmoji(reservation.tipo)}
+      </div>
+      <div style={styles.listaBody}>
+        <div style={styles.listaName}>{formatCustomerName(reservation.customerName, reservation.customerLastName, isRequest)}</div>
+        <div style={styles.listaSub}>{getReservationSubline(reservation, isRequest)}</div>
+      </div>
+      <div style={styles.listaRight}>
+        <div style={styles.listaTime}>{formatCardTime(reservation.dateReservation, reservation.hourReservation)}</div>
+        <span style={{ ...styles.listaStatus, ...getTypeBadgeStyle(reservation.tipo) }}>
+          {getTypeLabel(reservation)}
+        </span>
+      </div>
+    </button>
+  );
+
+  const renderSolicitudCard = (reservation) => {
+    const price = getRequestPriceText(reservation);
+    const ctaColor = reservation.tipo === 'evento' ? '#7A4FD0' : '#1763C9';
+
     return (
       <button
         key={`${reservation.tipo || 'reserva'}-${reservation.id}`}
-        style={styles.reservationCard}
-        onClick={() => handleViewReservation(reservation, isRequest)}
+        type="button"
+        style={styles.solicitudCard}
+        onClick={() => handleViewReservation(reservation, true)}
       >
-        <div style={styles.cardBody}>
-          <div style={styles.cardTopRow}>
-            <div style={styles.nameRow}>
-              <span style={styles.customerName}>{formatCustomerName(reservation.customerName, reservation.customerLastName, isRequest)}</span>
+        <div style={styles.solicitudTop}>
+          <div style={{ ...styles.listaTile, background: getReservationTileBg(reservation.tipo) }}>
+            {getReservationEmoji(reservation.tipo)}
+          </div>
+          <div style={styles.listaBody}>
+            <div style={styles.solicitudTitleRow}>
+              <span style={styles.listaName}>{getRequestServiceTitle(reservation.tipo)}</span>
+              {reservation.tipo === 'evento' && <span style={styles.eventBadge}>🎉 EVENTO</span>}
+              <span style={styles.pendingBadge}>Pendiente</span>
             </div>
-            <span style={{ ...styles.typeBadge, ...getTypeBadgeStyle(reservation.tipo) }}>
-              {getTypeLabel(reservation)}
-            </span>
+            <div style={styles.listaSub}>{getRequestCustomerName(reservation)}</div>
+            <div style={styles.listaSub}>{getRequestCardSubtitle(reservation)}</div>
           </div>
-
-          <div style={styles.detailRow}>
-            <img src={clockIcon} alt="Hora" style={styles.rowIcon} />
-            <span style={styles.rowText}>{formatReservationDateTime(reservation.dateReservation, reservation.hourReservation)}</span>
-          </div>
-
-          <div style={styles.detailRow}>
-            <img src={listIcon} alt="Compras" style={styles.rowIcon} />
-            <span style={styles.rowText}>{reservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}</span>
-          </div>
-
-          <div style={styles.detailRow}>
-            <img src={mapIcon} alt="Ubicacion" style={styles.rowIcon} />
-            <span style={styles.rowText}>{reservation.direction || 'Direccion no especificada'}</span>
-          </div>
+          {price && <div style={styles.solicitudPrice}>{price}</div>}
         </div>
-
-        <img src={rightIcon} alt="Ver detalle" style={styles.rightArrow} />
+        <div style={styles.solicitudFooter}>
+          <span style={{ ...styles.solicitudCta, color: ctaColor }}>
+            {reservation.tipo === 'evento' ? 'Revisar y cotizar' : 'Revisar y aceptar'}
+          </span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={ctaColor} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </div>
       </button>
     );
   };
@@ -477,335 +558,410 @@ const ReservationScreen = () => {
     );
   }
 
-  return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        {!showHistoryMode ? (
-          <>
-            <div style={styles.titleRow}>
-              <img src={calendarIcon} alt="Tus reservas" style={styles.titleIcon} />
-              <h1 style={styles.title}>Tus Reservas</h1>
-            </div>
+  if (activeTab === 'requests') {
+    return (
+      <div className="coci-page-wrap coci-page-wrap--requests coci-solicitudes-layout">
+        <div style={styles.requestsBadge}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z" />
+          </svg>
+          Por revisar · aún no son reservas
+        </div>
+        <h1 style={mockup.screenTitle}>Solicitudes</h1>
+        <p style={{ ...mockup.screenSubtitle, marginBottom: 16 }}>
+          {filteredRequests.length > 0
+            ? `${filteredRequests.length} ${filteredRequests.length === 1 ? 'solicitud por revisar' : 'solicitudes por revisar'}`
+            : 'No tienes solicitudes por revisar'}
+        </p>
 
-            <div style={styles.toggleContainer}>
-              <div
-                style={{
-                  ...styles.toggleKnob,
-                  transform: activeTab === 'confirmed' ? 'translateX(0%)' : 'translateX(100%)',
-                }}
-              />
-
+        <div className="coci-solicitudes-filters" style={styles.requestTabsRow}>
+          {requestFilterTabs.map((tab) => {
+            const isActive = requestTypeFilter === tab.id;
+            const showCount = tab.count > 0;
+            return (
               <button
+                key={tab.id}
                 type="button"
-                style={{ ...styles.toggleButton, ...(activeTab === 'confirmed' ? styles.toggleButtonActive : {}) }}
-                onClick={() => {
-                  setActiveTab('confirmed');
-                  syncTabToUrl('confirmed');
-                }}
+                style={isActive ? mockup.chipActive : mockup.chipInactive}
+                onClick={() => setRequestTypeFilter(tab.id)}
               >
-                Confirmadas
+                {tab.label}
+                {showCount ? (
+                  <span style={isActive ? styles.requestTabCountActive : styles.requestTabCount}>
+                    {tab.count}
+                  </span>
+                ) : null}
               </button>
+            );
+          })}
+        </div>
 
-              <button
-                type="button"
-                style={{ ...styles.toggleButton, ...(activeTab === 'requests' ? styles.toggleButtonActive : {}) }}
-                onClick={() => {
-                  setActiveTab('requests');
-                  syncTabToUrl('requests');
-                }}
-              >
-                Solicitudes ({requestReservations.length})
-              </button>
-            </div>
-          </>
+        {filteredRequests.length === 0 ? (
+          <div style={styles.emptyState}>
+            <div style={styles.emptyEmoji}>📥</div>
+            <p style={styles.emptyTitle}>No tienes solicitudes pendientes</p>
+            <p style={styles.emptyText}>Las nuevas solicitudes aparecerán aquí.</p>
+          </div>
         ) : (
-          <div style={styles.historyHeaderSpacer} />
+          <div className="coci-solicitudes-list" style={styles.solicitudesList}>
+            {filteredRequests.map((reservation) => renderSolicitudCard(reservation))}
+          </div>
         )}
       </div>
+    );
+  }
 
-      <div style={styles.content}>
-        {!showHistoryMode && activeTab === 'confirmed' && upcomingReservation && (
-          <div style={styles.nextReservationCard}>
-            <div style={styles.nextCardTop}>
-              <div style={styles.nextBadge}>
-                <img src={proximaIcon} alt="Proxima" style={styles.nextBadgeIcon} />
-                <span style={styles.nextBadgeText}>PROXIMA</span>
-              </div>
-              <span style={styles.nextHoursText}>{getHoursToLabel(upcomingReservation)}</span>
-            </div>
+  return (
+    <div className="coci-page-wrap">
+      <div className="coci-reservas-header" style={styles.reservasHeader}>
+        <div style={styles.reservasHeaderText}>
+          <h1 style={styles.reservasTitle}>Mis reservas</h1>
+          <p style={mockup.screenSubtitle}>{weekCount} confirmadas esta semana</p>
+        </div>
+        <div className="coci-view-toggle-mobile" style={styles.viewToggle}>
+          <button type="button" style={viewMode === 'lista' ? mockup.tabPillActive : mockup.tabPillInactive} onClick={() => setViewMode('lista')}>
+            Lista
+          </button>
+          <button type="button" style={viewMode === 'calendario' ? mockup.tabPillActive : mockup.tabPillInactive} onClick={() => setViewMode('calendario')}>
+            Calendario
+          </button>
+        </div>
+      </div>
 
-            <div style={styles.cardBodyNoArrow}>
-              <div style={styles.cardTopRow}>
-                <div style={styles.nameRow}>
-                  <img src={profileBlackIcon} alt="Perfil" style={styles.leadingIcon} />
-                  <span style={styles.customerName}>{formatCustomerName(upcomingReservation.customerName, upcomingReservation.customerLastName, false)}</span>
-                </div>
-                <span style={{ ...styles.typeBadge, ...getTypeBadgeStyle(upcomingReservation.tipo) }}>
-                  {getTypeLabel(upcomingReservation)}
-                </span>
-              </div>
-
-              <div style={styles.detailRow}>
-                <span style={styles.rowText}>{upcomingReservation.direction || 'Direccion no especificada'}</span>
-              </div>
-
-              <div style={styles.detailRow}>
-                <img src={clockIcon} alt="Hora" style={styles.rowIcon} />
-                <span style={styles.rowText}>{formatReservationDateTime(upcomingReservation.dateReservation, upcomingReservation.hourReservation)}</span>
-              </div>
-
-              <div style={styles.detailRow}>
-                <img src={listIcon} alt="Compras" style={styles.rowIcon} />
-                <span style={styles.rowText}>{upcomingReservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}</span>
-              </div>
-            </div>
-
-            <button
-              style={styles.nextActionButton}
-              onClick={() => handleViewReservation(upcomingReservation, false)}
-            >
-              Ver proxima reserva
+      <div className={`coci-reservas-split mode-${viewMode}`}>
+        <div className="coci-reservas-list-col">
+          <div style={styles.chipRow}>
+            <button type="button" style={listFilter === 'proximas' ? mockup.chipActive : mockup.chipInactive} onClick={() => setListFilter('proximas')}>
+              Próximas
+            </button>
+            <button type="button" style={listFilter === 'pasadas' ? mockup.chipActive : mockup.chipInactive} onClick={() => setListFilter('pasadas')}>
+              Pasadas
             </button>
           </div>
-        )}
 
-        {!showHistoryMode && visibleReservations.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p style={styles.emptyTitle}>
-              {activeTab === 'confirmed' ? 'No tienes reservas confirmadas' : 'No tienes solicitudes pendientes'}
-            </p>
-            <p style={styles.emptyText}>
-              {activeTab === 'confirmed'
-                ? 'Tus reservas apareceran aqui cuando se confirmen.'
-                : 'Las nuevas solicitudes apareceran aqui.'}
-            </p>
-          </div>
-        ) : !showHistoryMode ? (
-          visibleReservations.map((reservation) => renderReservationCard(reservation, activeTab === 'requests'))
-        ) : null}
-
-        {showHistoryMode && (
-          <div style={styles.pastSectionContainer}>
-            <div style={styles.pastSectionHeader}>
-              <div style={styles.pastSectionTitleRow}>
-                <img src={pastIcon} alt="Reservas pasadas" style={styles.pastSectionIcon} />
-                <h2 style={styles.pastSectionTitle}>Reservas pasadas</h2>
-              </div>
+          {listaReservations.length === 0 ? (
+            <div style={styles.emptyState}>
+              <div style={styles.emptyEmoji}>🗓️</div>
+              <p style={styles.emptyTitle}>
+                {listFilter === 'pasadas' ? 'No tienes reservas pasadas' : 'No tienes reservas confirmadas'}
+              </p>
+              <p style={styles.emptyText}>
+                {listFilter === 'pasadas'
+                  ? 'Tu historial aparecerá aquí.'
+                  : 'Tus reservas aparecerán aquí cuando se confirmen.'}
+              </p>
             </div>
+          ) : (
+            <div style={styles.groupedList}>
+              {groupedLista.map((group) => (
+                <div key={group.date}>
+                  <div style={mockup.dayGroupTitle}>{group.dayUpper}</div>
+                  {group.items.map((reservation) => renderListaCard(reservation, false))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-            <p style={styles.pastSectionSubtitle}>Aquí verás tu historial</p>
-            {pastReservations.length > 0 ? (
-              pastReservations.map((reservation) => renderReservationCard(reservation, false))
-            ) : (
-              <div style={styles.emptyState}>
-                <p style={styles.emptyTitle}>No tienes reservas pasadas</p>
-                <p style={styles.emptyText}>Tu historial aparecerá aquí.</p>
-              </div>
+        <div className="coci-reservas-cal-col">
+          <div className="calendar-card-sticky" style={styles.calendarCard}>
+            <div style={styles.calendarTitle}>Calendario</div>
+            <p style={styles.calendarHint}>Vista de calendario en desarrollo. Usa la lista para ver tus reservas agrupadas por día.</p>
+            {upcomingReservation && (
+              <button type="button" style={styles.calendarNextBtn} onClick={() => handleViewReservation(upcomingReservation, false)}>
+                Ver próxima reserva · {formatCustomerName(upcomingReservation.customerName, upcomingReservation.customerLastName, false)}
+              </button>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
 
 const styles = {
-  container: {
-    minHeight: '100%',
-    backgroundColor: '#EAF1F6',
-    width: '100%',
-  },
   loadingContainer: {
-    height: '100vh',
+    minHeight: '60vh',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#EAF1F6',
   },
   spinner: {
     width: 40,
     height: 40,
-    border: '4px solid #DDE6EE',
-    borderTop: '4px solid #FF4336',
+    border: `4px solid ${theme.spinnerBorder}`,
+    borderTop: `4px solid ${theme.spinnerAccent}`,
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
   },
-  header: {
-    padding: `${spacing.medium}px ${spacing.medium}px ${spacing.small}px`,
-  },
-  titleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: spacing.small,
-  },
-  titleIcon: {
-    width: 24,
-    height: 24,
-    objectFit: 'contain',
-  },
-  title: {
-    margin: 0,
-    fontSize: 24,
-    fontWeight: 800,
-    color: '#1B2736',
-  },
-  historyHeaderSpacer: {
-    height: 12,
-  },
-  toggleContainer: {
-    position: 'relative',
-    display: 'flex',
-    backgroundColor: '#DDE6EE',
-    borderRadius: 999,
-    padding: 4,
-    overflow: 'hidden',
-  },
-  toggleKnob: {
-    position: 'absolute',
-    top: 4,
-    left: 4,
-    width: 'calc(50% - 4px)',
-    height: 'calc(100% - 8px)',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 999,
-    transition: 'transform 0.25s ease',
-    boxShadow: '0 4px 10px rgba(44, 72, 88, 0.12)',
-  },
-  toggleButton: {
-    flex: 1,
-    zIndex: 1,
-    border: 'none',
-    background: 'transparent',
-    padding: '12px 10px',
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#556475',
-    cursor: 'pointer',
-    textAlign: 'center',
-  },
-  toggleButtonActive: {
-    color: '#1F2937',
-    fontWeight: 800,
-  },
-  content: {
-    padding: `${spacing.small}px ${spacing.medium}px ${spacing.medium}px`,
-  },
-  nextReservationCard: {
-    width: '100%',
-    border: '1px dashed #6AB8FF',
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    padding: '12px 12px 14px',
-    marginBottom: 10,
-    textAlign: 'left',
-  },
-  nextCardTop: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  nextBadge: {
+  requestsBadge: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
+    background: '#E1EBFA',
+    color: theme.link,
     borderRadius: 999,
-    border: '1px solid #FFC778',
-    backgroundColor: '#FFF2DE',
-    padding: '3px 9px',
-  },
-  nextBadgeIcon: {
-    width: 14,
-    height: 14,
-    objectFit: 'contain',
-  },
-  nextBadgeText: {
-    fontSize: 11,
-    fontWeight: 800,
-    color: '#E88700',
-    letterSpacing: 0.2,
-  },
-  nextHoursText: {
-    fontSize: 11,
+    padding: '5px 12px 5px 10px',
+    fontFamily: theme.fontHeading,
     fontWeight: 700,
-    color: '#4B5563',
+    fontSize: 11.5,
     letterSpacing: 0.3,
+    marginBottom: 12,
   },
-  cardBodyNoArrow: {
+  reservasHeader: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 12,
+    flexWrap: 'nowrap',
+    marginBottom: 20,
+  },
+  reservasHeaderText: {
+    flex: '1 1 auto',
+    minWidth: 0,
+  },
+  reservasTitle: {
+    fontFamily: theme.fontHeading,
+    fontWeight: 800,
+    fontSize: 24,
+    letterSpacing: -0.5,
+    color: theme.textPrimary,
+    margin: 0,
+    lineHeight: 1.15,
+  },
+  viewToggle: {
+    display: 'flex',
+    gap: 4,
+    background: '#fff',
+    borderRadius: 999,
+    padding: 4,
+    boxShadow: '0 3px 12px rgba(27, 52, 92, 0.07)',
+    flexShrink: 0,
+    alignSelf: 'flex-end',
+  },
+  chipRow: {
+    display: 'flex',
+    gap: 8,
+    marginBottom: 6,
+    overflowX: 'auto',
+    paddingBottom: 2,
+  },
+  groupedList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 6,
-  },
-  cardTopRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     gap: 8,
   },
-  reservationCard: {
+  listaCard: {
     width: '100%',
-    border: 'none',
-    borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    padding: '14px 12px',
-    marginBottom: 10,
     textAlign: 'left',
+    background: '#fff',
+    boxShadow: theme.cardShadow,
+    border: 'none',
+    borderRadius: 20,
+    padding: '16px 18px',
+    cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    cursor: 'pointer',
+    gap: 14,
+    marginBottom: 8,
   },
-  cardBody: {
+  listaTile: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
     display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 22,
+    flexShrink: 0,
+  },
+  listaBody: {
     flex: 1,
     minWidth: 0,
   },
-  nameRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  leadingIcon: {
-    width: 24,
-    height: 24,
-    objectFit: 'contain',
-    flexShrink: 0,
-  },
-  customerName: {
-    fontSize: 17,
-    fontWeight: 800,
-    color: '#1B2736',
-    lineHeight: 1.15,
-  },
-  detailRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  rowIcon: {
-    width: 16,
-    height: 16,
-    objectFit: 'contain',
-    flexShrink: 0,
-  },
-  rowText: {
-    fontSize: 13,
-    color: '#324154',
-    lineHeight: '18px',
+  listaName: {
+    fontFamily: theme.fontHeading,
+    fontWeight: 700,
+    fontSize: 15.5,
+    color: theme.textPrimary,
+    whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
   },
-  typeBadge: {
-    fontSize: 10,
-    fontWeight: 800,
-    borderRadius: 999,
-    padding: '3px 8px',
+  listaSub: {
+    fontSize: 13,
+    color: theme.textCaption,
+    marginTop: 3,
+  },
+  listaRight: {
+    textAlign: 'right',
     flexShrink: 0,
+  },
+  listaTime: {
+    fontFamily: theme.fontHeading,
+    fontWeight: 800,
+    fontSize: 16,
+    color: '#4F4F4F',
+  },
+  listaStatus: {
+    display: 'inline-block',
+    fontSize: 11,
+    fontWeight: 700,
+    borderRadius: 999,
+    padding: '4px 11px',
+    marginTop: 6,
+  },
+  solicitudesList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+  },
+  solicitudCard: {
+    width: '100%',
+    textAlign: 'left',
+    background: '#fff',
+    boxShadow: theme.cardShadow,
+    border: 'none',
+    borderRadius: 22,
+    padding: 18,
+    cursor: 'pointer',
+  },
+  solicitudTop: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 13,
+  },
+  solicitudPrice: {
+    fontFamily: theme.fontHeading,
+    fontWeight: 800,
+    fontSize: 17,
+    color: theme.link,
+    flexShrink: 0,
+    marginTop: 2,
+  },
+  pendingBadge: {
+    fontFamily: theme.fontHeading,
+    fontSize: 11,
+    fontWeight: 800,
     letterSpacing: 0.3,
+    color: theme.link,
+    background: '#E1EBFA',
+    borderRadius: 999,
+    padding: '4px 11px',
+  },
+  requestTabsRow: {
+    display: 'flex',
+    gap: 8,
+    marginBottom: 18,
+    overflowX: 'auto',
+    paddingBottom: 2,
+  },
+  requestTabCount: {
+    marginLeft: 6,
+    fontSize: 11,
+    fontWeight: 800,
+    color: theme.link,
+    background: '#E1EBFA',
+    borderRadius: 999,
+    padding: '2px 7px',
+  },
+  requestTabCountActive: {
+    marginLeft: 6,
+    fontSize: 11,
+    fontWeight: 800,
+    color: '#fff',
+    background: 'rgba(255,255,255,0.22)',
+    borderRadius: 999,
+    padding: '2px 7px',
+  },
+  solicitudTitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  eventBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    fontFamily: theme.fontHeading,
+    fontSize: 11.5,
+    fontWeight: 800,
+    letterSpacing: 0.3,
+    color: '#fff',
+    background: '#7A4FD0',
+    borderRadius: 999,
+    padding: '4px 11px',
+    boxShadow: '0 4px 10px rgba(122, 79, 208, 0.3)',
+  },
+  solicitudFooter: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 16,
+    paddingTop: 14,
+    borderTop: `1px solid ${theme.divider}`,
+  },
+  solicitudCta: {
+    fontFamily: theme.fontHeading,
+    fontWeight: 700,
+    fontSize: 13.5,
+    color: theme.link,
+  },
+  emptyState: {
+    background: '#fff',
+    borderRadius: 22,
+    padding: '44px 24px',
+    textAlign: 'center',
+    boxShadow: theme.cardShadowSoft,
+  },
+  emptyEmoji: {
+    fontSize: 38,
+    marginBottom: 10,
+  },
+  emptyTitle: {
+    margin: 0,
+    fontFamily: theme.fontHeading,
+    fontWeight: 700,
+    fontSize: 15.5,
+    color: theme.textPrimary,
+  },
+  emptyText: {
+    margin: '8px 0 0',
+    fontSize: 13.5,
+    color: theme.textMuted,
+    lineHeight: '20px',
+  },
+  calendarCard: {
+    background: '#fff',
+    borderRadius: 22,
+    padding: 20,
+    boxShadow: '0 6px 20px rgba(27, 52, 92, 0.07)',
+  },
+  calendarTitle: {
+    fontFamily: theme.fontHeading,
+    fontWeight: 800,
+    fontSize: 18,
+    marginBottom: 8,
+  },
+  calendarHint: {
+    fontSize: 14,
+    color: theme.textMuted,
+    lineHeight: 1.5,
+    margin: '0 0 16px',
+  },
+  calendarNextBtn: {
+    width: '100%',
+    border: 'none',
+    borderRadius: 14,
+    padding: '14px 16px',
+    background: theme.accentSoft,
+    color: theme.accent,
+    fontFamily: theme.fontHeading,
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: 'pointer',
   },
   typeBadgeReservation: {
     color: '#3158A3',
@@ -826,139 +982,6 @@ const styles = {
   typeBadgeTarea: {
     color: '#B45309',
     backgroundColor: '#FEF3C7',
-  },
-  rightArrow: {
-    width: 20,
-    height: 20,
-    objectFit: 'contain',
-    marginLeft: 10,
-    flexShrink: 0,
-  },
-  nextActionButton: {
-    width: '100%',
-    marginTop: 10,
-    border: 'none',
-    borderRadius: 999,
-    backgroundColor: '#FCE9E8',
-    padding: '11px 14px',
-    color: '#FF4336',
-    fontSize: 16,
-    fontWeight: 800,
-    cursor: 'pointer',
-  },
-  emptyState: {
-    borderRadius: 16,
-    padding: spacing.large,
-    backgroundColor: '#FFFFFF',
-    textAlign: 'center',
-    marginTop: spacing.small,
-  },
-  emptyTitle: {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 800,
-    color: '#1B2736',
-  },
-  emptyText: {
-    margin: '8px 0 0',
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: '20px',
-  },
-  pastSectionContainer: {
-    marginTop: spacing.large,
-  },
-  pastSectionHeader: {
-    width: '100%',
-    border: 'none',
-    backgroundColor: 'transparent',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 2px',
-    cursor: 'pointer',
-  },
-  pastSectionTitleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pastSectionIcon: {
-    width: 24,
-    height: 24,
-    objectFit: 'contain',
-    flexShrink: 0,
-  },
-  pastSectionTitle: {
-    margin: 0,
-    fontSize: 20,
-    fontWeight: 800,
-    color: '#1B2736',
-  },
-  pastSectionSubtitle: {
-    margin: '8px 0 14px',
-    fontSize: 14,
-    color: '#324154',
-    lineHeight: '20px',
-  },
-  eventsSectionContainer: {
-    marginBottom: spacing.large,
-  },
-  eventsSectionHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    padding: '0 2px',
-  },
-  eventsSectionTitleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  eventsSectionMarker: {
-    width: 12,
-    height: 12,
-    borderRadius: '50%',
-    backgroundColor: '#7C3AED',
-    boxShadow: '0 0 0 4px rgba(124, 58, 237, 0.12)',
-    flexShrink: 0,
-  },
-  eventsSectionTitle: {
-    margin: 0,
-    fontSize: 20,
-    fontWeight: 800,
-    color: '#1B2736',
-  },
-  eventsSectionCount: {
-    minWidth: 28,
-    height: 28,
-    borderRadius: 999,
-    padding: '0 8px',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3E8FF',
-    color: '#6D28D9',
-    fontSize: 13,
-    fontWeight: 800,
-    flexShrink: 0,
-  },
-  eventsSectionSubtitle: {
-    margin: '8px 0 14px',
-    fontSize: 14,
-    color: '#324154',
-    lineHeight: '20px',
-  },
-  pastSectionArrow: {
-    width: 20,
-    height: 20,
-    objectFit: 'contain',
-    transform: 'rotate(90deg)',
-    transition: 'transform 0.2s ease',
-  },
-  pastSectionArrowExpanded: {
-    transform: 'rotate(-90deg)',
   },
 };
 

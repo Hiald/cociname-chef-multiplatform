@@ -27,6 +27,7 @@ import { subscribePushNotifications } from '../hooks/usePushNotifications';
 import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
 import './routes.css';
+import '../styles/responsive.css';
 
 const Navigator = () => {
   const location = useLocation();

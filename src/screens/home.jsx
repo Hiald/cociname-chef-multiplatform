@@ -1,559 +1,987 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
 import { useNavigate } from 'react-router-dom';
-import { spacing } from '../styles';
+
+import { appScreenTheme as theme, mockup } from '../styles';
+
 import { apiService } from '../services/api.service';
+
 import { StatusReservation } from '../types';
+
 import { useSignalR } from '../hooks/useSignalR';
+
 import { useAuth } from '../hooks/useAuth';
-import enCursoIcon from '../assets/images/home/en-curso.png';
-import calendarIcon from '../assets/images/home/calendario.png';
-import clockIcon from '../assets/images/home/clock.png';
-import listIcon from '../assets/images/home/lista.png';
-import checkIcon from '../assets/images/home/check.png';
-import requestIcon from '../assets/images/home/solicitud.png';
-import profileBlackIcon from '../assets/images/home/perfil-black.png';
+
+
 
 const loaderStyle = document.createElement('style');
+
 loaderStyle.innerHTML = `
+
   @keyframes spin {
+
     0% { transform: rotate(0deg); }
+
     100% { transform: rotate(360deg); }
+
   }
+
 `;
 
 if (!document.getElementById('home-loader-style')) {
+
   loaderStyle.id = 'home-loader-style';
+
   document.head.appendChild(loaderStyle);
+
 }
 
+
+
 const confirmedStatuses = new Set([
+
   StatusReservation.Aceptada,
+
   StatusReservation.Creada,
+
   StatusReservation.Actualizada,
+
   StatusReservation.EnCompra,
+
   StatusReservation.EnTrayecto,
+
   StatusReservation.EnCocina,
+
 ]);
 
+
+
 const parseLocalDateTime = (dateString, timeString) => {
+
   const [year, month, day] = dateString.split('-').map(Number);
+
   const [hours, minutes] = timeString.split(':').map(Number);
+
   return new Date(year, month - 1, day, hours, minutes, 0, 0);
+
 };
 
-const isSameDay = (leftDate, rightDate) => {
-  if (!leftDate || !rightDate) return false;
-  return (
-    leftDate.getFullYear() === rightDate.getFullYear() &&
-    leftDate.getMonth() === rightDate.getMonth() &&
-    leftDate.getDate() === rightDate.getDate()
-  );
+
+
+const isSameDay = (leftDate, rightDate) => (
+
+  leftDate.getFullYear() === rightDate.getFullYear()
+
+  && leftDate.getMonth() === rightDate.getMonth()
+
+  && leftDate.getDate() === rightDate.getDate()
+
+);
+
+
+
+const formatHomeSubtitle = (todayCount) => {
+
+  const now = new Date();
+
+  const raw = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' }).format(now);
+
+  const dateLabel = raw.charAt(0).toUpperCase() + raw.slice(1);
+
+  if (todayCount === 0) return `${dateLabel} · no tienes sesiones hoy`;
+
+  return `${dateLabel} · tienes ${todayCount} ${todayCount === 1 ? 'sesión' : 'sesiones'} hoy`;
+
 };
 
-const formatTodayLabel = (date) => {
-  const day = new Intl.DateTimeFormat('es-PE', { day: '2-digit', timeZone: 'UTC' }).format(date);
-  const month = new Intl.DateTimeFormat('es-PE', { month: 'short', timeZone: 'UTC' }).format(date);
-  return `HOY, ${day} ${month}`.toUpperCase();
+
+
+const formatShortTime = (dateString, timeString) => {
+
+  const dt = parseLocalDateTime(dateString, timeString);
+
+  const now = new Date();
+
+  const label = isSameDay(dt, now) ? 'Hoy' : new Intl.DateTimeFormat('es-PE', { weekday: 'short', day: 'numeric' }).format(dt);
+
+  const time = new Intl.DateTimeFormat('es-PE', { hour: 'numeric', minute: '2-digit', hour12: true }).format(dt);
+
+  return `${label} · ${time}`;
+
 };
 
-const formatTimeRange = (reservation) => {
-  const startDateTime = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-  const endDateTime = new Date(startDateTime.getTime() + (reservation.preparationTime || 0) * 60 * 60 * 1000);
 
-  const formatter = new Intl.DateTimeFormat('es-PE', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
 
-  return `${formatter.format(startDateTime).replace(/\s/g, ' ')} a ${formatter.format(endDateTime).replace(/\s/g, ' ')}`;
+const getHoursToLabel = (reservation) => {
+
+  const now = new Date();
+
+  const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+
+  const diffMs = reservationDate.getTime() - now.getTime();
+
+  if (diffMs <= 0) return 'En curso';
+
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+  const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (diffHours < 1) return `En ${diffMins}m`;
+
+  if (diffMins === 0) return `En ${diffHours}h`;
+
+  return `En ${diffHours}h ${diffMins}m`;
+
 };
+
+
 
 const getFullName = (reservation) => {
+
   const names = [reservation.customerName, reservation.customerLastName].filter(Boolean);
+
   return names.length > 0 ? names.join(' ') : 'Cliente';
+
 };
 
+
+
+const getWeekCount = (reservations) => {
+
+  const now = new Date();
+
+  const day = now.getDay();
+
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+
+  const start = new Date(now);
+
+  start.setDate(now.getDate() + mondayOffset);
+
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(start);
+
+  end.setDate(start.getDate() + 7);
+
+  return reservations.filter((reservation) => {
+
+    const dt = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+
+    return dt >= start && dt < end;
+
+  }).length;
+
+};
+
+
+
 const HomeScreen = () => {
+
   const [loading, setLoading] = useState(true);
-  const [, setReservations] = useState([]);
-  const [activeReservation, setActiveReservation] = useState(null);
+
+  const [nextReservation, setNextReservation] = useState(null);
+
   const [confirmedReservations, setConfirmedReservations] = useState([]);
+
   const [requestReservations, setRequestReservations] = useState([]);
+
   const { chefData } = useAuth();
+
   const chefId = chefData?.chefId;
+
   const navigate = useNavigate();
 
+
+
   const loadReservations = useCallback(async () => {
+
     if (!chefId) return;
 
+
+
     try {
+
       setLoading(true);
 
       const response = await apiService.listReservationByChefId(chefId);
-      if (!response.success || !response.data) {
-        setReservations([]);
-        setConfirmedReservations([]);
-        setRequestReservations([]);
-        setActiveReservation(null);
-        return;
-      }
 
       const now = new Date();
+
       const todayStart = new Date(now);
+
       todayStart.setHours(0, 0, 0, 0);
-      const todayEnd = new Date(now);
-      todayEnd.setHours(23, 59, 59, 999);
 
-      const allReservations = response.data;
-      setReservations(allReservations);
 
-      const sameDayConfirmed = allReservations
-        .filter((reservation) => {
-          if (!confirmedStatuses.has(reservation.statusReservation)) return false;
-          const reservationDateTime = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-          return isSameDay(reservationDateTime, now) && reservationDateTime.getTime() >= todayStart.getTime();
-        })
-        .sort((left, right) => {
-          const leftTime = parseLocalDateTime(left.dateReservation, left.hourReservation).getTime();
-          const rightTime = parseLocalDateTime(right.dateReservation, right.hourReservation).getTime();
-          return leftTime - rightTime;
-        });
 
-      const confirmed = allReservations
-        .filter((reservation) => {
-          if (!confirmedStatuses.has(reservation.statusReservation)) return false;
-          const reservationDateTime = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-          return reservationDateTime.getTime() >= todayStart.getTime();
-        })
-        .sort((left, right) => {
-          const leftTime = parseLocalDateTime(left.dateReservation, left.hourReservation).getTime();
-          const rightTime = parseLocalDateTime(right.dateReservation, right.hourReservation).getTime();
-          return leftTime - rightTime;
-        });
+      if (!response.success || !response.data) {
 
-      const activeReservationCandidate = sameDayConfirmed.length > 0
-        ? sameDayConfirmed[0]
-        : null;
+        setConfirmedReservations([]);
 
-      setActiveReservation(activeReservationCandidate);
+        setRequestReservations([]);
+
+        setNextReservation(null);
+
+        return;
+
+      }
+
+
+
+      const confirmed = response.data
+
+        .filter((reservation) => confirmedStatuses.has(reservation.statusReservation))
+
+        .filter((reservation) => parseLocalDateTime(reservation.dateReservation, reservation.hourReservation).getTime() >= todayStart.getTime())
+
+        .sort((a, b) => parseLocalDateTime(a.dateReservation, a.hourReservation) - parseLocalDateTime(b.dateReservation, b.hourReservation));
+
+
+
       setConfirmedReservations(confirmed);
 
+      setNextReservation(confirmed.find((r) => parseLocalDateTime(r.dateReservation, r.hourReservation) >= now) || confirmed[0] || null);
+
+
+
       const dateFilter = now.toISOString().split('T')[0];
+
       const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
 
+      const pendingFilters = { dateFilter, timeFilter, Page: 1, RecordsPerPage: 50 };
+
+
+
       const [requestsResponse, suscriptionsResponse, eventsResponse] = await Promise.all([
-        apiService.getPendingReservations({ dateFilter, timeFilter }),
-        apiService.getPendingReservationSuscription({ dateFilter, timeFilter }),
-        apiService.getPendingEventReservation({ dateFilter, timeFilter }),
+
+        apiService.getPendingReservations(pendingFilters),
+
+        apiService.getPendingReservationSuscription(pendingFilters),
+
+        apiService.getPendingEventReservation(pendingFilters),
+
       ]);
 
+
+
+      const filterPending = (item, status) => item.chefId === null && (
+
+        status === StatusReservation.Creada
+
+        || status === StatusReservation.Reprogramada
+
+        || status === StatusReservation.ReasignacionCocinera
+
+      );
+
+
+
       const normalRequests = requestsResponse.success && requestsResponse.data
-        ? requestsResponse.data.filter((reservation) => (
-            reservation.chefId === null &&
-            (reservation.statusReservation === StatusReservation.Creada ||
-              reservation.statusReservation === StatusReservation.Reprogramada ||
-              reservation.statusReservation === StatusReservation.ReasignacionCocinera)
-          ))
-        : [];
+
+        ? requestsResponse.data.filter((r) => filterPending(r, r.statusReservation)) : [];
 
       const subscriptionRequests = suscriptionsResponse.success && suscriptionsResponse.data
-        ? suscriptionsResponse.data.filter((reservation) => (
-            reservation.chefId === null &&
-            (reservation.suscriptionStatus === StatusReservation.Creada ||
-              reservation.suscriptionStatus === StatusReservation.Reprogramada ||
-              reservation.suscriptionStatus === StatusReservation.ReasignacionCocinera)
-          ))
-        : [];
+
+        ? suscriptionsResponse.data.filter((r) => filterPending(r, r.suscriptionStatus)) : [];
 
       const eventRequests = eventsResponse.success && eventsResponse.data
-        ? eventsResponse.data.filter((event) => (
-            event.chefId === null &&
-            (event.statusEvent === StatusReservation.Creada ||
-              event.statusEvent === StatusReservation.Reprogramada ||
-              event.statusEvent === StatusReservation.ReasignacionCocinera)
-          ))
-        : [];
+
+        ? eventsResponse.data.filter((r) => filterPending(r, r.statusEvent)) : [];
+
+
 
       setRequestReservations([...normalRequests, ...subscriptionRequests, ...eventRequests]);
+
     } catch (error) {
+
       console.error('Error loading reservations:', error);
-      setReservations([]);
+
       setConfirmedReservations([]);
+
       setRequestReservations([]);
-      setActiveReservation(null);
+
+      setNextReservation(null);
+
     } finally {
+
       setLoading(false);
+
     }
+
   }, [chefId]);
 
+
+
   useEffect(() => {
-    if (chefId) {
-      void loadReservations();
-    }
+
+    if (chefId) void loadReservations();
+
   }, [chefId, loadReservations]);
+
+
 
   useSignalR(loadReservations, { playSound: false });
 
-  const currentDateLabel = activeReservation
-    ? formatTodayLabel(new Date())
-    : null;
 
-  const todayConfirmedCount = confirmedReservations.filter((reservation) => {
-    const reservationDateTime = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-    return isSameDay(reservationDateTime, new Date());
-  }).length;
 
-  const confirmedCount = confirmedReservations.length;
-  const requestsCount = requestReservations.length;
+  const todayCount = useMemo(() => confirmedReservations.filter((reservation) => {
 
-  const handleGoToReservations = (tab = 'confirmed') => {
-    navigate(`/reservation?tab=${tab}`, {
-      state: { defaultTab: tab },
-    });
-  };
+    const dt = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
+
+    return isSameDay(dt, new Date());
+
+  }).length, [confirmedReservations]);
+
+
+
+  const weekCount = useMemo(() => getWeekCount(confirmedReservations), [confirmedReservations]);
+
+  const rating = Number(chefData?.rating || 0).toFixed(1);
+
+
 
   if (loading) {
+
     return (
+
       <div style={styles.loadingContainer}>
+
         <div style={styles.loader} />
+
       </div>
+
     );
+
   }
 
+
+
   return (
-    <div style={styles.container}>
-      <div style={styles.contentContainer}>
-        <div style={styles.header}>
-          <h1 style={styles.greeting}>¡Hola, {chefData?.firstName || 'Chef'}!</h1>
-          <p style={styles.message}>
-            {todayConfirmedCount > 0
-              ? `Hoy tienes ${todayConfirmedCount} ${todayConfirmedCount === 1 ? 'reserva confirmada' : 'reservas confirmadas'}`
-              : 'Hoy no tienes reservas confirmadas'}
-          </p>
+
+    <div className="coci-page-wrap">
+
+      <h1 style={mockup.screenTitle}>¡Hola, {chefData?.firstName || 'Chef'}!</h1>
+
+      <p style={{ ...mockup.screenSubtitle, marginBottom: 22 }}>{formatHomeSubtitle(todayCount)}</p>
+
+
+
+      <div style={styles.statsGrid}>
+
+        <div style={{ ...styles.statCard, background: 'linear-gradient(135deg,#E4F6EC,#C4EBD3)' }}>
+
+          <div style={{ ...styles.statLabel, color: '#0B855C' }}>Esta semana</div>
+
+          <div style={{ ...styles.statValue, color: '#0B7A54' }}>{weekCount} {weekCount === 1 ? 'reserva' : 'reservas'}</div>
+
         </div>
 
-        {activeReservation && (
-          <div style={styles.activeCardWrap}>
-            <div style={styles.activeCardHeader}>
-              <div style={styles.activeBadge}>
-                <img src={enCursoIcon} alt="En curso" style={styles.activeBadgeIcon} />
-                <span style={styles.activeBadgeText}>EN CURSO</span>
+        <div style={{ ...styles.statCard, background: 'linear-gradient(135deg,#FFF3D6,#FFE49E)' }}>
+
+          <div style={{ ...styles.statLabel, color: '#B07D12' }}>Calificación</div>
+
+          <div style={{ ...styles.statValue, color: '#96690C' }}>{rating} ★</div>
+
+        </div>
+
+        <div style={{ ...styles.statCard, background: 'linear-gradient(135deg,#EAF2FE,#CFE0FB)' }}>
+
+          <div style={{ ...styles.statLabel, color: '#1763C9' }}>Bonos mes</div>
+
+          <div style={{ ...styles.statValue, color: '#12539F' }}>—</div>
+
+        </div>
+
+      </div>
+
+
+
+      {nextReservation && (
+
+        <>
+
+          <div style={mockup.sectionLabel}>Tu próxima reserva</div>
+
+          <button
+
+            type="button"
+
+            style={styles.nextHeroCard}
+
+            onClick={() => navigate(`/reservation/${nextReservation.id}`, {
+
+              state: { source: 'home', reservationData: nextReservation },
+
+            })}
+
+          >
+
+            <div style={styles.nextHeroGlow} />
+
+            <div style={{ position: 'relative' }}>
+
+              <div style={styles.nextHeroTop}>
+
+                <span style={styles.nextHeroTime}>{formatShortTime(nextReservation.dateReservation, nextReservation.hourReservation)}</span>
+
+                <span style={styles.nextHeroCountdown}>{getHoursToLabel(nextReservation)}</span>
+
               </div>
-              <span style={styles.reservationDate}>{currentDateLabel}</span>
+
+              <div style={styles.nextHeroName}>{getFullName(nextReservation)}</div>
+
+              <div style={styles.nextHeroMeta}>
+
+                {nextReservation.puchaseIngredients ? 'Con compras' : 'Sin compras'} · {nextReservation.direction || 'Sin dirección'}
+
+              </div>
+
+              <span style={styles.nextHeroCta}>Ver detalle →</span>
+
             </div>
 
-            <div style={styles.activeCardBody}>
-              <div style={styles.customerRow}>
-                <img src={profileBlackIcon} alt="Perfil" style={styles.customerIcon} />
-                <span style={styles.customerName}>{getFullName(activeReservation)}</span>
-              </div>
+          </button>
 
-              <p style={styles.customerAddress}>{activeReservation.direction}</p>
+        </>
 
-              <div style={styles.detailRows}>
-                <div style={styles.detailRow}>
-                  <img src={clockIcon} alt="Hora" style={styles.detailIcon} />
-                  <span style={styles.detailText}>{formatTimeRange(activeReservation)}</span>
-                </div>
+      )}
 
-                <div style={styles.detailRow}>
-                  <img src={listIcon} alt="Compras" style={styles.detailIcon} />
-                  <span style={styles.detailText}>
-                    {activeReservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}
-                  </span>
-                </div>
-              </div>
 
-              <button
-                style={styles.detailsButton}
-                onClick={() => navigate(`/reservation/${activeReservation.id}`, {
-                  state: {
-                    isActive: true,
-                    source: 'home',
-                    reservationData: activeReservation,
-                  },
-                })}
-              >
-                Ver Detalles
-              </button>
-            </div>
+
+      <div className="coci-access-grid" style={styles.accessGrid}>
+
+        <button type="button" style={styles.accessCard} onClick={() => navigate('/reservation', { state: { defaultTab: 'confirmed' } })}>
+
+          <div style={{ ...styles.accessIcon, background: 'linear-gradient(135deg,#FFE7DD,#FFC8B4)' }}>
+
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#F2542D" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+
+              <rect x="3" y="4" width="18" height="17" rx="3" /><path d="M16 2v4M8 2v4M3 10h18" />
+
+            </svg>
+
           </div>
-        )}
 
-        <div style={styles.section}>
-          <div style={styles.sectionTitleRow}>
-            <img src={calendarIcon} alt="Mis reservas" style={styles.sectionTitleIcon} />
-            <h2 style={styles.sectionTitle}>Mis Reservas</h2>
+          <div style={styles.accessText}>
+
+            <div style={styles.accessTitle}>Mis reservas</div>
+
+            <div style={styles.accessSub}>{weekCount} esta semana</div>
+
           </div>
 
-          <button style={styles.summaryCardConfirmed} onClick={() => handleGoToReservations('confirmed')}>
-            <div style={styles.summaryCardLeft}>
-              <div style={styles.summaryIconWrapConfirmed}>
-                <img src={checkIcon} alt="Confirmadas" style={styles.summaryIcon} />
-              </div>
-              <p style={styles.summaryText}>
-                Tienes <strong>{confirmedCount}</strong> {confirmedCount === 1 ? 'reserva confirmada' : 'reservas confirmadas'}.
-              </p>
-            </div>
-          </button>
+        </button>
 
-          <button style={styles.summaryCardRequests} onClick={() => handleGoToReservations('requests')}>
-            <div style={styles.summaryCardLeft}>
-              <div style={styles.summaryIconWrapRequests}>
-                <img src={requestIcon} alt="Solicitudes" style={styles.summaryIcon} />
-              </div>
-              <p style={styles.summaryText}>
-                Tienes <strong>{requestsCount}</strong> {requestsCount === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'}.
-              </p>
-            </div>
-          </button>
 
-          <button style={styles.primaryButton} onClick={() => handleGoToReservations('confirmed')}>
-            Ver Reservas
-          </button>
+
+        <button type="button" style={styles.accessCard} onClick={() => navigate('/reservation?tab=requests', { state: { defaultTab: 'requests' } })}>
+
+          <div style={{ ...styles.accessIcon, background: 'linear-gradient(135deg,#E7EEFA,#C6DBF6)' }}>
+
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#1763C9" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+
+              <path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.5 6h13l3.5 6v6a1 1 0 01-1 1H3a1 1 0 01-1-1v-6z" />
+
+            </svg>
+
+          </div>
+
+          <div style={styles.accessText}>
+
+            <div style={styles.accessTitleRow}>
+
+              <span style={styles.accessTitle}>Solicitudes</span>
+
+              {requestReservations.length > 0 && (
+
+                <span style={styles.badge}>{requestReservations.length}</span>
+
+              )}
+
+            </div>
+
+            <div style={styles.accessSub}>Por revisar</div>
+
+          </div>
+
+        </button>
+
+      </div>
+
+
+
+      {/* Academia Cociname — oculto por el momento
+      <div style={styles.academyCard}>
+        <div style={styles.academyGlow} />
+        <div style={{ position: 'relative' }}>
+          <div style={styles.academyTitleRow}>
+            <span style={{ fontSize: 20 }}>🎓</span>
+            <span style={styles.academyTitle}>Academia Cociname</span>
+          </div>
+          <div style={styles.academyDesc}>Aprende, suma puntos y desbloquea bonos de plata 🪙</div>
+          <div style={styles.academyProgressRow}>
+            <div style={styles.academyTrack}><div style={styles.academyFill} /></div>
+            <span style={styles.academyLevel}>Nivel 3</span>
+          </div>
         </div>
       </div>
+      */}
+
     </div>
+
   );
+
 };
+
+
 
 const styles = {
-  container: {
-    flex: 1,
-    minHeight: '100%',
-    width: '100%',
-    maxWidth: '100%',
-    overflowX: 'hidden',
-    background: 'linear-gradient(180deg, #F3F8FC 0%, #EEF5FB 100%)',
-  },
-  contentContainer: {
-    padding: spacing.medium,
-    maxWidth: '100%',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
+
   loadingContainer: {
+
     display: 'flex',
+
     flex: 1,
+
     justifyContent: 'center',
+
     alignItems: 'center',
-    backgroundColor: '#F5F7FA',
-    height: '100vh',
+
+    minHeight: '60vh',
+
   },
+
   loader: {
+
     width: 40,
+
     height: 40,
-    border: '4px solid #E8EEF5',
-    borderTop: '4px solid #FF4336',
+
+    border: `4px solid ${theme.spinnerBorder}`,
+
+    borderTop: `4px solid ${theme.spinnerAccent}`,
+
     borderRadius: '50%',
+
     animation: 'spin 1s linear infinite',
+
   },
-  header: {
-    marginBottom: spacing.large,
-  },
-  greeting: {
-    fontSize: 30,
-    fontWeight: 800,
-    color: '#1A1F24',
-    margin: '0 0 6px 0',
-    letterSpacing: -0.4,
-  },
-  message: {
-    fontSize: 15,
-    color: '#4B5563',
-    lineHeight: '22px',
-    margin: 0,
-  },
-  activeCardWrap: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: spacing.medium,
-    boxShadow: '0 12px 28px rgba(44, 72, 88, 0.10)',
-    marginBottom: spacing.large,
-  },
-  activeCardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.small,
-    gap: 8,
-  },
-  activeBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '4px 10px',
-    borderRadius: 999,
-    backgroundColor: '#E9F5FF',
-    border: '1px solid #7BC8FF',
-  },
-  activeBadgeIcon: {
-    width: 14,
-    height: 14,
-    objectFit: 'contain',
-  },
-  activeBadgeText: {
-    fontSize: 11,
-    fontWeight: 800,
-    color: '#2D8DFF',
-    letterSpacing: 0.3,
-  },
-  reservationDate: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#6B7280',
-    letterSpacing: 0.3,
-  },
-  activeCardBody: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-  },
-  customerRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  customerIcon: {
-    width: 24,
-    height: 24,
-    objectFit: 'contain',
-    flexShrink: 0,
-  },
-  customerName: {
-    fontSize: 17,
-    fontWeight: 800,
-    color: '#1A1F24',
-    lineHeight: 1.2,
-  },
-  customerAddress: {
-    fontSize: 14,
-    color: '#4B5563',
-    margin: 0,
-    lineHeight: '20px',
-  },
-  detailRows: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    marginTop: 4,
-  },
-  detailRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-  },
-  detailIcon: {
-    width: 16,
-    height: 16,
-    objectFit: 'contain',
-    flexShrink: 0,
-  },
-  detailText: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  detailsButton: {
-    marginTop: 6,
-    width: '100%',
-    border: 'none',
-    borderRadius: 22,
-    padding: '13px 16px',
-    background: '#FFECEB',
-    color: '#FF4336',
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  section: {
-    marginBottom: spacing.large,
-  },
-  sectionTitleRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: spacing.medium,
-  },
-  sectionTitleIcon: {
-    width: 18,
-    height: 18,
-    objectFit: 'contain',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 800,
-    color: '#1A1F24',
-    margin: 0,
-  },
-  summaryCardConfirmed: {
-    width: '100%',
-    border: '1px solid #00BA96',
-    backgroundColor: '#F2FBFA',
-    borderRadius: 18,
-    padding: '14px 16px',
-    marginBottom: 10,
-    cursor: 'pointer',
-    textAlign: 'left',
-  },
-  summaryCardRequests: {
-    width: '100%',
-    border: '1px solid #FFB125',
-    backgroundColor: '#FFF2DA',
-    borderRadius: 18,
-    padding: '14px 16px',
-    marginBottom: 14,
-    cursor: 'pointer',
-    textAlign: 'left',
-  },
-  summaryCardLeft: {
-    display: 'flex',
-    alignItems: 'center',
+
+  statsGrid: {
+
+    display: 'grid',
+
+    gridTemplateColumns: 'repeat(3, 1fr)',
+
     gap: 12,
+
+    marginBottom: 26,
+
   },
-  summaryIconWrapConfirmed: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: '#E8FFF1',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+
+  statCard: {
+
+    borderRadius: 18,
+
+    padding: '15px 14px',
+
   },
-  summaryIconWrapRequests: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: '#F4ECFF',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+
+  statLabel: {
+
+    fontSize: 11.5,
+
+    fontWeight: 700,
+
   },
-  summaryIcon: {
-    width: 24,
-    height: 24,
-    objectFit: 'contain',
+
+  statValue: {
+
+    fontFamily: theme.fontHeading,
+
+    fontWeight: 800,
+
+    fontSize: 19,
+
+    marginTop: 4,
+
+    lineHeight: 1.1,
+
   },
-  summaryText: {
-    margin: 0,
-    fontSize: 14,
-    lineHeight: '20px',
-    color: '#1F2937',
-  },
-  primaryButton: {
+
+  nextHeroCard: {
+
     width: '100%',
+
+    textAlign: 'left',
+
     border: 'none',
-    borderRadius: 22,
-    padding: '16px 18px',
-    background: 'linear-gradient(97.22deg, #FF6833 2.34%, #FF4336 100%)',
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 600,
+
     cursor: 'pointer',
-    boxShadow: '0 12px 24px rgba(255, 67, 54, 0.25)',
+
+    background: theme.primaryGradient,
+
+    borderRadius: theme.cardRadiusLg,
+
+    padding: 24,
+
+    color: '#fff',
+
+    boxShadow: theme.primaryShadow,
+
+    position: 'relative',
+
+    overflow: 'hidden',
+
+    marginBottom: 26,
+
   },
+
+  nextHeroGlow: {
+
+    position: 'absolute',
+
+    right: -34,
+
+    top: -34,
+
+    width: 130,
+
+    height: 130,
+
+    borderRadius: '50%',
+
+    background: 'rgba(255,255,255,0.12)',
+
+  },
+
+  nextHeroTop: {
+
+    display: 'flex',
+
+    alignItems: 'center',
+
+    justifyContent: 'space-between',
+
+    marginBottom: 16,
+
+  },
+
+  nextHeroTime: {
+
+    display: 'inline-flex',
+
+    alignItems: 'center',
+
+    gap: 7,
+
+    background: 'rgba(255,255,255,0.2)',
+
+    borderRadius: 999,
+
+    padding: '6px 13px',
+
+    fontFamily: theme.fontHeading,
+
+    fontWeight: 700,
+
+    fontSize: 13,
+
+  },
+
+  nextHeroCountdown: {
+
+    fontSize: 12.5,
+
+    color: 'rgba(255,255,255,0.85)',
+
+    fontWeight: 700,
+
+  },
+
+  nextHeroName: {
+
+    fontFamily: theme.fontHeading,
+
+    fontWeight: 800,
+
+    fontSize: 22,
+
+    letterSpacing: -0.4,
+
+  },
+
+  nextHeroMeta: {
+
+    fontSize: 14,
+
+    color: 'rgba(255,255,255,0.85)',
+
+    marginTop: 6,
+
+  },
+
+  nextHeroCta: {
+
+    display: 'inline-flex',
+
+    alignItems: 'center',
+
+    gap: 8,
+
+    marginTop: 20,
+
+    background: '#fff',
+
+    color: theme.accentDark,
+
+    borderRadius: 999,
+
+    padding: '12px 20px',
+
+    fontFamily: theme.fontHeading,
+
+    fontWeight: 700,
+
+    fontSize: 14,
+
+  },
+
+  accessGrid: {
+
+    display: 'grid',
+
+    gridTemplateColumns: '1fr',
+
+    gap: 14,
+
+    marginBottom: 26,
+
+  },
+
+  accessCard: {
+
+    display: 'flex',
+
+    alignItems: 'center',
+
+    gap: 15,
+
+    textAlign: 'left',
+
+    background: '#fff',
+
+    boxShadow: theme.cardShadow,
+
+    border: 'none',
+
+    borderRadius: 20,
+
+    padding: 18,
+
+    cursor: 'pointer',
+
+    width: '100%',
+
+  },
+
+  accessIcon: {
+
+    width: 44,
+
+    height: 44,
+
+    borderRadius: 14,
+
+    display: 'flex',
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    flexShrink: 0,
+
+  },
+
+  accessText: { flex: 1, minWidth: 0 },
+
+  accessTitleRow: {
+
+    display: 'flex',
+
+    alignItems: 'center',
+
+    gap: 8,
+
+  },
+
+  accessTitle: {
+
+    fontFamily: theme.fontHeading,
+
+    fontWeight: 700,
+
+    fontSize: 15.5,
+
+    color: theme.textPrimary,
+
+  },
+
+  accessSub: {
+
+    fontSize: 13,
+
+    color: theme.textMuted,
+
+    marginTop: 2,
+
+  },
+
+  badge: {
+
+    fontSize: 11,
+
+    fontWeight: 700,
+
+    color: '#fff',
+
+    background: theme.accent,
+
+    borderRadius: 999,
+
+    padding: '2px 8px',
+
+  },
+
+  academyCard: {
+
+    width: '100%',
+
+    textAlign: 'left',
+
+    border: 'none',
+
+    borderRadius: 22,
+
+    padding: 20,
+
+    background: 'linear-gradient(135deg,#7A4FD0 0%,#5B33B0 100%)',
+
+    color: '#fff',
+
+    position: 'relative',
+
+    overflow: 'hidden',
+
+    boxShadow: '0 14px 30px rgba(122,79,208,0.28)',
+
+    marginBottom: 8,
+
+  },
+
+  academyGlow: {
+
+    position: 'absolute',
+
+    right: -26,
+
+    bottom: -30,
+
+    width: 120,
+
+    height: 120,
+
+    borderRadius: '50%',
+
+    background: 'rgba(255,255,255,0.1)',
+
+  },
+
+  academyTitleRow: {
+
+    display: 'flex',
+
+    alignItems: 'center',
+
+    gap: 8,
+
+    marginBottom: 9,
+
+  },
+
+  academyTitle: {
+
+    fontFamily: theme.fontHeading,
+
+    fontWeight: 800,
+
+    fontSize: 17,
+
+  },
+
+  academyDesc: {
+
+    fontSize: 13,
+
+    color: 'rgba(255,255,255,0.86)',
+
+    lineHeight: 1.5,
+
+    marginBottom: 14,
+
+  },
+
+  academyProgressRow: {
+
+    display: 'flex',
+
+    alignItems: 'center',
+
+    gap: 10,
+
+  },
+
+  academyTrack: {
+
+    flex: 1,
+
+    height: 8,
+
+    borderRadius: 999,
+
+    background: 'rgba(255,255,255,0.22)',
+
+    overflow: 'hidden',
+
+  },
+
+  academyFill: {
+
+    width: '62%',
+
+    height: '100%',
+
+    background: '#FFD264',
+
+    borderRadius: 999,
+
+  },
+
+  academyLevel: {
+
+    fontSize: 12,
+
+    fontWeight: 700,
+
+    fontFamily: theme.fontHeading,
+
+    whiteSpace: 'nowrap',
+
+  },
+
 };
 
+
+
 export default HomeScreen;
+

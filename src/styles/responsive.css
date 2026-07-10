@@ -1,0 +1,146 @@
+/* Breakpoint desktop: 768px — layout web adaptado del mockup mobile */
+
+.coci-page-wrap {
+  padding: 18px 16px 28px;
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.coci-page-wrap--requests {
+  min-height: calc(100vh - 132px);
+  background: linear-gradient(180deg, #ECF2FB 0%, #F2F6FC 45%, #FBFBFD 100%);
+}
+
+.coci-access-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-bottom: 26px;
+}
+
+.coci-solicitudes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.coci-reservas-split {
+  display: block;
+}
+
+.coci-reservas-list-col,
+.coci-reservas-cal-col {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .coci-reservas-split.mode-calendario .coci-reservas-list-col {
+    display: none;
+  }
+
+  .coci-reservas-split.mode-lista .coci-reservas-cal-col {
+    display: none;
+  }
+
+  .sidebar-desktop-rail {
+    display: none !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .app-content {
+    justify-content: flex-start;
+  }
+
+  .app-main {
+    max-width: none;
+    width: 100%;
+    flex: 1;
+    padding-bottom: 0;
+    box-shadow: none;
+  }
+
+  .header-inner-desktop {
+    max-width: none !important;
+    padding: 12px 32px !important;
+  }
+
+  .header-logo-mobile-only {
+    display: none !important;
+  }
+
+  .header-spacer-desktop {
+    flex: 1;
+  }
+
+  .sidebar-desktop-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: 260px;
+    flex-shrink: 0;
+    height: 100%;
+    background: #ffffff;
+    border-right: 1px solid #f0e7df;
+    padding: 24px 16px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .sidebar-desktop-rail .sidebar-close-btn {
+    display: none !important;
+  }
+
+  .coci-page-wrap {
+    max-width: 960px;
+    padding: 24px 32px 40px;
+  }
+
+  .coci-page-wrap--requests {
+    min-height: calc(100vh - 68px);
+  }
+
+  .coci-access-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .coci-solicitudes-layout .coci-solicitudes-filters {
+    margin-bottom: 20px;
+  }
+
+  .coci-solicitudes-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .coci-reservas-header .coci-view-toggle-mobile {
+    display: none;
+  }
+
+  .coci-reservas-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .coci-reservas-split .coci-reservas-list-col,
+  .coci-reservas-split .coci-reservas-cal-col {
+    display: block !important;
+  }
+
+  .coci-reservas-cal-col .calendar-card-sticky {
+    position: sticky;
+    top: 88px;
+  }
+}
+
+@media (min-width: 1100px) {
+  .coci-solicitudes-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

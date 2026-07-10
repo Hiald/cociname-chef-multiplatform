@@ -15,17 +15,10 @@ const PublicPasswordResetScreen = ({ token: propToken }) => {
   const token = propToken || paramToken;
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 992);
-
-  // Paso 1 — email
   const [email, setEmail] = useState('');
-
-  // Paso 3 — nueva contraseña
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
-  // 1 = solicitar email | 2 = verificando token | 3 = nueva contraseña | 4 = éxito
   const [step, setStep] = useState(token ? 2 : 1);
-
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -38,12 +31,11 @@ const PublicPasswordResetScreen = ({ token: propToken }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Cuando hay token en la URL: verificar automáticamente
   useEffect(() => {
     if (!token) return;
 
     const verify = async () => {
-      setStep(2); // garantiza el spinner aunque el step previo fuera 1
+      setStep(2);
       setIsLoading(true);
       setError('');
       try {
@@ -144,12 +136,21 @@ const PublicPasswordResetScreen = ({ token: propToken }) => {
     }
   };
 
+  const renderBrand = () => (
+    <div style={styles.brandRow}>
+      <img src={logoImg} alt="Cociname" style={styles.logo} />
+    </div>
+  );
+
   const renderLeftSection = () => (
     <div style={styles.leftSection}>
+      <div style={styles.leftGlow} />
       <div style={styles.leftContent}>
-        <h1 style={styles.leftTitle}>Tu talento<br />transforma hogares</h1>
+        <img src={logoImg} alt="Cociname" style={styles.leftLogo} />
+        <p style={styles.leftEyebrow}>App para cocineras</p>
+        <h1 style={styles.leftTitle}>Tu talento transforma hogares</h1>
         <p style={styles.leftSubtitle}>
-          Gestiona tus servicios y organiza tu semana de cocina.
+          Gestiona tus servicios y organiza tu semana de cocina con la nueva experiencia de Cociname.
         </p>
 
         <div style={styles.featuresContainer}>
@@ -179,177 +180,162 @@ const PublicPasswordResetScreen = ({ token: propToken }) => {
     </div>
   );
 
-  // ── Paso 1: solicitar email ───────────────────────────────────
-  if (step === 1) {
-    return (
-      <div style={styles.container}>
-        {!isMobile && renderLeftSection()}
-        <div style={styles.rightSection}>
-          <div style={isMobile ? { ...styles.rightSectionContent, ...styles.rightSectionContentMobile } : styles.rightSectionContent}>
-            <div style={styles.card}>
-              <img src={logoImg} alt="Cociname Logo" style={styles.logo} />
-              <h1 style={styles.title}>¿Olvidaste tu contraseña?</h1>
-              <p style={styles.subtitle}>
-                Ingresa tu correo y te enviaremos un enlace para recuperar tu cuenta.
-              </p>
-
-              <div style={styles.formContainer}>
-                {successMessage ? (
-                  <p style={styles.successText}>{successMessage}</p>
-                ) : (
-                  <>
-                    <input
-                      style={styles.input}
-                      type="email"
-                      placeholder="micorreo@ejemplo.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onKeyDown={(e) => handleKeyPress(e, handleSendEmail)}
-                      disabled={isLoading}
-                      autoFocus
-                    />
-
-                    {error ? <p style={styles.errorText}>{error}</p> : null}
-
-                    <button
-                      style={isLoading ? { ...styles.primaryButton, ...styles.primaryButtonDisabled } : styles.primaryButton}
-                      onClick={handleSendEmail}
-                      disabled={isLoading}
-                    >
-                      <span style={styles.primaryButtonText}>
-                        {isLoading ? 'Enviando enlace...' : 'Enviar enlace'}
-                      </span>
-                    </button>
-                  </>
-                )}
-
-                <button style={styles.backButton} onClick={() => navigate('/login')} disabled={isLoading}>
-                  <span style={styles.backButtonText}>Volver al inicio de sesión</span>
-                </button>
-              </div>
-
-              <p style={styles.helpText}>
-                ¿Necesitas ayuda? Contáctanos en{' '}
-                <a href="mailto:soporte@cociname.com" style={styles.helpLink}>soporte@cociname.com</a>
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Paso 2: verificando token del link ────────────────────────
-  if (step === 2) {
-    return (
-      <div style={styles.container}>
-        {!isMobile && renderLeftSection()}
-        <div style={styles.rightSection}>
-          <div style={isMobile ? { ...styles.rightSectionContent, ...styles.rightSectionContentMobile } : styles.rightSectionContent}>
-            <div style={styles.card}>
-              <img src={logoImg} alt="Cociname Logo" style={styles.logo} />
-              <h1 style={styles.title}>Verificando enlace...</h1>
-              <p style={styles.subtitle}>Por favor espera un momento.</p>
-
-              {error ? (
-                <div style={styles.formContainer}>
-                  <p style={styles.errorText}>{error}</p>
-                  <button style={styles.primaryButton} onClick={() => navigate('/recuperar')}>
-                    <span style={styles.primaryButtonText}>Solicitar nuevo enlace</span>
-                  </button>
-                </div>
-              ) : (
-                <div style={styles.spinnerContainer}>
-                  <div style={styles.spinner} />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Paso 4: éxito ─────────────────────────────────────────────
-  if (step === 4) {
-    return (
-      <div style={styles.container}>
-        {!isMobile && renderLeftSection()}
-        <div style={styles.rightSection}>
-          <div style={isMobile ? { ...styles.rightSectionContent, ...styles.rightSectionContentMobile } : styles.rightSectionContent}>
-            <div style={styles.card}>
-              <img src={logoImg} alt="Cociname Logo" style={styles.logo} />
-              <h1 style={styles.title}>¡Contraseña actualizada!</h1>
-              <p style={styles.subtitle}>Tu contraseña ha sido cambiada exitosamente. Ya puedes iniciar sesión.</p>
-              <div style={styles.formContainer}>
-                <button style={styles.primaryButton} onClick={() => navigate('/login')}>
-                  <span style={styles.primaryButtonText}>Ir al inicio de sesión</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Paso 3: nueva contraseña ──────────────────────────────────
-  return (
+  const renderShell = (children) => (
     <div style={styles.container}>
       {!isMobile && renderLeftSection()}
       <div style={styles.rightSection}>
         <div style={isMobile ? { ...styles.rightSectionContent, ...styles.rightSectionContentMobile } : styles.rightSectionContent}>
-          <div style={styles.card}>
-            <img src={logoImg} alt="Cociname Logo" style={styles.logo} />
-            <h1 style={styles.title}>Nueva contraseña</h1>
-            <p style={styles.subtitle}>Elige una contraseña segura para tu cuenta.</p>
+          <div style={styles.card}>{children}</div>
+        </div>
+      </div>
+    </div>
+  );
 
-            <div style={styles.formContainer}>
-              <label style={styles.inputLabel}>Nueva contraseña</label>
+  if (step === 1) {
+    return renderShell(
+      <>
+        {renderBrand()}
+        <h1 style={styles.title}>¿Olvidaste tu contraseña?</h1>
+        <p style={styles.subtitle}>
+          Ingresa tu correo y te enviaremos un enlace para recuperar tu cuenta.
+        </p>
+
+        <div style={styles.formContainer}>
+          {successMessage ? (
+            <div style={styles.successBox}>
+              <p style={styles.successText}>{successMessage}</p>
+            </div>
+          ) : (
+            <>
+              <label style={styles.inputLabel}>Correo electrónico</label>
               <input
                 style={styles.input}
-                type="password"
-                placeholder="········"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => handleKeyPress(e, handleChangePassword)}
+                type="email"
+                placeholder="micorreo@ejemplo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => handleKeyPress(e, handleSendEmail)}
                 disabled={isLoading}
                 autoFocus
-              />
-
-              <label style={styles.inputLabel}>Confirmar contraseña</label>
-              <input
-                style={styles.input}
-                type="password"
-                placeholder="········"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                onKeyDown={(e) => handleKeyPress(e, handleChangePassword)}
-                disabled={isLoading}
               />
 
               {error ? <p style={styles.errorText}>{error}</p> : null}
 
               <button
-                style={isLoading ? { ...styles.saveButton, ...styles.saveButtonDisabled } : styles.saveButton}
-                onClick={handleChangePassword}
+                style={isLoading ? { ...styles.primaryButton, ...styles.primaryButtonDisabled } : styles.primaryButton}
+                onClick={handleSendEmail}
                 disabled={isLoading}
               >
-                <span style={styles.saveButtonText}>
-                  {isLoading ? 'Guardando...' : 'Guardar contraseña'}
+                <span style={styles.primaryButtonText}>
+                  {isLoading ? 'Enviando enlace...' : 'Enviar enlace'}
                 </span>
               </button>
+            </>
+          )}
 
-              {isLinkError ? (
-                <button style={styles.backButton} onClick={() => navigate('/recuperar')} disabled={isLoading}>
-                  <span style={styles.backButtonText}>Solicitar nuevo enlace</span>
-                </button>
-              ) : null}
-            </div>
-          </div>
+          <button style={styles.backButton} onClick={() => navigate('/login')} disabled={isLoading}>
+            <span style={styles.backButtonText}>Volver al inicio de sesión</span>
+          </button>
         </div>
+
+        <p style={styles.helpText}>
+          ¿Necesitas ayuda? Contáctanos en{' '}
+          <a href="mailto:soporte@cociname.com" style={styles.helpLink}>soporte@cociname.com</a>
+        </p>
+      </>
+    );
+  }
+
+  if (step === 2) {
+    return renderShell(
+      <>
+        {renderBrand()}
+        <h1 style={styles.title}>Verificando enlace...</h1>
+        <p style={styles.subtitle}>Por favor espera un momento.</p>
+
+        {error ? (
+          <div style={styles.formContainer}>
+            <p style={styles.errorText}>{error}</p>
+            <button style={styles.primaryButton} onClick={() => navigate('/recuperar')}>
+              <span style={styles.primaryButtonText}>Solicitar nuevo enlace</span>
+            </button>
+          </div>
+        ) : (
+          <div style={styles.spinnerContainer}>
+            <div style={styles.spinner} />
+          </div>
+        )}
+      </>
+    );
+  }
+
+  if (step === 4) {
+    return renderShell(
+      <>
+        {renderBrand()}
+        <div style={styles.successBadge}>Listo</div>
+        <h1 style={styles.title}>¡Contraseña actualizada!</h1>
+        <p style={styles.subtitle}>
+          Tu contraseña ha sido cambiada exitosamente. Ya puedes iniciar sesión.
+        </p>
+        <div style={styles.formContainer}>
+          <button style={styles.primaryButton} onClick={() => navigate('/login')}>
+            <span style={styles.primaryButtonText}>Ir al inicio de sesión</span>
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return renderShell(
+    <>
+      {renderBrand()}
+      <h1 style={styles.title}>Nueva contraseña</h1>
+      <p style={styles.subtitle}>Elige una contraseña segura para tu cuenta.</p>
+
+      <div style={styles.formContainer}>
+        <label style={styles.inputLabel}>Nueva contraseña</label>
+        <input
+          style={styles.input}
+          type="password"
+          placeholder="········"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => handleKeyPress(e, handleChangePassword)}
+          disabled={isLoading}
+          autoFocus
+        />
+
+        <label style={styles.inputLabel}>Confirmar contraseña</label>
+        <input
+          style={styles.input}
+          type="password"
+          placeholder="········"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          onKeyDown={(e) => handleKeyPress(e, handleChangePassword)}
+          disabled={isLoading}
+        />
+
+        {error ? <p style={styles.errorText}>{error}</p> : null}
+
+        <button
+          style={isLoading ? { ...styles.saveButton, ...styles.saveButtonDisabled } : styles.saveButton}
+          onClick={handleChangePassword}
+          disabled={isLoading}
+        >
+          <span style={styles.saveButtonText}>
+            {isLoading ? 'Guardando...' : 'Guardar contraseña'}
+          </span>
+        </button>
+
+        {isLinkError ? (
+          <button style={styles.backButton} onClick={() => navigate('/recuperar')} disabled={isLoading}>
+            <span style={styles.backButtonText}>Solicitar nuevo enlace</span>
+          </button>
+        ) : null}
       </div>
-    </div>
+    </>
   );
 };
 
@@ -357,68 +343,109 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#EAE4DD',
     minHeight: '100vh',
+    fontFamily: "'Inter', system-ui, sans-serif",
+    color: '#1B2436',
   },
-
-  // Left Section
   leftSection: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
-    padding: '80px 60px',
+    background: 'linear-gradient(160deg, #F2542D 0%, #E23E17 55%, #C2492A 100%)',
+    padding: '72px 56px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  leftContent: { maxWidth: 600 },
+  leftGlow: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: '50%',
+    background: 'rgba(255,255,255,0.12)',
+    top: -80,
+    right: -60,
+  },
+  leftContent: {
+    maxWidth: 520,
+    width: '100%',
+    position: 'relative',
+    zIndex: 1,
+  },
+  leftLogo: {
+    height: 42,
+    width: 'auto',
+    objectFit: 'contain',
+    display: 'block',
+    marginBottom: 28,
+    filter: 'brightness(0) invert(1)',
+  },
+  leftEyebrow: {
+    fontFamily: "'Poppins', system-ui, sans-serif",
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: '0.4px',
+    color: 'rgba(255,255,255,0.85)',
+    textTransform: 'uppercase',
+    margin: '0 0 12px 0',
+  },
   leftTitle: {
-    fontSize: 52,
-    fontWeight: 'bold',
-    color: '#1A1F24',
-    lineHeight: '64px',
-    margin: '0 0 24px 0',
+    fontFamily: "'Poppins', system-ui, sans-serif",
+    fontSize: 44,
+    fontWeight: 800,
+    color: '#FFFFFF',
+    lineHeight: 1.15,
+    letterSpacing: '-0.6px',
+    margin: '0 0 16px 0',
   },
   leftSubtitle: {
-    fontSize: 20,
-    color: '#6B7280',
-    lineHeight: '32px',
-    margin: '0 0 72px 0',
+    fontSize: 17,
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 1.55,
+    margin: '0 0 40px 0',
   },
-  featuresContainer: {},
+  featuresContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 18,
+  },
   featureItem: {
     display: 'flex',
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 40,
+    gap: 14,
+    background: 'rgba(255,255,255,0.12)',
+    borderRadius: 18,
+    padding: '16px 18px',
   },
   iconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#E0F2FE',
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
-  featureTextContainer: { flex: 1, marginLeft: 20 },
+  featureTextContainer: { flex: 1 },
   featureTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1A1F24',
-    margin: '0 0 8px 0',
+    fontFamily: "'Poppins', system-ui, sans-serif",
+    fontSize: 16,
+    fontWeight: 700,
+    color: '#FFFFFF',
+    margin: '0 0 4px 0',
   },
   featureDescription: {
-    fontSize: 16,
-    color: '#6B7280',
-    lineHeight: '26px',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.88)',
+    lineHeight: 1.45,
     margin: 0,
   },
-
-  // Right Section
   rightSection: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#EAE4DD',
     overflowY: 'auto',
   },
   rightSectionContent: {
@@ -426,160 +453,192 @@ const styles = {
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: '80px 60px',
+    padding: '72px 48px',
     minHeight: '100vh',
   },
   rightSectionContentMobile: {
-    padding: '24px 16px',
+    padding: '28px 16px',
     minHeight: '100vh',
   },
   card: {
     width: '100%',
-    maxWidth: 500,
+    maxWidth: 460,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: '36px 32px',
+    boxShadow: '0 16px 40px rgba(27,52,92,0.10)',
+  },
+  brandRow: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginBottom: 28,
   },
   logo: {
-    width: 180,
-    height: 48,
+    height: 40,
+    width: 'auto',
+    maxWidth: 180,
+    objectFit: 'contain',
     display: 'block',
-    margin: '0 auto 64px auto',
+  },
+  successBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    background: '#E4F6EC',
+    color: '#0B855C',
+    borderRadius: 999,
+    padding: '5px 12px',
+    fontFamily: "'Poppins', system-ui, sans-serif",
+    fontSize: 12,
+    fontWeight: 700,
+    marginBottom: 14,
   },
   title: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#1A1F24',
+    fontFamily: "'Poppins', system-ui, sans-serif",
+    fontSize: 28,
+    fontWeight: 800,
+    color: '#1B2436',
     textAlign: 'center',
-    margin: '0 0 12px 0',
+    letterSpacing: '-0.5px',
+    margin: '0 0 10px 0',
   },
   subtitle: {
-    fontSize: 17,
-    color: '#6B7280',
+    fontSize: 15,
+    color: '#9AA3B5',
     textAlign: 'center',
-    lineHeight: '24px',
-    margin: '0 0 60px 0',
+    lineHeight: 1.5,
+    margin: '0 0 28px 0',
   },
   formContainer: { width: '100%' },
   inputLabel: {
     display: 'block',
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 10,
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#1B2436',
+    marginBottom: 8,
   },
   input: {
     width: '100%',
-    height: 56,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    border: 'none',
+    height: 52,
+    backgroundColor: '#F3F5F8',
+    borderRadius: 14,
+    border: '1px solid transparent',
     outline: 'none',
-    padding: '0 20px',
-    fontSize: 16,
-    color: '#1A1F24',
-    marginBottom: 24,
+    padding: '0 16px',
+    fontSize: 15,
+    color: '#1B2436',
+    marginBottom: 18,
     boxSizing: 'border-box',
-    transition: 'background-color 0.2s',
+    fontFamily: "'Inter', system-ui, sans-serif",
   },
   errorText: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#EF4444',
     textAlign: 'center',
-    margin: '0 0 20px 0',
+    margin: '0 0 16px 0',
+  },
+  successBox: {
+    background: '#E4F6EC',
+    borderRadius: 16,
+    padding: '16px 18px',
+    marginBottom: 8,
   },
   successText: {
-    fontSize: 15,
-    color: '#10B981',
+    fontSize: 14,
+    color: '#0B7A54',
     textAlign: 'center',
-    lineHeight: '22px',
-    margin: '0 0 24px 0',
+    lineHeight: 1.5,
+    margin: 0,
   },
   primaryButton: {
     width: '100%',
-    height: 56,
-    backgroundColor: '#FF5136',
-    borderRadius: 10,
+    height: 52,
+    background: 'linear-gradient(135deg, #F2542D 0%, #E23E17 100%)',
+    borderRadius: 14,
     border: 'none',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    marginTop: 8,
+    boxShadow: '0 12px 24px rgba(242,84,45,0.25)',
+    marginTop: 4,
   },
   primaryButtonDisabled: {
-    backgroundColor: '#FFB5A6',
     opacity: 0.7,
     cursor: 'not-allowed',
+    boxShadow: 'none',
   },
   primaryButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontFamily: "'Poppins', system-ui, sans-serif",
+    fontSize: 15,
+    fontWeight: 700,
     color: '#FFFFFF',
   },
   saveButton: {
     width: '100%',
-    height: 56,
-    backgroundColor: '#10B981',
-    borderRadius: 10,
+    height: 52,
+    background: 'linear-gradient(135deg, #0E9F6E 0%, #0B855C 100%)',
+    borderRadius: 14,
     border: 'none',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    marginTop: 8,
+    boxShadow: '0 12px 24px rgba(14,159,110,0.22)',
+    marginTop: 4,
   },
   saveButtonDisabled: {
-    backgroundColor: '#86EFAC',
     opacity: 0.7,
     cursor: 'not-allowed',
+    boxShadow: 'none',
   },
   saveButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontFamily: "'Poppins', system-ui, sans-serif",
+    fontSize: 15,
+    fontWeight: 700,
     color: '#FFFFFF',
   },
   backButton: {
     width: '100%',
-    height: 48,
+    height: 44,
     backgroundColor: 'transparent',
-    borderRadius: 10,
+    borderRadius: 12,
     border: 'none',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     cursor: 'pointer',
-    marginTop: 12,
+    marginTop: 10,
   },
   backButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#9AA3B5',
   },
   spinnerContainer: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: '40px 0',
+    padding: '36px 0',
   },
   spinner: {
-    width: 48,
-    height: 48,
-    border: '4px solid #F3F4F6',
-    borderTop: '4px solid #FF5136',
+    width: 44,
+    height: 44,
+    border: '4px solid #F3F5F8',
+    borderTop: '4px solid #F2542D',
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
   },
   helpText: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#9AA3B5',
     textAlign: 'center',
-    lineHeight: '20px',
-    margin: '32px 0 0 0',
+    lineHeight: 1.45,
+    margin: '28px 0 0 0',
   },
   helpLink: {
-    color: '#3B82F6',
+    color: '#1763C9',
     textDecoration: 'none',
-    fontWeight: '500',
+    fontWeight: 600,
   },
 };
 

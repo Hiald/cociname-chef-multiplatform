@@ -1,172 +1,200 @@
 import React, { useState, useEffect } from 'react';
-import { spacing } from '../../styles';
+
 import { images } from '../../assets/images';
 
+
+
 const Header = ({ onMenuPress, showMenu = true, notificationCount = 0, onNotificationPress }) => {
+
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+
+
   useEffect(() => {
+
     const handleResize = () => {
+
       setIsMobile(window.innerWidth < 768);
+
     };
+
     window.addEventListener('resize', handleResize);
+
     return () => window.removeEventListener('resize', handleResize);
+
   }, []);
 
+
+
   return (
+
     <div style={styles.container}>
-      <div style={{
-        ...styles.leftSection, 
-        ...(isMobile && styles.leftSectionMobile),
-        ...(!showMenu && styles.centerSection)
-      }}>
+
+      <div className="header-inner-desktop" style={styles.inner}>
+
         {showMenu && onMenuPress && isMobile && (
-          <button 
-            onClick={onMenuPress} 
-            style={{ ...styles.menuButton, ...styles.menuButtonMobile }}
+
+          <button
+
+            onClick={onMenuPress}
+
+            style={styles.iconButton}
+
             aria-label="Abrir menú"
+
           >
-            <div style={styles.menuIcon}>
-              <div style={styles.menuLine} />
-              <div style={styles.menuLine} />
-              <div style={styles.menuLine} />
-            </div>
+
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B2436" strokeWidth="2.2" strokeLinecap="round">
+
+              <path d="M3 6h18M3 12h18M3 18h18" />
+
+            </svg>
+
           </button>
+
         )}
-        
-        <img 
-          src={images.logo}
-          alt="Logo"
-          style={styles.logo}
-        />
+
+
+
+        {!isMobile && <div className="header-spacer-desktop" aria-hidden="true" />}
+
+
+
+        <img src={images.logo} alt="Cociname" className="header-logo-mobile-only" style={styles.logo} />
+
+
+
+        {showMenu && (
+
+          <button style={styles.iconButton} onClick={onNotificationPress} aria-label="Notificaciones">
+
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#1B2436" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+
+              <path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+
+              <path d="M13.7 21a2 2 0 01-3.4 0" />
+
+            </svg>
+
+            {notificationCount > 0 && <span style={styles.notificationDot} />}
+
+          </button>
+
+        )}
+
       </div>
 
-      <div style={styles.rightSection}>
-        {showMenu && (
-          <button style={styles.notificationButton} onClick={onNotificationPress}>
-            <img 
-              src={images.notification} 
-              alt="Notificaciones" 
-              style={styles.notificationIcon} 
-            />
-            {notificationCount > 0 && (
-              <span style={styles.notificationBadge}>
-                {notificationCount > 99 ? '99+' : notificationCount}
-              </span>
-            )}
-          </button>
-        )}
-      </div>
     </div>
+
   );
+
 };
+
+
 
 const styles = {
+
   container: {
-    height: 60,
-    backgroundColor: '#FFFFFF',
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: `0 ${spacing.medium}px`,
-    borderBottom: '1px solid #E5E7EB',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+
+    position: 'sticky',
+
+    top: 0,
+
+    zIndex: 40,
+
+    background: 'rgba(255, 251, 247, 0.94)',
+
+    backdropFilter: 'blur(8px)',
+
+    borderBottom: '1px solid #F0E7DF',
+
   },
-  leftSection: {
+
+  inner: {
+
+    height: 68,
+
     display: 'flex',
-    flexDirection: 'row',
+
     alignItems: 'center',
+
+    justifyContent: 'space-between',
+
+    padding: '12px 16px',
+
+    maxWidth: 480,
+
+    margin: '0 auto',
+
+    width: '100%',
+
+    boxSizing: 'border-box',
+
+  },
+
+  iconButton: {
+
     position: 'relative',
-  },
-  leftSectionMobile: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  centerSection: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  menuButton: {
-    padding: spacing.small,
-    marginRight: spacing.small,
-    background: 'none',
+
+    width: 40,
+
+    height: 40,
+
+    borderRadius: 12,
+
     border: 'none',
-    cursor: 'pointer',
-  },
-  menuButtonMobile: {
-    position: 'absolute',
-    left: 0,
-    marginRight: 0,
-    zIndex: 2,
-  },
-  menuIcon: {
-    width: 24,
-    height: 24,
+
+    background: '#FFFFFF',
+
+    boxShadow: '0 3px 10px rgba(27, 52, 92, 0.08)',
+
     display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    cursor: 'pointer',
+
+    padding: 0,
+
+    flexShrink: 0,
+
   },
-  menuLine: {
-    width: 24,
-    height: 3,
-    backgroundColor: '#FF4336',
-    borderRadius: 2,
-    marginBottom: 4,
-  },
+
   logo: {
-    width: 124,
-    height: 24,
-  },
-  rightSection: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  notificationButton: {
-    position: 'relative',
-    width: 28,
+
+    width: 122,
+
     height: 28,
-    padding: (spacing.xs || 4), // Usa spacing.xs si existe, si no 4
-    background: '#FF4336',
-    border: 'none',
-    borderRadius: 20, // O tu variable Radius/6
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: `
-      0px 5px 11px 0px #2C48581A,
-      0px 19px 19px 0px #2C485817,
-      0px 44px 26px 0px #2C48580D,
-      0px 78px 31px 0px #2C485803,
-      0px 122px 34px 0px #2C485800
-    `,
-    cursor: 'pointer',
-    gap: 4,
-    opacity: 1,
-  },
-  notificationIcon: {
-    width: 20,
-    height: 20,
+
     objectFit: 'contain',
+
   },
-  notificationBadge: {
+
+  notificationDot: {
+
     position: 'absolute',
-    top: -5,
-    right: -5,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 9,
-    backgroundColor: '#1C2837',
-    color: '#FFFFFF',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 10,
-    fontWeight: '700',
-    padding: '0 4px',
-    lineHeight: 1,
+
+    top: 8,
+
+    right: 9,
+
+    width: 7,
+
+    height: 7,
+
+    borderRadius: 999,
+
+    background: '#F2542D',
+
+    border: '1.5px solid #fff',
+
   },
+
 };
 
+
+
 export default Header;
+
