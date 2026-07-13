@@ -11,6 +11,11 @@ import { StatusReservation } from '../types';
 import { useSignalR } from '../hooks/useSignalR';
 
 import { useAuth } from '../hooks/useAuth';
+import {
+  getPeruDateTimeFilters,
+  isReservationUpcomingInPeru,
+  normalizeDateKey,
+} from '../utils/peruDate';
 
 
 
@@ -57,13 +62,11 @@ const confirmedStatuses = new Set([
 
 
 const parseLocalDateTime = (dateString, timeString) => {
-
-  const [year, month, day] = dateString.split('-').map(Number);
-
-  const [hours, minutes] = timeString.split(':').map(Number);
-
-  return new Date(year, month - 1, day, hours, minutes, 0, 0);
-
+  const dateKey = normalizeDateKey(dateString);
+  if (!dateKey || !timeString) return new Date(NaN);
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const [hours, minutes] = String(timeString).split(':').map(Number);
+  return new Date(year, month - 1, day, hours || 0, minutes || 0, 0, 0);
 };
 
 
@@ -81,17 +84,15 @@ const isSameDay = (leftDate, rightDate) => (
 
 
 const formatHomeSubtitle = (todayCount) => {
-
-  const now = new Date();
-
-  const raw = new Intl.DateTimeFormat('es-PE', { weekday: 'long', day: 'numeric', month: 'long' }).format(now);
-
+  const raw = new Intl.DateTimeFormat('es-PE', {
+    timeZone: 'America/Lima',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  }).format(new Date());
   const dateLabel = raw.charAt(0).toUpperCase() + raw.slice(1);
-
   if (todayCount === 0) return `${dateLabel} · no tienes sesiones hoy`;
-
   return `${dateLabel} · tienes ${todayCount} ${todayCount === 1 ? 'sesión' : 'sesiones'} hoy`;
-
 };
 
 
@@ -207,46 +208,22 @@ const HomeScreen = () => {
       const response = await apiService.listReservationByChefId(chefId);
 
       const now = new Date();
-
-      const todayStart = new Date(now);
-
-      todayStart.setHours(0, 0, 0, 0);
-
-
+      const { dateFilter, timeFilter } = getPeruDateTimeFilters(now);
 
       if (!response.success || !response.data) {
-
         setConfirmedReservations([]);
-
         setRequestReservations([]);
-
         setNextReservation(null);
-
         return;
-
       }
 
-
-
       const confirmed = response.data
-
         .filter((reservation) => confirmedStatuses.has(reservation.statusReservation))
-
-        .filter((reservation) => parseLocalDateTime(reservation.dateReservation, reservation.hourReservation).getTime() >= todayStart.getTime())
-
+        .filter((reservation) => isReservationUpcomingInPeru(reservation.dateReservation, reservation.hourReservation, now))
         .sort((a, b) => parseLocalDateTime(a.dateReservation, a.hourReservation) - parseLocalDateTime(b.dateReservation, b.hourReservation));
 
-
-
       setConfirmedReservations(confirmed);
-
       setNextReservation(confirmed.find((r) => parseLocalDateTime(r.dateReservation, r.hourReservation) >= now) || confirmed[0] || null);
-
-
-
-      const dateFilter = now.toISOString().split('T')[0];
-
-      const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
 
       const pendingFilters = { dateFilter, timeFilter, Page: 1, RecordsPerPage: 50 };
 
@@ -324,13 +301,12 @@ const HomeScreen = () => {
 
 
 
-  const todayCount = useMemo(() => confirmedReservations.filter((reservation) => {
-
-    const dt = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-
-    return isSameDay(dt, new Date());
-
-  }).length, [confirmedReservations]);
+  const todayCount = useMemo(() => {
+    const { dateFilter } = getPeruDateTimeFilters();
+    return confirmedReservations.filter((reservation) => (
+      normalizeDateKey(reservation.dateReservation) === dateFilter
+    )).length;
+  }, [confirmedReservations]);
 
 
 

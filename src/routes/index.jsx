@@ -26,6 +26,7 @@ import { useSignalR } from '../hooks/useSignalR';
 import { subscribePushNotifications } from '../hooks/usePushNotifications';
 import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
+import { getPeruDateTimeFilters } from '../utils/peruDate';
 import './routes.css';
 import '../styles/responsive.css';
 
@@ -48,9 +49,7 @@ const Navigator = () => {
 
   const loadPendingNotifications = React.useCallback(async () => {
     try {
-      const now = new Date();
-      const dateFilter = now.toISOString().split('T')[0];
-      const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
+      const { dateFilter, timeFilter } = getPeruDateTimeFilters();
 
       const [requestsResponse, suscriptionResponse, eventsResponse] = await Promise.all([
         apiService.getPendingReservations({ dateFilter, timeFilter }),

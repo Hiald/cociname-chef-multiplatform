@@ -11,6 +11,12 @@ import { apiService } from '../services/api.service';
 import { StatusReservation } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useSignalR } from '../hooks/useSignalR';
+import {
+  getPeruDateTimeFilters,
+  isReservationPastInPeru,
+  isReservationUpcomingInPeru,
+  normalizeDateKey,
+} from '../utils/peruDate';
 
 const confirmedStatuses = new Set([
   StatusReservation.Aceptada,
@@ -19,6 +25,11 @@ const confirmedStatuses = new Set([
   StatusReservation.EnCompra,
   StatusReservation.EnTrayecto,
   StatusReservation.EnCocina,
+]);
+
+const pastEligibleStatuses = new Set([
+  ...confirmedStatuses,
+  StatusReservation.Completada,
 ]);
 
 const loaderStyle = document.createElement('style');
@@ -37,9 +48,9 @@ if (!document.getElementById('reservation-loader-style')) {
 const isValidDate = (date) => date instanceof Date && !Number.isNaN(date.getTime());
 
 const parseLocalDateTime = (dateString, timeString = '00:00') => {
-  if (!dateString) return null;
-  const [year, month, day] = String(dateString).split('-').map(Number);
-  if (!year || !month || !day) return null;
+  const dateKey = normalizeDateKey(dateString);
+  if (!dateKey) return null;
+  const [year, month, day] = dateKey.split('-').map(Number);
   const [hours, minutes] = String(timeString || '00:00').split(':').map(Number);
   const dt = new Date(
     year,
@@ -75,15 +86,6 @@ const getTypeBadgeStyle = (tipo) => {
   return styles.typeBadgeReservation;
 };
 
-const inProgressEventStatuses = new Set([
-  StatusReservation.Creada,
-  StatusReservation.Aceptada,
-  StatusReservation.Actualizada,
-  StatusReservation.EnCompra,
-  StatusReservation.EnTrayecto,
-  StatusReservation.EnCocina,
-]);
-
 const pendingRequestStatuses = new Set([
   StatusReservation.Creada,
   StatusReservation.Reprogramada,
@@ -95,17 +97,25 @@ const isPendingRequest = (item, statusValue) => (
 );
 
 const getWeekCount = (reservations) => {
-  const now = new Date();
-  const day = now.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const start = new Date(now);
-  start.setDate(now.getDate() + mondayOffset);
-  start.setHours(0, 0, 0, 0);
+  const { dateFilter: todayPeru } = getPeruDateTimeFilters();
+  // Calcular lunes-domingo de la semana actual en Perú (por clave YYYY-MM-DD)
+  const [year, month, day] = todayPeru.split('-').map(Number);
+  const todayAsUtcNoon = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  const weekday = todayAsUtcNoon.getUTCDay(); // 0=domingo
+  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
+  const start = new Date(todayAsUtcNoon);
+  start.setUTCDate(todayAsUtcNoon.getUTCDate() + mondayOffset);
   const end = new Date(start);
-  end.setDate(start.getDate() + 7);
+  end.setUTCDate(start.getUTCDate() + 7);
+
+  const toKey = (dt) => dt.toISOString().slice(0, 10);
+
+  const startKey = toKey(start);
+  const endKey = toKey(end);
+
   return reservations.filter((reservation) => {
-    const dt = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-    return dt && dt >= start && dt < end;
+    const key = normalizeDateKey(reservation.dateReservation);
+    return key && key >= startKey && key < endKey;
   }).length;
 };
 
@@ -213,9 +223,7 @@ const ReservationScreen = () => {
       let confirmedForDisplay = [];
 
       const now = new Date();
-      const dateFilter = now.toISOString().split('T')[0];
-      const timeFilter = now.toTimeString().split(' ')[0].substring(0, 5);
-
+      const { dateFilter, timeFilter } = getPeruDateTimeFilters(now);
       const pendingFilters = { dateFilter, timeFilter, Page: 1, RecordsPerPage: 50 };
 
       const [
@@ -233,39 +241,32 @@ const ReservationScreen = () => {
         apiService.getPendingEventReservation(pendingFilters),
         apiService.getPendingReservationDiet(pendingFilters),
         apiService.getPendingReservationServiceTask(pendingFilters),
-        apiService.getReservationEventsByChefId(chefId, 1, 10),
+        apiService.getReservationEventsByChefId(chefId, 1, 100),
       ]);
 
+      const isUpcomingItem = (item) => isReservationUpcomingInPeru(item.dateReservation, item.hourReservation, now);
+      const isPastItem = (item) => isReservationPastInPeru(item.dateReservation, item.hourReservation, now);
+
+      let pastForDisplay = [];
+
       if (confirmedResponse.success && confirmedResponse.data) {
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0).getTime();
+        const allEligible = confirmedResponse.data
+          .filter((reservation) => pastEligibleStatuses.has(reservation.statusReservation))
+          .map((reservation) => ({ ...reservation, tipo: 'reserva' }));
 
-        const allConfirmed = confirmedResponse.data
-          .filter((reservation) => {
-            if (!confirmedStatuses.has(reservation.statusReservation)) return false;
-            return true;
-          })
-          .map((reservation) => ({ ...reservation, tipo: 'reserva' }))
+        confirmedForDisplay = allEligible
+          .filter((reservation) => confirmedStatuses.has(reservation.statusReservation) && isUpcomingItem(reservation))
           .sort((a, b) => compareByDateTime(a, b));
 
-        const confirmed = allConfirmed
+        pastForDisplay = allEligible
           .filter((reservation) => {
-            const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-            return reservationDate && reservationDate.getTime() >= startOfToday;
-          })
-          .sort((a, b) => compareByDateTime(a, b));
-
-        const past = allConfirmed
-          .filter((reservation) => {
-            const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-            return reservationDate && reservationDate.getTime() < startOfToday;
+            if (reservation.statusReservation === StatusReservation.Completada) return true;
+            return confirmedStatuses.has(reservation.statusReservation) && isPastItem(reservation);
           })
           .sort((a, b) => compareByDateTime(a, b, -1));
-
-        confirmedForDisplay = confirmed;
-        setPastReservations(past);
       } else {
         confirmedForDisplay = [];
-        setPastReservations([]);
+        pastForDisplay = [];
       }
 
       const normalRequests = requestsResponse.success && requestsResponse.data
@@ -328,23 +329,38 @@ const ReservationScreen = () => {
             }))
         : [];
 
-      const eventsInProgress = chefEventsResponse.success && chefEventsResponse.data
+      const chefEventsMapped = chefEventsResponse.success && chefEventsResponse.data
         ? chefEventsResponse.data
             .filter((event) => {
               if (event.chefId === null) return false;
               const status = event.statusEvent ?? event.statusReservation;
-              return inProgressEventStatuses.has(status);
+              return pastEligibleStatuses.has(status);
             })
             .map((event) => ({
               ...event,
               tipo: 'evento',
-              dateReservation: event.dateEvent || event.dateReservation,
-              hourReservation: event.hourEvent || event.hourReservation,
+              dateReservation: event.dateEvent || event.dateReservationEvent || event.dateReservation,
+              hourReservation: event.hourEvent || event.hourReservationEvent || event.hourReservation,
             }))
-            .sort((a, b) => compareByDateTime(a, b))
         : [];
 
-      const combinedConfirmed = [...confirmedForDisplay, ...eventsInProgress].sort((a, b) => compareByDateTime(a, b));
+      const upcomingEvents = chefEventsMapped
+        .filter((event) => {
+          const status = event.statusEvent ?? event.statusReservation;
+          return confirmedStatuses.has(status) && isUpcomingItem(event);
+        })
+        .sort((a, b) => compareByDateTime(a, b));
+
+      const pastEvents = chefEventsMapped
+        .filter((event) => {
+          const status = event.statusEvent ?? event.statusReservation;
+          if (status === StatusReservation.Completada) return true;
+          return confirmedStatuses.has(status) && isPastItem(event);
+        })
+        .sort((a, b) => compareByDateTime(a, b, -1));
+
+      const combinedConfirmed = [...confirmedForDisplay, ...upcomingEvents].sort((a, b) => compareByDateTime(a, b));
+      const combinedPast = [...pastForDisplay, ...pastEvents].sort((a, b) => compareByDateTime(a, b, -1));
 
       const allRequests = [
         ...normalRequests,
@@ -355,10 +371,12 @@ const ReservationScreen = () => {
       ].sort((a, b) => compareByDateTime(a, b));
 
       setConfirmedReservations(combinedConfirmed);
+      setPastReservations(combinedPast);
       setRequestReservations(allRequests);
     } catch (error) {
       console.error('Error loading reservations:', error);
       setConfirmedReservations([]);
+      setPastReservations([]);
       setRequestReservations([]);
     } finally {
       setLoading(false);
@@ -374,11 +392,9 @@ const ReservationScreen = () => {
   }, { playSound: false });
 
   const upcomingReservation = useMemo(() => {
-    const now = new Date();
-    return confirmedReservations.find((reservation) => {
-      const reservationDate = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-      return reservationDate && reservationDate.getTime() >= now.getTime();
-    }) || null;
+    return confirmedReservations.find((reservation) => (
+      isReservationUpcomingInPeru(reservation.dateReservation, reservation.hourReservation)
+    )) || null;
   }, [confirmedReservations]);
 
   const weekCount = useMemo(() => getWeekCount(confirmedReservations), [confirmedReservations]);
