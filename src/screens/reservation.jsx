@@ -17,6 +17,7 @@ import {
   isReservationUpcomingInPeru,
   normalizeDateKey,
 } from '../utils/peruDate';
+import { ReservationsCalendar } from '../components/reservations-calendar/ReservationsCalendar';
 
 const confirmedStatuses = new Set([
   StatusReservation.Aceptada,
@@ -391,13 +392,21 @@ const ReservationScreen = () => {
     void loadReservations();
   }, { playSound: false });
 
-  const upcomingReservation = useMemo(() => {
-    return confirmedReservations.find((reservation) => (
-      isReservationUpcomingInPeru(reservation.dateReservation, reservation.hourReservation)
-    )) || null;
-  }, [confirmedReservations]);
-
   const weekCount = useMemo(() => getWeekCount(confirmedReservations), [confirmedReservations]);
+
+  const calendarReservations = useMemo(() => {
+    // Calendario: todas las reservas confirmadas/pasadas, solo con dateReservation
+    const merged = [...confirmedReservations, ...pastReservations];
+    const seen = new Set();
+    return merged.filter((item) => {
+      const key = normalizeDateKey(item.dateReservation);
+      if (!key) return false;
+      const idKey = `${item.tipo || 'reserva'}-${item.id}`;
+      if (seen.has(idKey)) return false;
+      seen.add(idKey);
+      return true;
+    });
+  }, [confirmedReservations, pastReservations]);
 
   const listaReservations = useMemo(() => {
     if (activeTab !== 'confirmed') return [];
@@ -680,14 +689,19 @@ const ReservationScreen = () => {
         </div>
 
         <div className="coci-reservas-cal-col">
-          <div className="calendar-card-sticky" style={styles.calendarCard}>
-            <div style={styles.calendarTitle}>Calendario</div>
-            <p style={styles.calendarHint}>Vista de calendario en desarrollo. Usa la lista para ver tus reservas agrupadas por día.</p>
-            {upcomingReservation && (
-              <button type="button" style={styles.calendarNextBtn} onClick={() => handleViewReservation(upcomingReservation, false)}>
-                Ver próxima reserva · {formatCustomerName(upcomingReservation.customerName, upcomingReservation.customerLastName, false)}
-              </button>
-            )}
+          <div className="calendar-card-sticky">
+            <ReservationsCalendar
+              reservations={calendarReservations}
+              onSelectReservation={(reservation) => handleViewReservation(reservation, false)}
+              renderDayReservations={(dayItems) => (
+                <div style={styles.groupedList}>
+                  {dayItems
+                    .slice()
+                    .sort((a, b) => compareByDateTime(a, b))
+                    .map((reservation) => renderListaCard(reservation, false))}
+                </div>
+              )}
+            />
           </div>
         </div>
       </div>
