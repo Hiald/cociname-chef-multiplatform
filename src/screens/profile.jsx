@@ -208,20 +208,6 @@ const ProfileScreen = () => {
 
     },
 
-    {
-
-      title: 'Recibos pendientes de emitir',
-
-      sub: 'Emite tu recibo por honorarios',
-
-      emoji: '🧾',
-
-      tileBg: 'linear-gradient(135deg,#E4F6EC,#BFE9CF)',
-
-      onClick: null,
-
-    },
-
   ];
 
 
