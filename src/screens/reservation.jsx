@@ -235,6 +235,7 @@ const ReservationScreen = () => {
         dietResponse,
         serviceTaskResponse,
         chefEventsResponse,
+        chefSuscriptionsResponse,
       ] = await Promise.all([
         apiService.listReservationByChefId(chefId),
         apiService.getPendingReservations(pendingFilters),
@@ -243,6 +244,7 @@ const ReservationScreen = () => {
         apiService.getPendingReservationDiet(pendingFilters),
         apiService.getPendingReservationServiceTask(pendingFilters),
         apiService.getReservationEventsByChefId(chefId, 1, 100),
+        apiService.listReservationSuscriptionByChefId(chefId),
       ]);
 
       const isUpcomingItem = (item) => isReservationUpcomingInPeru(item.dateReservation, item.hourReservation, now);
@@ -360,8 +362,30 @@ const ReservationScreen = () => {
         })
         .sort((a, b) => compareByDateTime(a, b, -1));
 
-      const combinedConfirmed = [...confirmedForDisplay, ...upcomingEvents].sort((a, b) => compareByDateTime(a, b));
-      const combinedPast = [...pastForDisplay, ...pastEvents].sort((a, b) => compareByDateTime(a, b, -1));
+      // Visitas de suscripción asignadas a la cocinera. Antes NO se traían: por eso una
+      // suscripción con cocinera asignada no aparecía en "Mis reservas" confirmadas.
+      const chefSuscriptionsMapped = chefSuscriptionsResponse.success && chefSuscriptionsResponse.data
+        ? chefSuscriptionsResponse.data
+            .filter((item) => {
+              if (item.chefId === null) return false;
+              return pastEligibleStatuses.has(item.suscriptionStatus);
+            })
+            .map((item) => ({ ...item, tipo: 'suscripcion' }))
+        : [];
+
+      const upcomingSuscriptions = chefSuscriptionsMapped
+        .filter((item) => confirmedStatuses.has(item.suscriptionStatus) && isUpcomingItem(item))
+        .sort((a, b) => compareByDateTime(a, b));
+
+      const pastSuscriptions = chefSuscriptionsMapped
+        .filter((item) => {
+          if (item.suscriptionStatus === StatusReservation.Completada) return true;
+          return confirmedStatuses.has(item.suscriptionStatus) && isPastItem(item);
+        })
+        .sort((a, b) => compareByDateTime(a, b, -1));
+
+      const combinedConfirmed = [...confirmedForDisplay, ...upcomingEvents, ...upcomingSuscriptions].sort((a, b) => compareByDateTime(a, b));
+      const combinedPast = [...pastForDisplay, ...pastEvents, ...pastSuscriptions].sort((a, b) => compareByDateTime(a, b, -1));
 
       const allRequests = [
         ...normalRequests,
