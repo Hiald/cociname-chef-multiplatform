@@ -1509,6 +1509,61 @@ class ApiService {
   }
 
   /**
+   * GET /api/reservationSuscription/ListReservationSuscriptionByChefId?ChefId={chefId}
+   * Visitas de suscripción asignadas a la cocinera (por el ChefId de la VISITA).
+   * Sin esto las suscripciones no aparecían en "Mis reservas" confirmadas.
+   */
+  async listReservationSuscriptionByChefId(
+    chefId: number
+  ): Promise<{ data: ReservationSuscriptionData[]; success: boolean; errorMessage: string | null }> {
+    const endpoint = `reservationSuscription/ListReservationSuscriptionByChefId?ChefId=${chefId}`;
+
+    console.log('Calling listReservationSuscriptionByChefId:', endpoint);
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          data: [],
+          success: false,
+          errorMessage: data.errorMessage || `Error: ${response.status}`,
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error('listReservationSuscriptionByChefId error:', error);
+      return {
+        data: [],
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+      };
+    }
+  }
+
+  /**
    * GET /api/reservationIngredientChecklist/filterbyReservation
    * Obtiene la lista de ingredientes para una reserva
    */
