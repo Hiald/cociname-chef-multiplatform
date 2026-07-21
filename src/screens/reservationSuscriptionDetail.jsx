@@ -890,31 +890,28 @@ const ReservationSuscriptionDetailScreen = () => {
             </div>
           </div>
 
-          {/* Contact Section */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <HelpDetail />
-              <h2 style={styles.sectionTitle}>Contacto</h2>
-            </div>
-            <div style={styles.card}>
-              <div style={styles.contactRow}>
+          {(reservation.comments || clientComment) && (
+            <div style={styles.section}>
+              <div style={styles.sectionHeader}>
                 <HelpDetail />
-                <span style={styles.contactText}>{reservation.numberClient || reservation.numberCustomer}</span>
+                <h2 style={styles.sectionTitle}>Comentarios</h2>
               </div>
-              {reservation.comments && (
-                <div style={styles.commentSection}>
-                  <p style={styles.commentLabel}>Comentarios del chef:</p>
-                  <p style={styles.commentText}>{reservation.comments}</p>
-                </div>
-              )}
-              {clientComment && (
-                <div style={styles.commentSection}>
-                  <p style={styles.commentLabel}>Comentarios del cliente:</p>
-                  <p style={styles.commentText}>{clientComment}</p>
-                </div>
-              )}
+              <div style={styles.card}>
+                {reservation.comments && (
+                  <div style={styles.commentSectionFirst}>
+                    <p style={styles.commentLabel}>Comentarios del chef:</p>
+                    <p style={styles.commentText}>{reservation.comments}</p>
+                  </div>
+                )}
+                {clientComment && (
+                  <div style={reservation.comments ? styles.commentSection : styles.commentSectionFirst}>
+                    <p style={styles.commentLabel}>Comentarios del cliente:</p>
+                    <p style={styles.commentText}>{clientComment}</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Action Buttons for Pending Requests - Solo si es solicitud pendiente */}
           {isRequest && (
@@ -1327,16 +1324,8 @@ const styles = {
     fontWeight: '600',
     color: '#1A1F24',
   },
-  contactRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: `${spacing.small}px`,
-  },
-  contactText: {
-    fontSize: '14px',
-    color: '#1A1F24',
-    marginLeft: `${spacing.small}px`,
+  commentSectionFirst: {
+    marginTop: 0,
   },
   commentSection: {
     marginTop: `${spacing.medium}px`,

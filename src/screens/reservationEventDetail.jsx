@@ -303,7 +303,6 @@ const ReservationEventDetailScreen = () => {
           </div>
           <div style={styles.infoCard}>
             <span style={styles.infoRowLabel}>{event.customerName || 'No especificado'}</span>
-            <span style={styles.infoRowValue}>{event.contactPhone || 'Sin teléfono'}</span>
           </div>
         </div>
 

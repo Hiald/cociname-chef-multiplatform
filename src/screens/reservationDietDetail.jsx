@@ -186,7 +186,6 @@ const ReservationDietDetailScreen = () => {
   const recordId = record.id ?? record.Id;
   const customerName = getCustomerFullName(record);
   const chef = getChefDisplay(record);
-  const phone = record.contactPhone || record.ContactPhone || record.numberClient || record.NumberClient || '-';
   const direction = record.direction || record.Direction || '-';
   const reference = record.reference || record.Reference || '';
   const totalPrice = record.totalPrice ?? record.TotalPrice ?? 0;
@@ -270,7 +269,6 @@ const ReservationDietDetailScreen = () => {
           <h2 style={styles.cardTitle}>Información general</h2>
           <div style={styles.infoGrid}>
             <InfoItem label="Cliente" value={customerName || 'No especificado'} />
-            <InfoItem label="Teléfono" value={phone} />
             <InfoItem label="Ubicación" value={`${direction}${reference ? `, ${reference}` : ''}`} />
             <InfoItem
               label="Personas"
