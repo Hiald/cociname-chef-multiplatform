@@ -156,35 +156,70 @@ const ReservationSuscriptionDetailScreen = () => {
     try {
       setLoading(true);
 
-      let reservationData = reservationDataFromState;
-      
-      // Si no hay datos del estado, cargar del API
-      if (!reservationDataFromState) {
-        const reservationResponse = await apiService.getReservationSuscriptionById(parseInt(reservationId));
-        if (reservationResponse.success && reservationResponse.data) {
-          reservationData = reservationResponse.data;
+      let reservationData = reservationDataFromState
+        ? {
+            ...reservationDataFromState,
+            id: reservationDataFromState.id
+              ?? reservationDataFromState.reservationSuscriptionId
+              ?? reservationDataFromState.Id
+              ?? Number(reservationId),
+            suscriptionId: reservationDataFromState.suscriptionId
+              ?? reservationDataFromState.SuscriptionId,
+            tipo: 'suscripcion',
+          }
+        : null;
+
+      // Intentar detalle por ID (puede 404 si aún no está asignada a la chef)
+      const reservationResponse = await apiService.getReservationSuscriptionById(parseInt(reservationId, 10));
+      if (reservationResponse.success && reservationResponse.data && reservationResponse.data.id) {
+        reservationData = {
+          ...(reservationData || {}),
+          ...reservationResponse.data,
+          tipo: 'suscripcion',
+        };
+      } else if (!reservationData?.suscriptionId && reservationDataFromState?.suscriptionId) {
+        // Fallback: buscar hijas por suscriptionId
+        const bySuscription = await apiService.getReservationsBySuscriptionId(
+          Number(reservationDataFromState.suscriptionId)
+        );
+        if (bySuscription.success && Array.isArray(bySuscription.data)) {
+          const match = bySuscription.data.find((item) => (
+            Number(item.id) === Number(reservationId)
+            || Number(item.reservationSuscriptionId) === Number(reservationId)
+          )) || bySuscription.data[0];
+          if (match) {
+            reservationData = { ...(reservationData || {}), ...match, tipo: 'suscripcion' };
+          }
+        }
+      }
+
+      // Último recurso: si el chef ya la tiene asignada, buscar en su listado
+      if ((!reservationData || !reservationData.suscriptionId) && chefData?.chefId) {
+        const chefList = await apiService.listReservationSuscriptionByChefId(chefData.chefId);
+        if (chefList.success && Array.isArray(chefList.data)) {
+          const match = chefList.data.find((item) => Number(item.id) === Number(reservationId));
+          if (match) {
+            reservationData = { ...(reservationData || {}), ...match, tipo: 'suscripcion' };
+          }
         }
       }
       
       if (reservationData) {
         setReservation(reservationData);
         console.log('Reserva de suscripción cargada:', reservationData);
-        console.log('🔍 Campos críticos de la reserva:');
-        console.log('  customerId:', reservationData.customerId);
-        console.log('  totalPrice:', reservationData.totalPrice);
-        console.log('  commissiontoChef:', reservationData.commissiontoChef);
-        console.log('  payMethod:', reservationData.payMethod);
-        console.log('  isPayed:', reservationData.isPayed);
-        console.log('  suscriptionId:', reservationData.suscriptionId);
 
-        if (reservationData.suscriptionId) {
-          const suscriptionResponse = await apiService.getSuscriptionById(reservationData.suscriptionId);
+        const resolvedSuscriptionId = reservationData.suscriptionId ?? reservationData.SuscriptionId;
+        const resolvedReservationSuscriptionId = Number(
+          reservationData.id ?? reservationData.reservationSuscriptionId ?? reservationId
+        );
+
+        if (resolvedSuscriptionId) {
+          const suscriptionResponse = await apiService.getSuscriptionById(resolvedSuscriptionId);
           if (suscriptionResponse.success && suscriptionResponse.data) {
             setSuscriptionInfo(suscriptionResponse.data);
           }
         }
         
-        // SIEMPRE cargar los platos del API, incluso si hay datos del estado
         try {
           const requestedDishes = reservationData.jsonRequest 
             ? JSON.parse(reservationData.jsonRequest) 
@@ -193,14 +228,15 @@ const ReservationSuscriptionDetailScreen = () => {
             ? JSON.parse(reservationData.jsonOptional) 
             : [];
           setRecipes([...requestedDishes, ...optionalDishes]);
-          console.log('Platos cargados:', [...requestedDishes, ...optionalDishes]);
         } catch (e) {
           console.error('Error parsing recipes:', e);
           setRecipes([]);
         }
 
-        if (reservationData.puchaseIngredients) {
-          const ingredientsResponse = await apiService.getIngredientChecklistByReservationSuscription(parseInt(reservationId, 10));
+        if (reservationData.puchaseIngredients && resolvedReservationSuscriptionId) {
+          const ingredientsResponse = await apiService.getIngredientChecklistByReservationSuscription(
+            resolvedReservationSuscriptionId
+          );
 
           if (ingredientsResponse.success && ingredientsResponse.data && ingredientsResponse.data.length > 0) {
             const ingredientsDetails = await loadIngredientDetailsFromChecklist(
@@ -210,7 +246,7 @@ const ReservationSuscriptionDetailScreen = () => {
             );
 
             setIngredients(ingredientsDetails);
-            const storageKey = `ingredients_suscription_${reservationId}`;
+            const storageKey = `ingredients_suscription_${resolvedReservationSuscriptionId}`;
             const savedChecks = localStorage.getItem(storageKey);
             if (savedChecks) {
               try {
@@ -225,16 +261,18 @@ const ReservationSuscriptionDetailScreen = () => {
           setCheckedIngredients({});
         }
         
-        // Cargar marcaciones de chef si existe reservationSuscriptionId
-        const markingsResponse = await apiService.getChefReservationByReservationSuscriptionId(parseInt(reservationId));
-        
-        if (markingsResponse.success && markingsResponse.data && markingsResponse.data.length > 0) {
-          const marking = markingsResponse.data[0];
-          setChefReservationId(marking.id);
-          setChefReservation(marking);
-          setHasStarted(!!marking.arrivedAt || !!marking.startedAt);
-          setHasEnded(!!marking.completedAt);
-          console.log('Marcaciones de suscripción cargadas:', marking);
+        if (resolvedReservationSuscriptionId) {
+          const markingsResponse = await apiService.getChefReservationByReservationSuscriptionId(
+            resolvedReservationSuscriptionId
+          );
+          
+          if (markingsResponse.success && markingsResponse.data && markingsResponse.data.length > 0) {
+            const marking = markingsResponse.data[0];
+            setChefReservationId(marking.id);
+            setChefReservation(marking);
+            setHasStarted(!!marking.arrivedAt || !!marking.startedAt);
+            setHasEnded(!!marking.completedAt);
+          }
         }
       }
     } catch (error) {
@@ -249,7 +287,7 @@ const ReservationSuscriptionDetailScreen = () => {
       loadReservationDetail();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reservationId]);
+  }, [reservationId, chefData?.chefId]);
 
   const formatDate = (date) => {
     if (!date) return 'Fecha no especificada';
@@ -453,21 +491,26 @@ const ReservationSuscriptionDetailScreen = () => {
 
   const handleAcceptReservation = async () => {
     console.log('=== ACEPTAR RESERVA DE SUSCRIPCIÓN ===');
-    console.log('chefData:', chefData);
-    console.log('reservationId:', reservationId);
-    console.log('reservation:', reservation);
+
+    const reservationSuscriptionId = Number(
+      reservation?.id
+      ?? reservation?.reservationSuscriptionId
+      ?? reservation?.Id
+      ?? reservationId
+    );
+    const suscriptionId = Number(reservation?.suscriptionId ?? reservation?.SuscriptionId);
     
     if (!chefData?.chefId) {
       alert('Error: No se encontró el ID del chef');
       return;
     }
     
-    if (!reservationId) {
-      alert('Error: No se encontró el ID de la reserva');
+    if (!reservationSuscriptionId) {
+      alert('Error: No se encontró el ID de la reserva de suscripción');
       return;
     }
 
-    if (!reservation?.suscriptionId) {
+    if (!suscriptionId) {
       alert('Error: No se encontró el ID de la suscripción');
       return;
     }
@@ -476,25 +519,34 @@ const ReservationSuscriptionDetailScreen = () => {
       setSubmitting(true);
       console.log('Llamando al endpoint con:', {
         chefId: chefData.chefId,
-        reservationSuscriptionId: parseInt(reservationId),
-        suscriptionId: reservation.suscriptionId,
-        assignmentStatus: 1 // 1 = Aceptada
+        reservationSuscriptionId,
+        suscriptionId,
+        assignmentStatus: 1,
       });
       
       const response = await apiService.updateReservationSuscriptionAssignment(
         chefData.chefId,
-        parseInt(reservationId), // reservationSuscriptionId
-        reservation.suscriptionId, // suscriptionId
-        1, // assignmentStatus: 1 = Aceptada
-        '' // rejectionReason (vacío para aceptación)
+        reservationSuscriptionId,
+        suscriptionId,
+        1,
+        ''
       );
 
       console.log('Respuesta del endpoint:', response);
 
-      if (response.success) {
-        console.log('Suscripción aceptada exitosamente');
+      // Algunos 400 del API igual dejan la asignación hecha: verificar listado del chef
+      let assigned = response.success;
+      if (!assigned && chefData.chefId) {
+        const chefList = await apiService.listReservationSuscriptionByChefId(chefData.chefId);
+        assigned = !!(
+          chefList.success
+          && chefList.data?.some((item) => Number(item.id) === reservationSuscriptionId)
+        );
+      }
+
+      if (assigned) {
         alert('Suscripción aceptada exitosamente');
-        navigate('/reservation');
+        navigate('/reservation?tab=confirmed', { state: { defaultTab: 'confirmed' }, replace: true });
       } else {
         console.error('Error en la respuesta:', response.errorMessage);
         alert('Error al aceptar la suscripción: ' + (response.errorMessage || 'Error desconocido'));
@@ -508,7 +560,15 @@ const ReservationSuscriptionDetailScreen = () => {
   };
 
   const handleRejectReservation = async () => {
-    if (!chefData?.chefId || !reservation?.suscriptionId || !rejectionReason.trim()) {
+    const reservationSuscriptionId = Number(
+      reservation?.id
+      ?? reservation?.reservationSuscriptionId
+      ?? reservation?.Id
+      ?? reservationId
+    );
+    const suscriptionId = Number(reservation?.suscriptionId ?? reservation?.SuscriptionId);
+
+    if (!chefData?.chefId || !reservationSuscriptionId || !suscriptionId || !rejectionReason.trim()) {
       alert('Por favor ingresa un motivo de rechazo');
       return;
     }
@@ -518,17 +578,17 @@ const ReservationSuscriptionDetailScreen = () => {
       
       const response = await apiService.updateReservationSuscriptionAssignment(
         chefData.chefId,
-        parseInt(reservationId),
-        reservation.suscriptionId,
-        2, // assignmentStatus = 2 (Rechazada)
+        reservationSuscriptionId,
+        suscriptionId,
+        2,
         rejectionReason
       );
 
       if (response.success) {
         alert('Suscripción rechazada exitosamente');
-        navigate('/reservation');
+        navigate('/reservation?tab=requests', { state: { defaultTab: 'requests' }, replace: true });
       } else {
-        alert('Error al rechazar la suscripción: ' + response.errorMessage);
+        alert('Error al rechazar la suscripción: ' + (response.errorMessage || 'Error desconocido'));
       }
     } catch (error) {
       console.error('Error rejecting suscription:', error);

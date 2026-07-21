@@ -229,6 +229,7 @@ const ReservationScreen = () => {
 
       const [
         confirmedResponse,
+        chefSuscriptionResponse,
         requestsResponse,
         suscriptionResponse,
         eventsResponse,
@@ -237,6 +238,7 @@ const ReservationScreen = () => {
         chefEventsResponse,
       ] = await Promise.all([
         apiService.listReservationByChefId(chefId),
+        apiService.listReservationSuscriptionByChefId(chefId),
         apiService.getPendingReservations(pendingFilters),
         apiService.getPendingReservationSuscription(pendingFilters),
         apiService.getPendingEventReservation(pendingFilters),
@@ -270,6 +272,40 @@ const ReservationScreen = () => {
         pastForDisplay = [];
       }
 
+      // Suscripciones asignadas a la chef (antes no se cargaban → “desaparecían” al aceptar)
+      const chefSuscriptionsMapped = chefSuscriptionResponse.success && chefSuscriptionResponse.data
+        ? chefSuscriptionResponse.data
+            .filter((item) => {
+              const status = item.suscriptionStatus ?? item.statusReservation;
+              return pastEligibleStatuses.has(status);
+            })
+            .map((item) => ({
+              ...item,
+              tipo: 'suscripcion',
+              dateReservation: item.dateReservation,
+              hourReservation: item.hourReservation,
+              statusReservation: item.suscriptionStatus ?? item.statusReservation,
+            }))
+        : [];
+
+      const upcomingSuscriptions = chefSuscriptionsMapped
+        .filter((item) => {
+          const status = item.suscriptionStatus ?? item.statusReservation;
+          return confirmedStatuses.has(status) && isUpcomingItem(item);
+        })
+        .sort((a, b) => compareByDateTime(a, b));
+
+      const pastSuscriptions = chefSuscriptionsMapped
+        .filter((item) => {
+          const status = item.suscriptionStatus ?? item.statusReservation;
+          if (status === StatusReservation.Completada) return true;
+          return confirmedStatuses.has(status) && isPastItem(item);
+        })
+        .sort((a, b) => compareByDateTime(a, b, -1));
+
+      confirmedForDisplay = [...confirmedForDisplay, ...upcomingSuscriptions];
+      pastForDisplay = [...pastForDisplay, ...pastSuscriptions];
+
       const normalRequests = requestsResponse.success && requestsResponse.data
         ? requestsResponse.data
             .filter((reservation) => isPendingRequest(
@@ -283,9 +319,15 @@ const ReservationScreen = () => {
         ? suscriptionResponse.data
             .filter((reservation) => isPendingRequest(
               reservation,
-              reservation.suscriptionStatus
+              reservation.suscriptionStatus ?? reservation.statusReservation
             ))
-            .map((reservation) => ({ ...reservation, tipo: 'suscripcion' }))
+            .map((reservation) => ({
+              ...reservation,
+              tipo: 'suscripcion',
+              // Normalizar IDs: algunos payloads usan reservationSuscriptionId
+              id: reservation.id ?? reservation.reservationSuscriptionId ?? reservation.Id,
+              suscriptionId: reservation.suscriptionId ?? reservation.SuscriptionId,
+            }))
         : [];
 
       const eventRequests = eventsResponse.success && eventsResponse.data
@@ -482,17 +524,25 @@ const ReservationScreen = () => {
     }
 
     if (reservation.tipo === 'suscripcion') {
-      navigate(`/reservation-suscription/${reservation.id}`, {
+      const reservationSuscriptionId = reservation.id
+        ?? reservation.reservationSuscriptionId
+        ?? reservation.Id;
+      navigate(`/reservation-suscription/${reservationSuscriptionId}`, {
         state: {
-          reservationSuscriptionId: reservation.id,
-          suscriptionId: reservation.suscriptionId,
+          reservationSuscriptionId,
+          suscriptionId: reservation.suscriptionId ?? reservation.SuscriptionId,
           isActive: false,
           isSuscription: true,
           isRequest,
           source: 'reservation',
           originTab,
           showPast: keepHistoryExpanded,
-          reservationData: reservation,
+          reservationData: {
+            ...reservation,
+            id: reservationSuscriptionId,
+            suscriptionId: reservation.suscriptionId ?? reservation.SuscriptionId,
+            tipo: 'suscripcion',
+          },
         },
       });
       return;

@@ -1,4 +1,5 @@
 import { API_CONFIG, GEO_CONFIG } from '../config';
+import { getPeruDateTimeFilters } from '../utils/peruDate';
 
 // ── Geografía multi-país (ver specs/geography.yaml) ─────────────────────────
 export interface GeoDivisionDto {
@@ -188,9 +189,14 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
+        const validationErrors = data?.errors
+          ? Object.entries(data.errors)
+              .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+              .join(' | ')
+          : '';
         return {
           success: false,
-          errorMessage: data.errorMessage || `Error: ${response.status}`,
+          errorMessage: data.errorMessage || validationErrors || data.title || `Error: ${response.status}`,
           data: null,
         };
       }
@@ -750,6 +756,7 @@ class ApiService {
       const token = this.getToken();
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'X-Country-Id': String(GEO_CONFIG.COUNTRY_ID),
       };
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -1345,6 +1352,37 @@ class ApiService {
   }
 
   /**
+   * GET /api/reservationSuscription/ListReservationSuscriptionByChefId?ChefId={chefId}
+   * Lista reservas de suscripción asignadas a una chef
+   */
+  async listReservationSuscriptionByChefId(
+    chefId: number
+  ): Promise<{ data: ReservationSuscriptionData[]; success: boolean; errorMessage: string | null }> {
+    const endpoint = `reservationSuscription/ListReservationSuscriptionByChefId?ChefId=${chefId}`;
+    const result = await this.request<ReservationSuscriptionData[]>(endpoint);
+
+    if (!result.success) {
+      return {
+        data: [],
+        success: false,
+        errorMessage: result.errorMessage ?? null,
+      };
+    }
+
+    const payload = result as unknown as {
+      data: ReservationSuscriptionData[] | null;
+      success: boolean;
+      errorMessage: string | null;
+    };
+
+    return {
+      data: Array.isArray(payload.data) ? payload.data : [],
+      success: true,
+      errorMessage: payload.errorMessage ?? null,
+    };
+  }
+
+  /**
    * GET /api/reservationSuscription/ListReservationSuscriptionById?id={id}
    * Obtiene el detalle de una reserva de suscripción por ID
    */
@@ -1361,6 +1399,7 @@ class ApiService {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'X-Country-Id': String(GEO_CONFIG.COUNTRY_ID),
       };
 
       const token = this.getToken();
@@ -1728,26 +1767,24 @@ class ApiService {
     rejectionReason?: string
   ): Promise<BaseResponseGeneric<any>> {
     const endpoint = `reservationAssignment/ReservationSuscription/${chefId}`;
-    
-    const now = new Date();
-    const dateString = now.toISOString().split('T')[0];
-    const timeString = now.toTimeString().split(' ')[0].substring(0, 5);
+    const { dateFilter, timeFilter } = getPeruDateTimeFilters();
 
+    // Mismo shape que Reservation/assignment (probado en app), adaptado a suscripción.
     const requestBody = {
       priority: 0,
       assignmentStatus,
-      notifiedAt: dateString,
-      hourNotifiedAt: timeString,
-      responseAt: dateString,
-      hourResponseAt: timeString,
+      notifiedAt: dateFilter,
+      hourNotifiedAt: timeFilter,
+      responseAt: dateFilter,
+      hourResponseAt: timeFilter,
       rejectionReason: rejectionReason || '',
       chefId,
       reservationId: 0,
       suscriptionId,
       reservationSuscriptionId,
-      status: true,
-      createdById: chefId.toString(),
-      createdAt: now.toISOString(),
+      status: assignmentStatus === 1,
+      createdById: String(chefId),
+      createdAt: new Date().toISOString(),
     };
 
     console.log('Calling updateReservationSuscriptionAssignment:', endpoint, requestBody);
@@ -1809,6 +1846,7 @@ class ApiService {
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'X-Country-Id': String(GEO_CONFIG.COUNTRY_ID),
       };
 
       const token = this.getToken();
@@ -1836,10 +1874,19 @@ class ApiService {
 
       if (!response.ok) {
         console.error(`putReservationAssignment(${resourcePath}): response error`, { status: response.status, body: data });
+        const validationErrors = data && (data as any).errors
+          ? Object.entries((data as any).errors)
+              .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`)
+              .join(' | ')
+          : '';
         return {
           data: null,
           success: false,
-          errorMessage: (data && data.errorMessage) || `Error: ${response.status}`,
+          errorMessage:
+            (data && (data as any).errorMessage)
+            || validationErrors
+            || (data && (data as any).title)
+            || `Error: ${response.status}`,
         };
       }
 
