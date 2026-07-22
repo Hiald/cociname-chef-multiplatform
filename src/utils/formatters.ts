@@ -324,18 +324,12 @@ export function getSubscriptionVisitsPerMonth(
   return visits > 0 ? visits : 1;
 }
 
-export function getPerVisitValue(total: number | null | undefined, visitsPerMonth: number): number {
-  const value = Number(total ?? 0);
-  if (!value || visitsPerMonth <= 1) return value;
-  return value / visitsPerMonth;
-}
-
+/** Porciones tal como vienen del API (sin dividir entre visitas). */
 export function getPerVisitPortions(
   reservation?: SubscriptionRecord,
   suscriptionInfo?: SubscriptionRecord
 ): number {
-  const visitsPerMonth = getSubscriptionVisitsPerMonth(reservation, suscriptionInfo);
-  const totalPortion = Number(
+  return Number(
     reservation?.totalPortion
     ?? reservation?.TotalPortion
     ?? reservation?.suscriptionTotalPortion
@@ -344,8 +338,6 @@ export function getPerVisitPortions(
     ?? suscriptionInfo?.TotalPortion
     ?? 0
   );
-
-  return Math.round(getPerVisitValue(totalPortion, visitsPerMonth));
 }
 
 export function getSubscriptionMonthlyChefTotal(
@@ -361,62 +353,35 @@ export function getSubscriptionMonthlyChefTotal(
   );
 }
 
-/**
- * jsonPaymentChef suele traer el monto por sesión (ej. 60).
- * Solo se divide entre visitas si el monto coincide con el total mensual
- * (suscripciones automáticas que guardaron 240 en lugar de 60).
- */
-export function normalizeSubscriptionSessionPayment(
-  amount: number,
-  visitsPerMonth: number,
-  monthlyChefTotal = 0
-): number {
-  if (!amount || visitsPerMonth <= 1) return amount;
-
-  if (monthlyChefTotal > 0 && Math.abs(amount - monthlyChefTotal) < 0.02) {
-    return amount / visitsPerMonth;
-  }
-
-  return amount;
-}
-
 export interface SubscriptionPaymentConcept {
   concept: number;
   amount: number;
 }
 
+/** Parsea jsonPaymentChef tal cual (ya viene por sesión; no dividir). */
 export function parseSubscriptionPaymentConcepts(
-  jsonPaymentChef?: string | null,
-  options: { visitsPerMonth?: number; monthlyChefTotal?: number } = {}
+  jsonPaymentChef?: string | null
 ): SubscriptionPaymentConcept[] {
   if (!jsonPaymentChef) return [];
-
-  const visitsPerMonth = options.visitsPerMonth ?? 1;
-  const monthlyChefTotal = options.monthlyChefTotal ?? 0;
 
   try {
     const concepts = JSON.parse(jsonPaymentChef);
     if (!Array.isArray(concepts)) return [];
 
-    return concepts.map((item) => {
-      const rawAmount = parseFloat(String(item.Monto ?? item.monto ?? 0));
-
-      return {
-        concept: Number(item.Concepto ?? item.concepto ?? 0),
-        amount: normalizeSubscriptionSessionPayment(rawAmount, visitsPerMonth, monthlyChefTotal),
-      };
-    });
+    return concepts.map((item) => ({
+      concept: Number(item.Concepto ?? item.concepto ?? 0),
+      amount: parseFloat(String(item.Monto ?? item.monto ?? 0)),
+    }));
   } catch {
     return [];
   }
 }
 
+/** Comisión/pago de la sesión tal como viene del API (sin dividir entre visitas). */
 export function getSubscriptionChefCommission(
   reservation?: SubscriptionRecord,
   suscriptionInfo?: SubscriptionRecord
 ): number {
-  const visitsPerMonth = getSubscriptionVisitsPerMonth(reservation, suscriptionInfo);
-  const monthlyChefTotal = getSubscriptionMonthlyChefTotal(reservation, suscriptionInfo);
   const paymentJson = String(
     reservation?.jsonPaymentChef
     ?? reservation?.JsonPaymentChef
@@ -425,26 +390,19 @@ export function getSubscriptionChefCommission(
     ?? ''
   );
 
-  const concepts = parseSubscriptionPaymentConcepts(paymentJson, {
-    visitsPerMonth,
-    monthlyChefTotal,
-  });
-
+  const concepts = parseSubscriptionPaymentConcepts(paymentJson);
   if (concepts.length > 0) {
     return concepts.reduce((sum, concept) => sum + concept.amount, 0);
   }
 
-  if (monthlyChefTotal > 0) {
-    return getPerVisitValue(monthlyChefTotal, visitsPerMonth);
-  }
+  const monthlyChefTotal = getSubscriptionMonthlyChefTotal(reservation, suscriptionInfo);
+  if (monthlyChefTotal > 0) return monthlyChefTotal;
 
-  const totalPrice = Number(
+  return Number(
     reservation?.totalPrice
     ?? reservation?.TotalPrice
     ?? suscriptionInfo?.totalPrice
     ?? suscriptionInfo?.TotalPrice
     ?? 0
   );
-
-  return getPerVisitValue(totalPrice, visitsPerMonth);
 }

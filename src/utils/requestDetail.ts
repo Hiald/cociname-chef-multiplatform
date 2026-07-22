@@ -120,7 +120,7 @@ export const buildSubscriptionScheduleRows = (reservation, suscriptionInfo) => {
     { icon: 'clock', label: formatPublicHour(reservation.hourReservation) },
     { icon: 'list', label: reservation.puchaseIngredients ? 'Con compras' : 'Sin compras' },
     reservation.diner != null ? { icon: 'chef', label: `${reservation.diner} personas` } : null,
-    portionsPerVisit ? { icon: 'chef', label: `${portionsPerVisit} porciones por visita` } : null,
+    portionsPerVisit ? { icon: 'chef', label: `${portionsPerVisit} porciones` } : null,
     reservation.suscriptionCount && visitsPerMonth
       ? { icon: 'list', label: `Visita ${reservation.suscriptionCount} de ${visitsPerMonth}` }
       : null,
