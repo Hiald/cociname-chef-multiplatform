@@ -147,36 +147,6 @@ const getFullName = (reservation) => {
 
 
 
-const getWeekCount = (reservations) => {
-
-  const now = new Date();
-
-  const day = now.getDay();
-
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-
-  const start = new Date(now);
-
-  start.setDate(now.getDate() + mondayOffset);
-
-  start.setHours(0, 0, 0, 0);
-
-  const end = new Date(start);
-
-  end.setDate(start.getDate() + 7);
-
-  return reservations.filter((reservation) => {
-
-    const dt = parseLocalDateTime(reservation.dateReservation, reservation.hourReservation);
-
-    return dt >= start && dt < end;
-
-  }).length;
-
-};
-
-
-
 const HomeScreen = () => {
 
   const [loading, setLoading] = useState(true);
@@ -310,7 +280,7 @@ const HomeScreen = () => {
 
 
 
-  const weekCount = useMemo(() => getWeekCount(confirmedReservations), [confirmedReservations]);
+  const confirmedCount = confirmedReservations.length;
 
   const rating = Number(chefData?.rating || 0).toFixed(1);
 
@@ -346,9 +316,9 @@ const HomeScreen = () => {
 
         <div style={{ ...styles.statCard, background: 'linear-gradient(135deg,#E4F6EC,#C4EBD3)' }}>
 
-          <div style={{ ...styles.statLabel, color: '#0B855C' }}>Esta semana</div>
+          <div style={{ ...styles.statLabel, color: '#0B855C' }}>Próximas</div>
 
-          <div style={{ ...styles.statValue, color: '#0B7A54' }}>{weekCount} {weekCount === 1 ? 'reserva' : 'reservas'}</div>
+          <div style={{ ...styles.statValue, color: '#0B7A54' }}>{confirmedCount} {confirmedCount === 1 ? 'reserva' : 'reservas'}</div>
 
         </div>
 
@@ -442,7 +412,7 @@ const HomeScreen = () => {
 
             <div style={styles.accessTitle}>Mis reservas</div>
 
-            <div style={styles.accessSub}>{weekCount} esta semana</div>
+            <div style={styles.accessSub}>{confirmedCount} {confirmedCount === 1 ? 'próxima' : 'próximas'}</div>
 
           </div>
 

@@ -97,29 +97,6 @@ const isPendingRequest = (item, statusValue) => (
   item.chefId === null && pendingRequestStatuses.has(statusValue)
 );
 
-const getWeekCount = (reservations) => {
-  const { dateFilter: todayPeru } = getPeruDateTimeFilters();
-  // Calcular lunes-domingo de la semana actual en Perú (por clave YYYY-MM-DD)
-  const [year, month, day] = todayPeru.split('-').map(Number);
-  const todayAsUtcNoon = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
-  const weekday = todayAsUtcNoon.getUTCDay(); // 0=domingo
-  const mondayOffset = weekday === 0 ? -6 : 1 - weekday;
-  const start = new Date(todayAsUtcNoon);
-  start.setUTCDate(todayAsUtcNoon.getUTCDate() + mondayOffset);
-  const end = new Date(start);
-  end.setUTCDate(start.getUTCDate() + 7);
-
-  const toKey = (dt) => dt.toISOString().slice(0, 10);
-
-  const startKey = toKey(start);
-  const endKey = toKey(end);
-
-  return reservations.filter((reservation) => {
-    const key = normalizeDateKey(reservation.dateReservation);
-    return key && key >= startKey && key < endKey;
-  }).length;
-};
-
 const formatDayGroupLabel = (dateString) => {
   if (!dateString || dateString === 'sin-fecha') return 'FECHA POR CONFIRMAR';
   const dt = parseLocalDateTime(dateString, '12:00');
@@ -434,7 +411,14 @@ const ReservationScreen = () => {
     void loadReservations();
   }, { playSound: false });
 
-  const weekCount = useMemo(() => getWeekCount(confirmedReservations), [confirmedReservations]);
+  const listCountLabel = useMemo(() => {
+    if (listFilter === 'pasadas') {
+      const count = pastReservations.length;
+      return `${count} ${count === 1 ? 'pasada' : 'pasadas'}`;
+    }
+    const count = confirmedReservations.length;
+    return `${count} ${count === 1 ? 'próxima' : 'próximas'}`;
+  }, [listFilter, confirmedReservations, pastReservations]);
 
   const calendarReservations = useMemo(() => {
     // Calendario: todas las reservas confirmadas/pasadas, solo con dateReservation
@@ -691,7 +675,7 @@ const ReservationScreen = () => {
       <div className="coci-reservas-header" style={styles.reservasHeader}>
         <div style={styles.reservasHeaderText}>
           <h1 style={styles.reservasTitle}>Mis reservas</h1>
-          <p style={mockup.screenSubtitle}>{weekCount} confirmadas esta semana</p>
+          <p style={mockup.screenSubtitle}>{listCountLabel}</p>
         </div>
         <div className="coci-view-toggle-mobile" style={styles.viewToggle}>
           <button type="button" style={viewMode === 'lista' ? mockup.tabPillActive : mockup.tabPillInactive} onClick={() => setViewMode('lista')}>
