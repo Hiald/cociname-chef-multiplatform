@@ -266,11 +266,25 @@ export function formatCurrency(value?: number | null) {
   return `S/ ${amount.toFixed(2)}`;
 }
 
-export function getCustomerFullName(data: Record<string, unknown>) {
-  return [data.customerName || data.CustomerName, data.customerLastName || data.CustomerLastName]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
+export function getCustomerFullName(
+  data?: Record<string, unknown> | null,
+  fallback?: Record<string, unknown> | null,
+) {
+  const sources = [data, fallback].filter(Boolean) as Record<string, unknown>[];
+
+  for (const source of sources) {
+    const fullName = [
+      source.customerName || source.CustomerName,
+      source.customerLastName || source.CustomerLastName,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    if (fullName) return fullName;
+  }
+
+  return '';
 }
 
 export function getChefDisplay(data: Record<string, unknown>) {

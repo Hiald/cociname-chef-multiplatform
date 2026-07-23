@@ -207,6 +207,7 @@ const ReservationScreen = () => {
       const [
         confirmedResponse,
         chefSuscriptionResponse,
+        chefSuscriptionParentsResponse,
         requestsResponse,
         suscriptionResponse,
         eventsResponse,
@@ -216,6 +217,7 @@ const ReservationScreen = () => {
       ] = await Promise.all([
         apiService.listReservationByChefId(chefId),
         apiService.listReservationSuscriptionByChefId(chefId),
+        apiService.getSuscriptionsByChefId(chefId),
         apiService.getPendingReservations(pendingFilters),
         apiService.getPendingReservationSuscription(pendingFilters),
         apiService.getPendingEventReservation(pendingFilters),
@@ -223,6 +225,58 @@ const ReservationScreen = () => {
         apiService.getPendingReservationServiceTask(pendingFilters),
         apiService.getReservationEventsByChefId(chefId, 1, 100),
       ]);
+
+      const customerBySuscriptionId = new Map();
+      const parentRows = Array.isArray(chefSuscriptionParentsResponse.data)
+        ? chefSuscriptionParentsResponse.data
+        : (Array.isArray(chefSuscriptionParentsResponse.data?.data)
+          ? chefSuscriptionParentsResponse.data.data
+          : []);
+      parentRows.forEach((parent) => {
+        const parentId = Number(parent.id ?? parent.Id);
+        if (!parentId) return;
+        customerBySuscriptionId.set(parentId, {
+          customerName: parent.customerName || parent.CustomerName || '',
+          customerLastName: parent.customerLastName || parent.CustomerLastName || '',
+        });
+      });
+
+      // ListReservationSuscription no trae nombre: completar con ListSuscriptionById
+      const suscriptionIdsNeedingCustomer = [
+        ...new Set(
+          (chefSuscriptionResponse.success && Array.isArray(chefSuscriptionResponse.data)
+            ? chefSuscriptionResponse.data
+            : []
+          )
+            .map((item) => Number(item.suscriptionId ?? item.SuscriptionId))
+            .filter((id) => id && !customerBySuscriptionId.get(id)?.customerName),
+        ),
+      ];
+
+      if (suscriptionIdsNeedingCustomer.length > 0) {
+        const parentDetails = await Promise.all(
+          suscriptionIdsNeedingCustomer.map((id) => apiService.getSuscriptionById(id)),
+        );
+        parentDetails.forEach((response, index) => {
+          const raw = response?.data;
+          const parent = Array.isArray(raw) ? raw[0] : raw;
+          if (!response?.success || !parent) return;
+          customerBySuscriptionId.set(suscriptionIdsNeedingCustomer[index], {
+            customerName: parent.customerName || parent.CustomerName || '',
+            customerLastName: parent.customerLastName || parent.CustomerLastName || '',
+          });
+        });
+      }
+
+      const withSuscriptionCustomer = (item) => {
+        const suscriptionId = Number(item.suscriptionId ?? item.SuscriptionId);
+        const fromParent = customerBySuscriptionId.get(suscriptionId);
+        return {
+          ...item,
+          customerName: item.customerName || item.CustomerName || fromParent?.customerName || '',
+          customerLastName: item.customerLastName || item.CustomerLastName || fromParent?.customerLastName || '',
+        };
+      };
 
       const isUpcomingItem = (item) => isReservationUpcomingInPeru(item.dateReservation, item.hourReservation, now);
       const isPastItem = (item) => isReservationPastInPeru(item.dateReservation, item.hourReservation, now);
@@ -256,7 +310,7 @@ const ReservationScreen = () => {
               const status = item.suscriptionStatus ?? item.statusReservation;
               return pastEligibleStatuses.has(status);
             })
-            .map((item) => ({
+            .map((item) => withSuscriptionCustomer({
               ...item,
               tipo: 'suscripcion',
               dateReservation: item.dateReservation,
@@ -298,7 +352,7 @@ const ReservationScreen = () => {
               reservation,
               reservation.suscriptionStatus ?? reservation.statusReservation
             ))
-            .map((reservation) => ({
+            .map((reservation) => withSuscriptionCustomer({
               ...reservation,
               tipo: 'suscripcion',
               // Normalizar IDs: algunos payloads usan reservationSuscriptionId

@@ -2,10 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
-import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail, ArrowRightDetail } from '../assets/svgs';
+import { StatusReservation } from '../types';
+import { ArrowLeftDetail, ClockDetail, HelpDetail } from '../assets/svgs';
 import { RecipeModal } from '../components/recipe-modal';
 import { useAuth } from '../hooks/useAuth';
-import { formatearFechaConDia, getClientComment, getConceptName, formatCurrency, getPerVisitPortions, parseSubscriptionPaymentConcepts, getSubscriptionChefCommission } from '../utils';
+import {
+  formatearFechaConDia,
+  getClientComment,
+  getConceptName,
+  formatCurrency,
+  getCustomerFullName,
+  getPerVisitPortions,
+  parseSubscriptionPaymentConcepts,
+  getSubscriptionChefCommission,
+} from '../utils';
 import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 import { RequestDetailShell } from '../components/request-detail/RequestDetailShell';
 import {
@@ -19,6 +29,16 @@ import {
   getRequestServiceTitle,
   mapRecipesToDishes,
 } from '../utils/requestDetail';
+import profileIcon from '../assets/images/detalle/perfil.png';
+import dayIcon from '../assets/images/detalle/dia.png';
+import hourIcon from '../assets/images/detalle/hora.png';
+import menuIcon from '../assets/images/detalle/menu.png';
+import chefIcon from '../assets/images/detalle/chef.png';
+import mapIcon from '../assets/images/detalle/map.png';
+import gainIcon from '../assets/images/detalle/ganancia.png';
+import listIcon from '../assets/images/detalle/lista.png';
+import helpIcon from '../assets/images/detalle/ayuda.png';
+import rightIcon from '../assets/images/detalle/right.png';
 
 const getUnitName = (unitNumber) => {
   const units = {
@@ -84,6 +104,8 @@ const ReservationSuscriptionDetailScreen = () => {
   const { chefData } = useAuth();
   const isActive = location.state?.isActive || false;
   const isRequest = location.state?.isRequest || false;
+  const source = location.state?.source || '';
+  const originTab = location.state?.originTab || 'confirmed';
   const reservationDataFromState = location.state?.reservationData || null;
 
   console.log('🔍 Estado del componente ReservationSuscriptionDetail:', { 
@@ -215,8 +237,24 @@ const ReservationSuscriptionDetailScreen = () => {
 
         if (resolvedSuscriptionId) {
           const suscriptionResponse = await apiService.getSuscriptionById(resolvedSuscriptionId);
-          if (suscriptionResponse.success && suscriptionResponse.data) {
-            setSuscriptionInfo(suscriptionResponse.data);
+          const parentRaw = suscriptionResponse.data;
+          const parentInfo = Array.isArray(parentRaw) ? parentRaw[0] : parentRaw;
+          if (suscriptionResponse.success && parentInfo) {
+            setSuscriptionInfo(parentInfo);
+            reservationData = {
+              ...reservationData,
+              customerName:
+                reservationData.customerName
+                || reservationData.CustomerName
+                || parentInfo.customerName
+                || '',
+              customerLastName:
+                reservationData.customerLastName
+                || reservationData.CustomerLastName
+                || parentInfo.customerLastName
+                || '',
+            };
+            setReservation(reservationData);
           }
         }
         
@@ -623,6 +661,34 @@ const ReservationSuscriptionDetailScreen = () => {
     reservation?.jsonPaymentChef ?? reservation?.JsonPaymentChef
   );
   const chefCommissionPerVisit = getSubscriptionChefCommission(reservation, suscriptionInfo);
+  const customerDisplayName = getCustomerFullName(reservation, suscriptionInfo) || 'Cliente';
+
+  const getStatusInfo = (status) => {
+    switch (status) {
+      case StatusReservation.EnCocina:
+        return { text: 'EN CURSO', color: '#10B981', bgColor: '#D1FAE5' };
+      case StatusReservation.EnTrayecto:
+        return { text: 'EN TRAYECTO', color: '#F59E0B', bgColor: '#FEF3C7' };
+      case StatusReservation.Aceptada:
+        return { text: 'ACEPTADA', color: '#3B82F6', bgColor: '#DBEAFE' };
+      case StatusReservation.Creada:
+        return { text: 'PENDIENTE', color: '#6B7280', bgColor: '#F3F4F6' };
+      default:
+        return { text: 'PENDIENTE', color: '#6B7280', bgColor: '#F3F4F6' };
+    }
+  };
+
+  const statusValue = reservation.suscriptionStatus ?? reservation.statusReservation;
+  const statusInfo = getStatusInfo(statusValue);
+  const headerStatusInfo = (() => {
+    if (source === 'home' && isActive) {
+      return { text: 'EN CURSO', color: '#10B981', bgColor: '#D1FAE5' };
+    }
+    if (source === 'reservation' && originTab === 'confirmed' && !isRequest) {
+      return { text: 'PROXIMA', color: '#E88700', bgColor: '#FFF2DE' };
+    }
+    return statusInfo;
+  })();
 
   if (isRequest) {
     return (
@@ -630,7 +696,7 @@ const ReservationSuscriptionDetailScreen = () => {
         <RequestDetailShell
           onBack={() => navigate('/reservation?tab=requests')}
           serviceTitle={getRequestServiceTitle('suscripcion')}
-          clientName={getRequestCustomerName(reservation)}
+          clientName={getRequestCustomerName(reservation, suscriptionInfo)}
           scheduleRows={buildSubscriptionScheduleRows(reservation, suscriptionInfo)}
           allergies={getRequestAllergies(reservation)}
           district={getDistrictLabel(reservation)}
@@ -686,21 +752,74 @@ const ReservationSuscriptionDetailScreen = () => {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
-      <div style={{ ...styles.header, ...styles.customerHeader }}>
+      <div style={styles.header}>
         <button style={styles.backButton} onClick={handleGoBack}>
           <div style={styles.backButtonContent}>
             <ArrowLeftDetail />
-            <span style={styles.backButtonText}>Atrás</span>
+            <span style={styles.backButtonText}>Volver</span>
           </div>
         </button>
-        <h1 style={styles.customerName}>
-          {reservation.customerName} {reservation.customerLastName}
-        </h1>
+        <div style={{ ...styles.statusBadge, backgroundColor: headerStatusInfo.bgColor }}>
+          <span style={{ ...styles.statusBadgeText, color: headerStatusInfo.color }}>
+            {headerStatusInfo.text}
+          </span>
+        </div>
       </div>
 
-      <div style={styles.scrollView}>
-        <div style={styles.contentContainer}>
+      <div style={{ ...styles.scrollView, ...styles.contentContainer }}>
+        <div style={styles.customerHeader}>
+          <div style={styles.customerNameRow}>
+            <img src={profileIcon} alt="" style={styles.headerIcon} />
+            <h2 style={styles.customerName}>{customerDisplayName}</h2>
+          </div>
+        </div>
+
+        <div style={styles.infoCardContainer}>
+          <div style={styles.infoRow}>
+            <img src={dayIcon} alt="" style={styles.infoRowIcon} />
+            <span style={styles.infoRowLabel}>{formatDate(reservation.dateReservation)}</span>
+          </div>
+          <div style={styles.infoRow}>
+            <img src={hourIcon} alt="" style={styles.infoRowIcon} />
+            <span style={styles.infoRowLabel}>{reservation.hourReservation || 'Por confirmar'}</span>
+          </div>
+          <div style={styles.infoRow}>
+            <img src={listIcon} alt="" style={styles.infoRowIcon} />
+            <span style={styles.infoRowLabel}>{reservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}</span>
+          </div>
+          <div style={styles.infoRow}>
+            <img src={menuIcon} alt="" style={styles.infoRowIcon} />
+            <span style={styles.infoRowLabel}>
+              {reservation.diner != null ? `${reservation.diner} personas` : 'Personas no disponibles'}
+            </span>
+          </div>
+          <div style={styles.infoRow}>
+            <img src={chefIcon} alt="" style={styles.infoRowIcon} />
+            <span style={styles.infoRowLabel}>
+              {portionsPerVisit ? `${portionsPerVisit} porciones` : 'Porciones no disponibles'}
+            </span>
+          </div>
+          {(reservation.suscriptionCount || reservation.visitsPerMonth) && (
+            <div style={styles.infoRow}>
+              <img src={listIcon} alt="" style={styles.infoRowIcon} />
+              <span style={styles.infoRowLabel}>
+                Visita {reservation.suscriptionCount || '-'} de {reservation.visitsPerMonth || '-'}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {clientComment && (
+          <div style={styles.section}>
+            <div style={styles.card}>
+              <div style={styles.commentSectionFirst}>
+                <p style={styles.commentLabel}>Comentarios del cliente</p>
+                <p style={styles.commentText}>{clientComment}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
           {/* Arrive Button - Solo en los primeros 15 minutos y si no ha empezado */}
           {isActive && !hasStarted && chefReservationId && 
            reservation && isWithinArrivalWindow(reservation.dateReservation, reservation.hourReservation) && (
@@ -735,57 +854,10 @@ const ReservationSuscriptionDetailScreen = () => {
             </button>
           )}
 
-          {/* Subscription Info Card */}
-          <div style={styles.infoCardContainer}>
-            <div style={styles.suscriptionBadge}>
-              <span style={styles.suscriptionBadgeText}>RESERVA DE SUSCRIPCIÓN</span>
-            </div>
-            
-            <div style={styles.infoRow}>
-              <ClockDetail />
-              <span style={styles.infoRowLabel}>Código Reserva</span>
-              <span style={styles.infoRowValue}>{reservation.reservationSuscriptionCode}</span>
-            </div>
-
-            <div style={styles.infoRow}>
-              <RedhatDetail />
-              <span style={styles.infoRowLabel}>Código Suscripción</span>
-              <span style={styles.infoRowValue}>{reservation.suscriptionCode}</span>
-            </div>
-
-            <div style={styles.infoRow}>
-              <ListDetail />
-              <span style={styles.infoRowLabel}>Comensales</span>
-              <span style={styles.infoRowValue}>{reservation.diner} personas</span>
-            </div>
-
-            <div style={styles.infoRow}>
-              <ClockDetail />
-              <span style={styles.infoRowLabel}>Fecha y Hora</span>
-              <span style={styles.infoRowValue}>
-                {reservation.dateReservation ? `${formatDate(reservation.dateReservation)} - ${reservation.hourReservation}` : 'No especificada'}
-              </span>
-            </div>
-
-            <div style={styles.infoRow}>
-              <OrderDetail />
-              <span style={styles.infoRowLabel}>Porciones</span>
-              <span style={styles.infoRowValue}>{portionsPerVisit} porciones</span>
-            </div>
-
-            <div style={styles.infoRow}>
-              <RedhatDetail />
-              <span style={styles.infoRowLabel}>Reserva</span>
-              <span style={styles.infoRowValue}>
-                {reservation.suscriptionCount} de {reservation.visitsPerMonth}
-              </span>
-            </div>
-          </div>
-
           {reservation.puchaseIngredients && (
             <div style={styles.section}>
               <div style={styles.sectionHeader}>
-                <ListDetail />
+                <img src={listIcon} alt="" style={styles.sectionHeaderIcon} />
                 <h2 style={styles.sectionTitle}>Lista de compra</h2>
               </div>
               <div style={styles.card}>
@@ -811,34 +883,33 @@ const ReservationSuscriptionDetailScreen = () => {
             </div>
           )}
 
-          {/* Address Section */}
           <div style={styles.section}>
             <div style={styles.sectionHeader}>
-              <UbicationDetail />
-              <h2 style={styles.sectionTitle}>Dirección</h2>
+              <img src={mapIcon} alt="" style={styles.sectionHeaderIcon} />
+              <h2 style={styles.sectionTitle}>Ubicación</h2>
             </div>
             <div style={styles.card}>
               <p style={styles.addressText}>{reservation.direction}</p>
-              <p style={styles.districtText}>Distrito: {reservation.district}</p>
-              {reservation.reference && (
-                <p style={styles.referenceText}>Referencia: {reservation.reference}</p>
+              {reservation.reference ? (
+                <p style={styles.referenceText}>{reservation.reference}</p>
+              ) : (
+                <p style={styles.referenceText}>Sin referencia registrada</p>
               )}
               <button style={styles.mapButton} onClick={handleOpenMaps}>
-                <span style={styles.mapButtonText}>Abrir en Google Maps</span>
+                <span style={styles.mapButtonText}>Abrir en Maps</span>
               </button>
             </div>
           </div>
 
-          {/* Platos Elegidos */}
-          <div style={styles.section}>
+            <div style={styles.section}>
             <div style={styles.sectionHeader}>
-              <RedhatDetail />
+              <img src={chefIcon} alt="" style={styles.sectionHeaderIcon} />
               <h2 style={styles.sectionTitle}>Platos elegidos</h2>
             </div>
             <div style={styles.card}>
               {recipes.length > 0 ? (
                 recipes.map((recipe, index) => (
-                  <div key={recipe.key || index} style={styles.dishItem}>
+                  <div key={recipe.key || index} style={styles.dishCard}>
                     <p style={styles.dishName}>
                       {recipe.MenuNombre} - {recipe.MasterRecipeNombre}
                     </p>
@@ -846,9 +917,7 @@ const ReservationSuscriptionDetailScreen = () => {
                       <span style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</span>
                       <button style={styles.viewRecipeButton} onClick={() => handleViewRecipe(recipe)}>
                         <span style={styles.viewRecipeText}>Ver receta</span>
-                        <div style={styles.arrowIcon}>
-                          <ArrowRightDetail />
-                        </div>
+                        <img src={rightIcon} alt="" style={styles.recipeArrowIcon} />
                       </button>
                     </div>
                   </div>
@@ -859,11 +928,10 @@ const ReservationSuscriptionDetailScreen = () => {
             </div>
           </div>
 
-          {/* Payment Details */}
           <div style={styles.section}>
             <div style={styles.sectionHeader}>
-              <MoneyDetail />
-              <h2 style={styles.sectionTitle}>Detalles de Pago</h2>
+              <img src={gainIcon} alt="" style={styles.sectionHeaderIcon} />
+              <h2 style={styles.sectionTitle}>Mi ganancia</h2>
             </div>
             <div style={styles.card}>
               {paymentConcepts.length > 0 ? (
@@ -881,31 +949,23 @@ const ReservationSuscriptionDetailScreen = () => {
               )}
               <div style={styles.divider} />
               <div style={styles.garantiaRow}>
-                <span style={styles.garantiaTotal}>Total por visita</span>
+                <span style={styles.garantiaTotal}>Total</span>
                 <span style={styles.garantiaTotalValue}>{formatCurrency(chefCommissionPerVisit)}</span>
               </div>
             </div>
           </div>
 
-          {(reservation.comments || clientComment) && (
+          {reservation.comments && (
             <div style={styles.section}>
               <div style={styles.sectionHeader}>
-                <HelpDetail />
+                <img src={helpIcon} alt="" style={styles.sectionHeaderIcon} />
                 <h2 style={styles.sectionTitle}>Comentarios</h2>
               </div>
               <div style={styles.card}>
-                {reservation.comments && (
-                  <div style={styles.commentSectionFirst}>
-                    <p style={styles.commentLabel}>Comentarios del chef:</p>
-                    <p style={styles.commentText}>{reservation.comments}</p>
-                  </div>
-                )}
-                {clientComment && (
-                  <div style={reservation.comments ? styles.commentSection : styles.commentSectionFirst}>
-                    <p style={styles.commentLabel}>Comentarios del cliente:</p>
-                    <p style={styles.commentText}>{clientComment}</p>
-                  </div>
-                )}
+                <div style={styles.commentSectionFirst}>
+                  <p style={styles.commentLabel}>Comentarios del chef:</p>
+                  <p style={styles.commentText}>{reservation.comments}</p>
+                </div>
               </div>
             </div>
           )}
@@ -949,7 +1009,6 @@ const ReservationSuscriptionDetailScreen = () => {
               </div>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Recipe Modal */}
@@ -1073,16 +1132,24 @@ const styles = {
     backgroundColor: '#FFFFFF',
   },
   customerHeader: {
-    paddingBottom: `${spacing.small}px`,
-    marginBottom: `${spacing.small}px`,
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+    marginBottom: `${spacing.medium}px`,
+  },
+  customerNameRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  headerIcon: {
+    width: '24px',
+    height: '24px',
+    objectFit: 'contain',
+    flexShrink: 0,
   },
   customerName: {
-    fontSize: '20px',
+    fontSize: '28px',
     fontWeight: '700',
-    color: '#FF5136',
-    margin: `${spacing.small}px 0 0 0`,
+    color: '#1C2837',
+    margin: 0,
   },
   scrollView: {
     flex: 1,
@@ -1093,43 +1160,40 @@ const styles = {
     width: '100%',
     boxSizing: 'border-box',
   },
+  statusBadge: {
+    padding: '4px 12px',
+    borderRadius: '12px',
+  },
+  statusBadgeText: {
+    fontSize: '11px',
+    fontWeight: '700',
+    letterSpacing: '0.5px',
+  },
   infoCardContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: '12px',
+    borderRadius: '20px',
     padding: `${spacing.medium}px`,
     marginBottom: `${spacing.medium}px`,
     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-  },
-  suscriptionBadge: {
-    backgroundColor: '#F59E0B',
-    padding: '6px 12px',
-    borderRadius: '12px',
-    alignSelf: 'flex-start',
-    marginBottom: `${spacing.small}px`,
-  },
-  suscriptionBadgeText: {
-    fontSize: '11px',
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: '0.5px',
   },
   infoRow: {
     display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: '8px 0',
-    borderBottom: '1px solid #F3F4F6',
+    padding: '7px 0',
+    gap: '10px',
+  },
+  infoRowIcon: {
+    width: '18px',
+    height: '18px',
+    objectFit: 'contain',
+    flexShrink: 0,
   },
   infoRowLabel: {
-    fontSize: '13px',
+    fontSize: '14px',
     color: '#1A1F24',
-    marginLeft: `${spacing.small}px`,
     fontWeight: '500',
-    flex: 1,
-  },
-  infoRowValue: {
-    fontSize: '12px',
-    color: '#6B7280',
+    lineHeight: '18px',
   },
   section: {
     marginBottom: `${spacing.large}px`,
@@ -1139,12 +1203,18 @@ const styles = {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: `${spacing.small}px`,
+    gap: `${spacing.small}px`,
+  },
+  sectionHeaderIcon: {
+    width: '20px',
+    height: '20px',
+    objectFit: 'contain',
+    flexShrink: 0,
   },
   sectionTitle: {
     fontSize: '16px',
     fontWeight: '700',
     color: '#1A1F24',
-    marginLeft: `${spacing.small}px`,
     margin: 0,
   },
   card: {
@@ -1158,11 +1228,6 @@ const styles = {
     fontWeight: '600',
     color: '#1A1F24',
     marginBottom: '4px',
-  },
-  districtText: {
-    fontSize: '14px',
-    color: '#6B7280',
-    marginBottom: `${spacing.small}px`,
   },
   referenceText: {
     fontSize: '13px',
@@ -1186,7 +1251,11 @@ const styles = {
     fontWeight: '600',
     color: '#FF5136',
   },
-  dishItem: {
+  dishCard: {
+    backgroundColor: '#EAF4FB',
+    borderRadius: '18px',
+    padding: `${spacing.medium}px`,
+    boxShadow: '0px 2px 4px 0px #289FDF0A, 0px 7px 7px 0px #289FDF0A, 0px 15px 9px 0px #289FDF05',
     marginBottom: `${spacing.medium}px`,
   },
   dishName: {
@@ -1220,8 +1289,10 @@ const styles = {
     fontWeight: '500',
     marginRight: '4px',
   },
-  arrowIcon: {
-    marginTop: '5px',
+  recipeArrowIcon: {
+    width: '16px',
+    height: '16px',
+    objectFit: 'contain',
   },
   emptyText: {
     fontSize: '14px',

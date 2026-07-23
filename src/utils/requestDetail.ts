@@ -47,7 +47,9 @@ export const getRequestCardSubtitle = (item) => {
   return parts.filter(Boolean).join(' · ') || 'Por confirmar';
 };
 
-export const getRequestCustomerName = (item) => getCustomerFullName(item) || 'Cliente';
+export const getRequestCustomerName = (item, fallback = null) => (
+  getCustomerFullName(item, fallback) || 'Cliente'
+);
 
 export const parseAllergies = (value) => {
   if (!value) return [];

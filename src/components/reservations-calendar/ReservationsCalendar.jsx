@@ -213,7 +213,9 @@ export const ReservationsCalendar = ({
                     style={styles.fallbackBtn}
                     onClick={() => onSelectReservation?.(item)}
                   >
-                    {item.customerName || 'Cliente'} · {item.hourReservation || ''}
+                    {item.customerName
+                      ? `${item.customerName}${item.customerLastName ? ` ${item.customerLastName}` : ''}`
+                      : 'Cliente'} · {item.hourReservation || ''}
                   </button>
                 ))}
               </div>
