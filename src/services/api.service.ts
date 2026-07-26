@@ -56,8 +56,13 @@ import {
   AvailabilityListResponse,
   GetAvailabilityByWeekAndDateParams,
   AvailabilityRequestDto,
-  ChefData
-} from '../types'; 
+  ChefData,
+  ChefRatingData,
+  ChefDocumentationData,
+  MenuData,
+  MasterRecipeData,
+  RecipeFeedbackData
+} from '../types';
 
 const AUTH_EXPIRED_EVENT = 'auth:expired';
 
@@ -1213,6 +1218,168 @@ class ApiService {
       success: result.success,
       errorMessage: result.errorMessage ?? null,
     };
+  }
+
+  /**
+   * GET /api/chefRating/chef/{chefId}
+   * Reseñas recibidas por una cocinera (las que dejan los clientes en el
+   * catálogo público de la webapp). Paginado; el API no filtra por Status,
+   * así que las borradas se descartan en la pantalla.
+   */
+  async getChefRatings(
+    chefId: number,
+    page: number = 1,
+    recordsPerPage: number = 100
+  ): Promise<BaseResponseGeneric<ChefRatingData[]>> {
+    return this.request<ChefRatingData[]>(
+      `chefRating/chef/${chefId}?Page=${page}&RecordsPerPage=${recordsPerPage}`,
+      { method: 'GET' }
+    );
+  }
+
+  /**
+   * GET /api/chefRating/chef/{chefId}/average
+   * Promedio oficial de la cocinera (el API sí filtra las reseñas borradas).
+   */
+  async getChefRatingAverage(chefId: number): Promise<BaseResponseGeneric<number>> {
+    return this.request<number>(`chefRating/chef/${chefId}/average`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * POST /api/chefDocumentation/UploadMyDocument — multipart.
+   * El ChefId lo resuelve el API desde el token, por eso no se envía en el form.
+   * No se fija Content-Type a propósito: el navegador debe generar el boundary.
+   */
+  async uploadChefDocument(params: {
+    file: File;
+    documentType: number;
+    commentsChef?: string;
+    dateStart?: string;
+    dateEnd?: string;
+  }): Promise<BaseResponseGeneric<number>> {
+    const formData = new FormData();
+    formData.append('file', params.file);
+    formData.append('documentType', String(params.documentType));
+    if (params.commentsChef) formData.append('commentsChef', params.commentsChef);
+    if (params.dateStart) formData.append('dateStart', params.dateStart);
+    if (params.dateEnd) formData.append('dateEnd', params.dateEnd);
+
+    const token = this.getToken();
+    const headers: Record<string, string> = {
+      'X-Country-Id': String(GEO_CONFIG.COUNTRY_ID),
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+      const response = await fetch(`${this.baseUrl}chefDocumentation/UploadMyDocument`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const contentType = response.headers.get('content-type');
+      const data = contentType && contentType.includes('application/json')
+        ? await response.json()
+        : null;
+
+      if (!response.ok) {
+        if (response.status === 401) this.notifyAuthExpired();
+        return {
+          success: false,
+          errorMessage: data?.errorMessage
+            || (response.status === 401 ? 'Sesión expirada. Por favor inicia sesión nuevamente.' : null)
+            || (response.status === 403 ? 'No tienes permisos para subir documentos.' : null)
+            || `Error: ${response.status}`,
+          data: null,
+        } as BaseResponseGeneric<number>;
+      }
+
+      return data as BaseResponseGeneric<number>;
+    } catch (error) {
+      return {
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+        data: null,
+      } as BaseResponseGeneric<number>;
+    }
+  }
+
+  /**
+   * GET /api/chefDocumentation/filterbyChef
+   * Documentos de la cocinera (antecedentes, sanidad, CV, DNI) con su estado.
+   * El endpoint solo exige estar autenticado, sin filtro de rol.
+   */
+  async getChefDocumentation(
+    chefId: number,
+    page: number = 1,
+    recordsPerPage: number = 50
+  ): Promise<BaseResponseGeneric<ChefDocumentationData[]>> {
+    return this.request<ChefDocumentationData[]>(
+      `chefDocumentation/filterbyChef?ChefId=${chefId}&Page=${page}&RecordsPerPage=${recordsPerPage}`,
+      { method: 'GET' }
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // CATÁLOGO DE PLATOS
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/menu/GetbyFilters — catálogo de platos.
+   * El query filter global de Menu ya restringe a BusinessLine=1 y al país
+   * del despliegue, así que no hace falta filtrar eso aquí.
+   */
+  async getMenuCatalog(params: {
+    name?: string;
+    typeFood?: number;
+    proteins?: string;
+    origin?: number;
+    page?: number;
+    recordsPerPage?: number;
+  } = {}): Promise<BaseResponseGeneric<MenuData[]>> {
+    const query = new URLSearchParams();
+    if (params.name) query.set('Name', params.name);
+    if (params.typeFood) query.set('typeFood', String(params.typeFood));
+    if (params.proteins) query.set('proteins', params.proteins);
+    if (params.origin) query.set('origin', String(params.origin));
+    query.set('Page', String(params.page ?? 1));
+    query.set('RecordsPerPage', String(params.recordsPerPage ?? 200));
+
+    return this.request<MenuData[]>(`menu/GetbyFilters?${query.toString()}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * GET /api/masterRecipe/ListMasterRecipeByMenuId — versiones de un plato.
+   */
+  async getMasterRecipesByMenuId(
+    menuId: number,
+    page: number = 1,
+    recordsPerPage: number = 50
+  ): Promise<BaseResponseGeneric<MasterRecipeData[]>> {
+    return this.request<MasterRecipeData[]>(
+      `masterRecipe/ListMasterRecipeByMenuId?MenuId=${menuId}&Page=${page}&RecordsPerPage=${recordsPerPage}`,
+      { method: 'GET' }
+    );
+  }
+
+  /**
+   * POST /api/recipeFeedback — la cocinera reporta una corrección de receta.
+   * El ChefId lo resuelve el API desde el token.
+   */
+  async sendRecipeFeedback(params: {
+    masterRecipeId: number;
+    menuId: number;
+    reasonType: number;
+    comment: string;
+  }): Promise<BaseResponseGeneric<RecipeFeedbackData>> {
+    return this.request<RecipeFeedbackData>('recipeFeedback', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
   }
 
   // ═══════════════════════════════════════════════════════════════

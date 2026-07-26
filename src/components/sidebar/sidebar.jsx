@@ -17,6 +17,7 @@ const NAV_ICONS = {
   inbox: navIcon(<><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z" /></>),
   user: navIcon(<><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" /></>),
   clock: navIcon(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>),
+  book: navIcon(<><path d="M4 4.5A2.5 2.5 0 016.5 2H20v15H6.5A2.5 2.5 0 004 19.5z" /><path d="M4 18a2 2 0 012-2h14" /></>),
 };
 
 const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
@@ -38,6 +39,7 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
     { id: 'Home', label: 'Inicio', path: '/', icon: NAV_ICONS.home },
     { id: 'Reservation', label: 'Mis Reservas', path: '/reservation', icon: NAV_ICONS.calendar },
     { id: 'Requests', label: 'Solicitudes', path: '/reservation?tab=requests', icon: NAV_ICONS.inbox },
+    { id: 'Catalog', label: 'Catálogo de platos', path: '/catalog', icon: NAV_ICONS.book },
     { id: 'Profile', label: 'Perfil', path: '/profile', icon: NAV_ICONS.user },
     { id: 'Availability', label: 'Mi disponibilidad', path: '/availability', icon: NAV_ICONS.clock },
   ];
@@ -48,6 +50,7 @@ const Sidebar = ({ isOpen, currentRoute, onNavigate }) => {
     if (item.id === 'Home') return location.pathname === '/' || location.pathname === '/home';
     if (item.id === 'Profile') return location.pathname === '/profile';
     if (item.id === 'Availability') return location.pathname === '/availability';
+    if (item.id === 'Catalog') return location.pathname === '/catalog';
     return currentRoute === item.id;
   };
 

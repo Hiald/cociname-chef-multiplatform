@@ -11,6 +11,8 @@ import HomeScreen from '../screens/home';
 import ReservationScreen from '../screens/reservation';
 import AvailabilityScreen from '../screens/availability';
 import ProfileScreen from '../screens/profile';
+import ReviewsScreen from '../screens/reviews';
+import CatalogScreen from '../screens/catalog';
 import { PublicReservationScreen } from '../screens/public-reservation';
 import { PublicSuscriptionScreen } from '../screens/public-suscription';
 import { PublicEventScreen } from '../screens/public-event';
@@ -272,7 +274,9 @@ const Navigator = () => {
       return location.state?.isRequest ? 'Requests' : 'Reservation';
     }
     if (path === '/availability') return 'Availability';
-    if (path === '/profile') return 'Profile';
+    if (path === '/catalog') return 'Catalog';
+    // Reseñas cuelga de Perfil: la pestaña inferior debe seguir marcando Perfil.
+    if (path === '/profile' || path === '/reviews') return 'Profile';
     return 'Home';
   };
 
@@ -321,6 +325,8 @@ const Navigator = () => {
             <Route path="/reservation" element={<ReservationScreen />} />
             <Route path="/availability" element={<AvailabilityScreen />} />
             <Route path="/profile" element={<ProfileScreen />} />
+            <Route path="/reviews" element={<ReviewsScreen />} />
+            <Route path="/catalog" element={<CatalogScreen />} />
             <Route path="/reservation/:id" element={<ReservationDetailScreen />} />
             <Route path="/reservation-suscription/:id" element={<ReservationSuscriptionDetailScreen />} />
             <Route path="/reservation-event/:id" element={<ReservationEventDetailScreen />} />

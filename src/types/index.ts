@@ -373,6 +373,54 @@ export interface MasterRecipeResponse {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// CATÁLOGO DE PLATOS - GET /api/menu/GetbyFilters
+// El API ya limita a BusinessLine=1 (reservas/suscripciones) y al país del
+// request mediante el query filter global de Menu.
+// ═══════════════════════════════════════════════════════════════
+
+export interface MenuData {
+  id: number;
+  name: string;
+  description: string;
+  recipe: string;
+  typeFood: number | null;
+  origin: number | null;
+  protein: string | null;
+  tags: string | null;
+  category: number;
+  timePreparation: number;
+  image1: string | null;
+  image2: string | null;
+  image3: string | null;
+  businessLine: number;
+  countryId: number;
+  status: boolean;
+}
+
+/** Motivos del reporte de receta (mismo orden que el API). */
+export const RecipeFeedbackReason = {
+  IngredienteIncorrecto: 1,
+  CantidadEquivocada: 2,
+  PasoConfuso: 3,
+  AgregarConsejo: 4,
+  Otro: 5,
+} as const;
+
+export interface RecipeFeedbackData {
+  id: number;
+  ticketCode: string;
+  reasonType: number;
+  comment: string;
+  feedbackStatus: number;
+  masterRecipeId: number;
+  menuId: number;
+  chefId: number;
+  menuName: string | null;
+  masterRecipeTitle: string | null;
+  createdAt: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
 // CHEF - GET /api/Chef/{id}
 // ═══════════════════════════════════════════════════════════════
 
@@ -417,6 +465,67 @@ export interface ChefResponse {
   data: ChefData;
   success: boolean;
   errorMessage: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHEF RATING - GET /api/chefRating/chef/{chefId}
+// Reseñas que los clientes dejan desde el catálogo público de la webapp.
+// No están ligadas a una reserva: solo traen el nombre que el cliente escribió.
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// CHEF DOCUMENTATION - GET /api/chefDocumentation/filterbyChef
+// Documentos de la cocinera. Hoy solo el admin los sube (el POST del API
+// exige rol Admin/Operation); la chefapp los consulta.
+// ═══════════════════════════════════════════════════════════════
+
+/** DocumentType — mismos ids que el select del admin (Chef/Control.cshtml). */
+export const ChefDocumentType = {
+  AntecedentesPoliciales: 1,
+  CarnetSanidad: 2,
+  CV: 3,
+  DniPasaporte: 4,
+} as const;
+
+/** DocumentStatus — ver GetEstadoDocumento en cociname-admin/_Layout.cshtml. */
+export const ChefDocumentStatus = {
+  Pendiente: 1,
+  Aprobado: 2,
+  Rechazado: 3,
+  Observado: 4,
+} as const;
+
+export interface ChefDocumentationData {
+  document: string | null;
+  documentStatus: number;
+  documentType: number;
+  commentsChef: string | null;
+  comments: string | null;
+  dateStart: string | null;
+  dateEnd: string | null;
+  chefId: number;
+  id: number;
+  status: boolean;
+  createdById: string | null;
+  createdAt: string | null;
+  updatedById: string | null;
+  updatedAt: string | null;
+}
+
+export interface ChefRatingData {
+  chefId: number;
+  ratingValue: number;
+  customerName: string;
+  comment: string | null;
+  imageFileName1: string | null;
+  imageFileName2: string | null;
+  imageFileName3: string | null;
+  id: number;
+  status: boolean;
+  createdById: string | null;
+  createdAt: string | null;
+  updatedById: string | null;
+  updatedAt: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════

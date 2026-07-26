@@ -28,18 +28,26 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const targetUrl = self.location.origin + '/#/reservation';
+  const rawPath = (event.notification.data && event.notification.data.url) || '/reservation';
+  const cleanPath = rawPath.startsWith('/') ? rawPath : '/' + rawPath;
+  // La app usa HashRouter: las rutas viven detrás del '#'.
+  const targetUrl = self.location.origin + '/#' + cleanPath;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Focus an existing window if one is open
       for (const client of windowClients) {
-        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          client.postMessage({ type: 'PUSH_NAVIGATE', url: '/#/reservation' });
-          return client.focus();
+        if (!client.url.startsWith(self.location.origin)) continue;
+
+        if ('navigate' in client) {
+          return client
+            .navigate(targetUrl)
+            .then((navigated) => (navigated && 'focus' in navigated ? navigated.focus() : null))
+            .catch(() => ('focus' in client ? client.focus() : null));
         }
+
+        if ('focus' in client) return client.focus();
       }
-      // Otherwise open a new window
+
       if (clients.openWindow) {
         return clients.openWindow(targetUrl);
       }

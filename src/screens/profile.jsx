@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -9,6 +9,10 @@ import { useAuth } from '../hooks/useAuth';
 import { apiService } from '../services/api.service';
 
 import { GEO_CONFIG } from '../config';
+
+import { DocumentSheet } from '../components/document-sheet';
+
+import { CHEF_DOCUMENT_CATALOG, pickLatestByType, resolveDocumentBadge } from '../utils/chefDocuments';
 
 
 
@@ -92,89 +96,61 @@ const ProfileScreen = () => {
 
 
 
-  const verificationItems = useMemo(() => ([
+  // Documentos reales de la cocinera (tabla ChefDocumentation). Antes esta sección
+  // derivaba su estado de campos del Chef sin relación con documentos.
+  const [documentsByType, setDocumentsByType] = useState(() => new Map());
 
-    {
+  const [activeDocumentType, setActiveDocumentType] = useState(null);
 
-      title: 'Verificación de datos',
+  const chefId = Number(chefData?.chefId || chefData?.id || 0);
 
-      sub: 'Identidad y datos personales',
+  const loadDocuments = useCallback(async () => {
 
-      status: chefData?.documentNumber ? 'Aprobado' : 'Pendiente',
+    if (chefId <= 0) {
 
-      color: chefData?.documentNumber ? '#0B855C' : '#B07D12',
+      setDocumentsByType(new Map());
 
-      bg: chefData?.documentNumber ? '#E4F6EC' : '#FFF3D6',
+      return;
 
-      icon: '🪪',
+    }
 
-    },
+    try {
 
-    {
+      const res = await apiService.getChefDocumentation(chefId);
 
-      title: 'Filtros de seguridad',
+      setDocumentsByType(res.success && Array.isArray(res.data) ? pickLatestByType(res.data) : new Map());
 
-      sub: 'Verificación de antecedentes',
+    } catch (error) {
 
-      status: chefData?.status ? 'En revisión' : 'Pendiente',
+      console.error('Error loading chef documentation:', error);
 
-      color: '#B07D12',
+      setDocumentsByType(new Map());
 
-      bg: '#FFF3D6',
+    }
 
-      icon: '🛡️',
+  }, [chefId]);
 
-    },
+  useEffect(() => {
 
-    {
+    void loadDocuments();
 
-      title: 'Protocolo de sanidad',
+  }, [loadDocuments]);
 
-      sub: 'Manipulación de alimentos',
+  const verificationItems = useMemo(() => CHEF_DOCUMENT_CATALOG.map((item) => {
 
-      status: chefData?.processDetailtoCooking ? 'Pendiente' : 'Realizado',
+    const document = documentsByType.get(item.type) || null;
 
-      color: chefData?.processDetailtoCooking ? '#C2492A' : '#0B855C',
+    return { ...item, document, badge: resolveDocumentBadge(document) };
 
-      bg: chefData?.processDetailtoCooking ? '#FDE9E2' : '#E4F6EC',
+  }), [documentsByType]);
 
-      icon: '🧼',
+  const activeDocumentItem = useMemo(
 
-    },
+    () => verificationItems.find((item) => item.type === activeDocumentType) || null,
 
-    {
+    [verificationItems, activeDocumentType],
 
-      title: 'Onboarding',
-
-      sub: 'Uniformes y fotocheck',
-
-      status: chefData?.emailConfirmed ? 'Realizado' : 'Pendiente',
-
-      color: chefData?.emailConfirmed ? '#0B855C' : '#B07D12',
-
-      bg: chefData?.emailConfirmed ? '#E4F6EC' : '#FFF3D6',
-
-      icon: '📦',
-
-    },
-
-    {
-
-      title: 'Firma de documentos',
-
-      sub: 'Contrato y reglamento',
-
-      status: chefData?.documentNumber ? 'Realizado' : 'Pendiente',
-
-      color: chefData?.documentNumber ? '#0B855C' : '#B07D12',
-
-      bg: chefData?.documentNumber ? '#E4F6EC' : '#FFF3D6',
-
-      icon: '✍️',
-
-    },
-
-  ]), [chefData]);
+  );
 
 
 
@@ -190,7 +166,7 @@ const ProfileScreen = () => {
 
       tileBg: 'linear-gradient(135deg,#FFE7DD,#FFD2C2)',
 
-      onClick: null,
+      onClick: () => navigate('/reviews'),
 
     },
 
@@ -300,21 +276,37 @@ const ProfileScreen = () => {
 
         {verificationItems.map((item, index) => (
 
-          <div
+          <button
 
             key={item.title}
+
+            type="button"
+
+            onClick={() => setActiveDocumentType(item.type)}
 
             style={{
 
               ...styles.verifRow,
 
-              ...(index < verificationItems.length - 1 ? styles.verifRowBorder : {}),
+              width: '100%',
+
+              background: 'none',
+
+              border: 'none',
+
+              borderBottom: index < verificationItems.length - 1 ? `1px solid ${theme.divider}` : 'none',
+
+              textAlign: 'left',
+
+              cursor: 'pointer',
+
+              font: 'inherit',
 
             }}
 
           >
 
-            <div style={styles.verifIcon}>{item.icon}</div>
+            <div style={{ ...styles.verifIcon, background: item.tileBg }}>{item.emoji}</div>
 
             <div style={styles.verifText}>
 
@@ -324,9 +316,9 @@ const ProfileScreen = () => {
 
             </div>
 
-            <span style={{ ...styles.verifBadge, color: item.color, background: item.bg }}>{item.status}</span>
+            <span style={{ ...styles.verifBadge, color: item.badge.color, background: item.badge.bg }}>{item.badge.label}</span>
 
-          </div>
+          </button>
 
         ))}
 
@@ -359,6 +351,20 @@ const ProfileScreen = () => {
         </>
 
       )}
+
+      <DocumentSheet
+
+        visible={Boolean(activeDocumentItem)}
+
+        onClose={() => setActiveDocumentType(null)}
+
+        catalogItem={activeDocumentItem}
+
+        document={activeDocumentItem?.document || null}
+
+        onUploaded={loadDocuments}
+
+      />
 
     </div>
 
