@@ -178,8 +178,9 @@ const ReservationScreen = () => {
   const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
   useEffect(() => {
-    const tabFromQuery = new URLSearchParams(location.search).get('tab');
-    const showHistoryFromQuery = new URLSearchParams(location.search).get('history') === 'true';
+    // Se reutiliza el searchParams memoizado en vez de instanciar dos veces.
+    const tabFromQuery = searchParams.get('tab');
+    const showHistoryFromQuery = searchParams.get('history') === 'true';
 
     if (tabFromQuery === 'requests' || location.state?.defaultTab === 'requests') {
       setActiveTab('requests');
@@ -191,7 +192,7 @@ const ReservationScreen = () => {
     if (showHistoryFromQuery || location.state?.showPast === true) {
       setListFilter('pasadas');
     }
-  }, [location.search, location.state]);
+  }, [searchParams, location.state]);
 
   const loadReservations = useCallback(async () => {
     if (!chefId) return;
@@ -214,6 +215,8 @@ const ReservationScreen = () => {
         dietResponse,
         serviceTaskResponse,
         chefEventsResponse,
+        chefDietsResponse,
+        chefServiceTasksResponse,
       ] = await Promise.all([
         apiService.listReservationByChefId(chefId),
         apiService.listReservationSuscriptionByChefId(chefId),
@@ -224,6 +227,8 @@ const ReservationScreen = () => {
         apiService.getPendingReservationDiet(pendingFilters),
         apiService.getPendingReservationServiceTask(pendingFilters),
         apiService.getReservationEventsByChefId(chefId, 1, 100),
+        apiService.getDietsByChefId(chefId, 1, 100),
+        apiService.getServiceTasksByChefId(chefId, 1, 100),
       ]);
 
       const customerBySuscriptionId = new Map();
@@ -433,8 +438,68 @@ const ReservationScreen = () => {
         })
         .sort((a, b) => compareByDateTime(a, b, -1));
 
-      const combinedConfirmed = [...confirmedForDisplay, ...upcomingEvents].sort((a, b) => compareByDateTime(a, b));
-      const combinedPast = [...pastForDisplay, ...pastEvents].sort((a, b) => compareByDateTime(a, b, -1));
+      // Dietas asignadas. Usan StatusDiet (0 Draft, 1 En revisión, 2 Confirmada,
+      // 3 Activa, 4 Completada, 5 Cancelada), NO el enum de reservas, así que no
+      // se pueden reutilizar confirmedStatuses/pastEligibleStatuses.
+      const DIET_STATUS_ACTIVE = [1, 2, 3];
+      const DIET_STATUS_DONE = 4;
+
+      const chefDietsMapped = chefDietsResponse.success && chefDietsResponse.data
+        ? chefDietsResponse.data
+            .filter((item) => {
+              if (!item.chefId) return false;
+              const status = item.statusDiet ?? item.StatusDiet;
+              return DIET_STATUS_ACTIVE.includes(status) || status === DIET_STATUS_DONE;
+            })
+            .map((item) => ({
+              ...item,
+              tipo: 'dieta',
+              // El DTO de dieta trae startDate/deliveryHour, no dateReservation.
+              dateReservation: item.startDate || item.dateReservation,
+              hourReservation: item.deliveryHour || item.hourReservation,
+            }))
+        : [];
+
+      const upcomingDiets = chefDietsMapped
+        .filter((item) => DIET_STATUS_ACTIVE.includes(item.statusDiet ?? item.StatusDiet))
+        .sort((a, b) => compareByDateTime(a, b));
+
+      const pastDiets = chefDietsMapped
+        .filter((item) => (item.statusDiet ?? item.StatusDiet) === DIET_STATUS_DONE)
+        .sort((a, b) => compareByDateTime(a, b, -1));
+
+      // Tareas asignadas. Estas sí usan StatusReservation, así que se reutilizan
+      // los mismos sets que reservas y eventos.
+      const chefServiceTasksMapped = chefServiceTasksResponse.success && chefServiceTasksResponse.data
+        ? chefServiceTasksResponse.data
+            .filter((item) => {
+              if (!item.chefId) return false;
+              return pastEligibleStatuses.has(item.statusReservation);
+            })
+            .map((item) => ({
+              ...item,
+              tipo: 'tarea',
+              // El DTO de tarea trae dateService/hourService.
+              dateReservation: item.dateService || item.dateReservation,
+              hourReservation: item.hourService || item.hourReservation,
+            }))
+        : [];
+
+      const upcomingServiceTasks = chefServiceTasksMapped
+        .filter((item) => confirmedStatuses.has(item.statusReservation) && isUpcomingItem(item))
+        .sort((a, b) => compareByDateTime(a, b));
+
+      const pastServiceTasks = chefServiceTasksMapped
+        .filter((item) => {
+          if (item.statusReservation === StatusReservation.Completada) return true;
+          return confirmedStatuses.has(item.statusReservation) && isPastItem(item);
+        })
+        .sort((a, b) => compareByDateTime(a, b, -1));
+
+      const combinedConfirmed = [...confirmedForDisplay, ...upcomingEvents, ...upcomingDiets, ...upcomingServiceTasks]
+        .sort((a, b) => compareByDateTime(a, b));
+      const combinedPast = [...pastForDisplay, ...pastEvents, ...pastDiets, ...pastServiceTasks]
+        .sort((a, b) => compareByDateTime(a, b, -1));
 
       const allRequests = [
         ...normalRequests,

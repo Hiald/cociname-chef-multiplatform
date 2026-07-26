@@ -1307,6 +1307,40 @@ class ApiService {
   }
 
   /**
+   * GET /api/reservationDiet/ByChef/{chefId}
+   * Planes dietéticos ASIGNADOS a la cocinera. Sin esto, una dieta desaparecía
+   * de su app apenas se le asignaba: solo se listaban las pendientes.
+   * Ojo: usa StatusDiet (0..5), no StatusReservation.
+   */
+  async getDietsByChefId(
+    chefId: number,
+    page: number = 1,
+    recordsPerPage: number = 100
+  ): Promise<BaseResponseGeneric<any[]>> {
+    return this.request<any[]>(
+      `reservationDiet/ByChef/${chefId}?Page=${page}&RecordsPerPage=${recordsPerPage}`,
+      { method: 'GET' }
+    );
+  }
+
+  /**
+   * GET /api/reservationServiceTask/Chef/{chefId}
+   * Tareas ASIGNADAS a la cocinera. Mismo bug que las dietas: antes solo se
+   * pedían las pendientes, así que al asignarle una tarea desaparecía de su app.
+   * A diferencia de las dietas, sí usa StatusReservation (0..10).
+   */
+  async getServiceTasksByChefId(
+    chefId: number,
+    page: number = 1,
+    recordsPerPage: number = 100
+  ): Promise<BaseResponseGeneric<any[]>> {
+    return this.request<any[]>(
+      `reservationServiceTask/Chef/${chefId}?Page=${page}&RecordsPerPage=${recordsPerPage}`,
+      { method: 'GET' }
+    );
+  }
+
+  /**
    * GET /api/chefDocumentation/filterbyChef
    * Documentos de la cocinera (antecedentes, sanidad, CV, DNI) con su estado.
    * El endpoint solo exige estar autenticado, sin filtro de rol.
