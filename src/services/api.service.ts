@@ -1400,10 +1400,31 @@ class ApiService {
     page: number = 1,
     recordsPerPage: number = 100
   ): Promise<BaseResponseGeneric<any[]>> {
-    return this.request<any[]>(
+    const result = await this.request<any[]>(
       `reservationDiet/ByChef/${chefId}?Page=${page}&RecordsPerPage=${recordsPerPage}`,
       { method: 'GET' }
     );
+
+    if (!result.success) {
+      return {
+        data: [],
+        success: false,
+        errorMessage: result.errorMessage ?? undefined,
+      };
+    }
+
+    const payload = result.data as unknown;
+    const rows = Array.isArray(payload)
+      ? payload
+      : (Array.isArray((payload as any)?.data)
+        ? (payload as any).data
+        : (Array.isArray((payload as any)?.items) ? (payload as any).items : []));
+
+    return {
+      data: rows,
+      success: true,
+      errorMessage: result.errorMessage ?? undefined,
+    };
   }
 
   /**
@@ -1417,10 +1438,31 @@ class ApiService {
     page: number = 1,
     recordsPerPage: number = 100
   ): Promise<BaseResponseGeneric<any[]>> {
-    return this.request<any[]>(
+    const result = await this.request<any[]>(
       `reservationServiceTask/Chef/${chefId}?Page=${page}&RecordsPerPage=${recordsPerPage}`,
       { method: 'GET' }
     );
+
+    if (!result.success) {
+      return {
+        data: [],
+        success: false,
+        errorMessage: result.errorMessage ?? undefined,
+      };
+    }
+
+    const payload = result.data as unknown;
+    const rows = Array.isArray(payload)
+      ? payload
+      : (Array.isArray((payload as any)?.data)
+        ? (payload as any).data
+        : (Array.isArray((payload as any)?.items) ? (payload as any).items : []));
+
+    return {
+      data: rows,
+      success: true,
+      errorMessage: result.errorMessage ?? undefined,
+    };
   }
 
   /**

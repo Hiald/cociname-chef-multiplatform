@@ -15,7 +15,7 @@ export const REQUEST_TYPE_LABELS = {
   suscripcion: 'Suscripción mensual',
   evento: 'Evento especial',
   dieta: 'Plan nutricional',
-  tarea: 'Actividad de cocina',
+  tarea: 'Mise en place',
 };
 
 export const getRequestServiceTitle = (tipo) => REQUEST_TYPE_LABELS[tipo] || 'Solicitud de servicio';

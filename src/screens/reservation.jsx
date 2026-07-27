@@ -75,7 +75,7 @@ const getTypeLabel = (reservation) => {
   if (reservation.tipo === 'suscripcion') return 'SUSCRIPCION';
   if (reservation.tipo === 'evento') return 'EVENTO';
   if (reservation.tipo === 'dieta') return 'DIETA';
-  if (reservation.tipo === 'tarea') return 'TAREA';
+  if (reservation.tipo === 'tarea') return 'MISE EN PLACE';
   return 'RESERVA';
 };
 
@@ -93,8 +93,58 @@ const pendingRequestStatuses = new Set([
   StatusReservation.ReasignacionCocinera,
 ]);
 
+/** StatusDiet: 0 Draft, 1 En revisión, 2 Confirmada, 3 Activa, 4 Completada, 5 Cancelada */
+const DIET_STATUS = {
+  Draft: 0,
+  EnRevision: 1,
+  Confirmada: 2,
+  Activa: 3,
+  Completada: 4,
+  Cancelada: 5,
+};
+
+const asList = (response) => {
+  if (!response?.success) return [];
+  const payload = response.data;
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
+
+const getChefIdValue = (item) => item?.chefId ?? item?.ChefId ?? null;
+
+const isUnassignedChef = (item) => {
+  const value = getChefIdValue(item);
+  return value === null || value === undefined || value === '' || Number(value) === 0;
+};
+
 const isPendingRequest = (item, statusValue) => (
-  item.chefId === null && pendingRequestStatuses.has(statusValue)
+  isUnassignedChef(item) && pendingRequestStatuses.has(Number(statusValue))
+);
+
+const getDietStatusValue = (item) => Number(
+  item?.statusDiet
+  ?? item?.StatusDiet
+  ?? item?.statusReservationDiet
+  ?? item?.statusReservation
+  ?? -1
+);
+
+const getDietDateValue = (item) => (
+  item?.startDate
+  || item?.StartDate
+  || item?.dateReservationDiet
+  || item?.dateReservation
+  || null
+);
+
+const getDietHourValue = (item) => (
+  item?.deliveryHour
+  || item?.DeliveryHour
+  || item?.hourReservationDiet
+  || item?.hourReservation
+  || null
 );
 
 const formatDayGroupLabel = (dateString) => {
@@ -380,33 +430,38 @@ const ReservationScreen = () => {
             }))
         : [];
 
-      const dietRequests = dietResponse.success && dietResponse.data
-        ? dietResponse.data
-            .filter((item) => isPendingRequest(
-              item,
-              item.statusReservationDiet ?? item.statusReservation
-            ))
-            .map((item) => ({
-              ...item,
-              tipo: 'dieta',
-              dateReservation: item.dateReservationDiet ?? item.dateReservation,
-              hourReservation: item.hourReservationDiet ?? item.hourReservation,
-            }))
-        : [];
+      const dietRequests = asList(dietResponse)
+        .filter((item) => {
+          if (!isUnassignedChef(item)) return false;
+          const status = getDietStatusValue(item);
+          // App DTO puede traer StatusReservation o StatusDiet
+          if (pendingRequestStatuses.has(status)) return true;
+          return [
+            DIET_STATUS.Draft,
+            DIET_STATUS.EnRevision,
+            DIET_STATUS.Confirmada,
+          ].includes(status);
+        })
+        .map((item) => ({
+          ...item,
+          tipo: 'dieta',
+          customerName: item.customerName || item.CustomerName || '',
+          customerLastName: item.customerLastName || item.CustomerLastName || '',
+          dateReservation: getDietDateValue(item),
+          hourReservation: getDietHourValue(item),
+        }));
 
-      const serviceTaskRequests = serviceTaskResponse.success && serviceTaskResponse.data
-        ? serviceTaskResponse.data
-            .filter((item) => isPendingRequest(
-              item,
-              item.statusReservationServiceTask ?? item.statusServiceTask ?? item.statusReservation
-            ))
-            .map((item) => ({
-              ...item,
-              tipo: 'tarea',
-              dateReservation: item.dateReservationServiceTask ?? item.dateReservation,
-              hourReservation: item.hourReservationServiceTask ?? item.hourReservation,
-            }))
-        : [];
+      const serviceTaskRequests = asList(serviceTaskResponse)
+        .filter((item) => isPendingRequest(
+          item,
+          item.statusReservationServiceTask ?? item.statusServiceTask ?? item.statusReservation
+        ))
+        .map((item) => ({
+          ...item,
+          tipo: 'tarea',
+          dateReservation: item.dateReservationServiceTask ?? item.dateService ?? item.dateReservation,
+          hourReservation: item.hourReservationServiceTask ?? item.hourService ?? item.hourReservation,
+        }));
 
       const chefEventsMapped = chefEventsResponse.success && chefEventsResponse.data
         ? chefEventsResponse.data
@@ -438,52 +493,67 @@ const ReservationScreen = () => {
         })
         .sort((a, b) => compareByDateTime(a, b, -1));
 
-      // Dietas asignadas. Usan StatusDiet (0 Draft, 1 En revisión, 2 Confirmada,
-      // 3 Activa, 4 Completada, 5 Cancelada), NO el enum de reservas, así que no
-      // se pueden reutilizar confirmedStatuses/pastEligibleStatuses.
-      const DIET_STATUS_ACTIVE = [1, 2, 3];
-      const DIET_STATUS_DONE = 4;
-
-      const chefDietsMapped = chefDietsResponse.success && chefDietsResponse.data
-        ? chefDietsResponse.data
-            .filter((item) => {
-              if (!item.chefId) return false;
-              const status = item.statusDiet ?? item.StatusDiet;
-              return DIET_STATUS_ACTIVE.includes(status) || status === DIET_STATUS_DONE;
-            })
-            .map((item) => ({
-              ...item,
-              tipo: 'dieta',
-              // El DTO de dieta trae startDate/deliveryHour, no dateReservation.
-              dateReservation: item.startDate || item.dateReservation,
-              hourReservation: item.deliveryHour || item.hourReservation,
-            }))
-        : [];
+      // Dietas asignadas (StatusDiet, no StatusReservation). ByChef ya filtra por chef.
+      const chefDietsMapped = asList(chefDietsResponse)
+        .filter((item) => {
+          const status = getDietStatusValue(item);
+          return status !== DIET_STATUS.Cancelada && status !== StatusReservation.Cancelada;
+        })
+        .map((item) => ({
+          ...item,
+          tipo: 'dieta',
+          customerName: item.customerName || item.CustomerName || '',
+          customerLastName: item.customerLastName || item.CustomerLastName || '',
+          dateReservation: getDietDateValue(item),
+          hourReservation: getDietHourValue(item),
+          statusDiet: getDietStatusValue(item),
+        }));
 
       const upcomingDiets = chefDietsMapped
-        .filter((item) => DIET_STATUS_ACTIVE.includes(item.statusDiet ?? item.StatusDiet))
+        .filter((item) => {
+          const status = item.statusDiet;
+          if (status === DIET_STATUS.Completada || status === StatusReservation.Completada) return false;
+          // Activas / confirmadas / en curso (StatusDiet o StatusReservation tras asignación)
+          const isActiveDiet = [
+            DIET_STATUS.EnRevision,
+            DIET_STATUS.Confirmada,
+            DIET_STATUS.Activa,
+            StatusReservation.Aceptada,
+            StatusReservation.Actualizada,
+            StatusReservation.EnCompra,
+            StatusReservation.EnTrayecto,
+            StatusReservation.EnCocina,
+          ].includes(status);
+          if (!isActiveDiet && status !== DIET_STATUS.Draft) return false;
+          if (!item.dateReservation) return true;
+          return isUpcomingItem(item);
+        })
         .sort((a, b) => compareByDateTime(a, b));
 
       const pastDiets = chefDietsMapped
-        .filter((item) => (item.statusDiet ?? item.StatusDiet) === DIET_STATUS_DONE)
+        .filter((item) => {
+          const status = item.statusDiet;
+          if (status === DIET_STATUS.Completada || status === StatusReservation.Completada) return true;
+          if (!item.dateReservation) return false;
+          return isPastItem(item);
+        })
         .sort((a, b) => compareByDateTime(a, b, -1));
 
-      // Tareas asignadas. Estas sí usan StatusReservation, así que se reutilizan
-      // los mismos sets que reservas y eventos.
-      const chefServiceTasksMapped = chefServiceTasksResponse.success && chefServiceTasksResponse.data
-        ? chefServiceTasksResponse.data
-            .filter((item) => {
-              if (!item.chefId) return false;
-              return pastEligibleStatuses.has(item.statusReservation);
-            })
-            .map((item) => ({
-              ...item,
-              tipo: 'tarea',
-              // El DTO de tarea trae dateService/hourService.
-              dateReservation: item.dateService || item.dateReservation,
-              hourReservation: item.hourService || item.hourReservation,
-            }))
-        : [];
+      // Tareas asignadas (Mise en place / aderezos). Usan StatusReservation.
+      const chefServiceTasksMapped = asList(chefServiceTasksResponse)
+        .filter((item) => {
+          if (isUnassignedChef(item)) return false;
+          return pastEligibleStatuses.has(item.statusReservation ?? item.StatusReservation);
+        })
+        .map((item) => ({
+          ...item,
+          tipo: 'tarea',
+          customerName: item.customerName || item.CustomerName || '',
+          customerLastName: item.customerLastName || item.CustomerLastName || '',
+          dateReservation: item.dateService || item.dateReservationServiceTask || item.dateReservation,
+          hourReservation: item.hourService || item.hourReservationServiceTask || item.hourReservation,
+          statusReservation: item.statusReservation ?? item.StatusReservation,
+        }));
 
       const upcomingServiceTasks = chefServiceTasksMapped
         .filter((item) => confirmedStatuses.has(item.statusReservation) && isUpcomingItem(item))
@@ -569,7 +639,7 @@ const ReservationScreen = () => {
     { id: 'suscripcion', label: 'Suscripciones', count: requestReservations.filter((r) => r.tipo === 'suscripcion').length },
     { id: 'evento', label: 'Eventos', count: requestReservations.filter((r) => r.tipo === 'evento').length },
     { id: 'dieta', label: 'Dietas', count: requestReservations.filter((r) => r.tipo === 'dieta').length },
-    { id: 'tarea', label: 'Tareas', count: requestReservations.filter((r) => r.tipo === 'tarea').length },
+    { id: 'tarea', label: 'Aderezos', count: requestReservations.filter((r) => r.tipo === 'tarea').length },
   ]), [requestReservations]);
 
   const filteredRequests = useMemo(() => {

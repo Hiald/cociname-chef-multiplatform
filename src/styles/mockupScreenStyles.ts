@@ -112,9 +112,9 @@ export const mockup = {
 
 export const getReservationEmoji = (tipo?: string) => {
   if (tipo === 'suscripcion') return '📅';
-  if (tipo === 'evento') return '🎉';
+  if (tipo === 'evento') return '📆';
   if (tipo === 'dieta') return '🥗';
-  if (tipo === 'tarea') return '👨‍🍳';
+  if (tipo === 'tarea') return '🍱';
   return '🍽️';
 };
 
