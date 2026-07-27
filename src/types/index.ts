@@ -512,6 +512,65 @@ export interface ChefDocumentationData {
   updatedAt: string | null;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// RECIBOS POR HONORARIOS - api/chefReceipt
+// La cocinera emite el RxH en SUNAT y lo sube; la app no lo emite.
+// ═══════════════════════════════════════════════════════════════
+
+/** Tipo de servicio al que pertenece el recibo. */
+export const ReceiptServiceType = {
+  Reserva: 1,
+  Suscripcion: 2,
+  Evento: 3,
+  Dieta: 4,
+  Tarea: 5,
+} as const;
+
+export const ReceiptStatus = {
+  Pendiente: 1,
+  Aprobado: 2,
+  Rechazado: 3,
+  Observado: 4,
+} as const;
+
+export interface ChefPaymentConcept {
+  conceptType: number;
+  conceptName: string;
+  amount: number;
+}
+
+/** Servicio terminado que todavía no tiene recibo. */
+export interface PendingReceipt {
+  serviceType: number;
+  serviceId: number;
+  serviceDate: string;
+  serviceHour: string | null;
+  customerName: string | null;
+  /** DNI del cliente: sale de CocinameUserIdentity, no de la tabla Customer. */
+  customerDocument: string | null;
+  reference: string | null;
+  expectedAmount: number;
+  concepts: ChefPaymentConcept[];
+}
+
+export interface ChefReceiptData {
+  id: number;
+  receiptNumber: string;
+  receiptUrl: string;
+  expectedAmount: number;
+  amount: number;
+  receiptStatus: number;
+  source: number;
+  serviceType: number;
+  adminNotes: string | null;
+  commentsChef: string | null;
+  reviewedAt: string | null;
+  chefId: number;
+  serviceDate: string | null;
+  customerName: string | null;
+  createdAt: string | null;
+}
+
 export interface ChefRatingData {
   chefId: number;
   ratingValue: number;

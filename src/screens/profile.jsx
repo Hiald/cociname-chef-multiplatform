@@ -172,6 +172,20 @@ const ProfileScreen = () => {
 
     {
 
+      title: 'Recibos por honorarios',
+
+      sub: 'Emite y envía los recibos de tus servicios',
+
+      emoji: '🧾',
+
+      tileBg: 'linear-gradient(135deg,#E4F6EC,#BFE9CF)',
+
+      onClick: () => navigate('/receipts'),
+
+    },
+
+    {
+
       title: 'Mi disponibilidad',
 
       sub: 'Define tus días y horarios de atención',

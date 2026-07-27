@@ -61,7 +61,9 @@ import {
   ChefDocumentationData,
   MenuData,
   MasterRecipeData,
-  RecipeFeedbackData
+  RecipeFeedbackData,
+  PendingReceipt,
+  ChefReceiptData
 } from '../types';
 
 const AUTH_EXPIRED_EVENT = 'auth:expired';
@@ -1291,6 +1293,87 @@ class ApiService {
           errorMessage: data?.errorMessage
             || (response.status === 401 ? 'Sesión expirada. Por favor inicia sesión nuevamente.' : null)
             || (response.status === 403 ? 'No tienes permisos para subir documentos.' : null)
+            || `Error: ${response.status}`,
+          data: null,
+        } as BaseResponseGeneric<number>;
+      }
+
+      return data as BaseResponseGeneric<number>;
+    } catch (error) {
+      return {
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Error de red',
+        data: null,
+      } as BaseResponseGeneric<number>;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RECIBOS POR HONORARIOS
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * GET /api/chefReceipt/pending — servicios terminados sin recibo.
+   * El API filtra por la fecha de corte (Receipts:StartDate).
+   */
+  async getPendingReceipts(): Promise<BaseResponseGeneric<PendingReceipt[]>> {
+    return this.request<PendingReceipt[]>('chefReceipt/pending', { method: 'GET' });
+  }
+
+  /** GET /api/chefReceipt/mine — recibos ya enviados y su estado. */
+  async getMyReceipts(
+    page: number = 1,
+    recordsPerPage: number = 50
+  ): Promise<BaseResponseGeneric<ChefReceiptData[]>> {
+    return this.request<ChefReceiptData[]>(
+      `chefReceipt/mine?Page=${page}&RecordsPerPage=${recordsPerPage}`,
+      { method: 'GET' }
+    );
+  }
+
+  /**
+   * POST /api/chefReceipt/upload — multipart.
+   * No se fija Content-Type a propósito: el navegador debe poner el boundary.
+   */
+  async uploadReceipt(params: {
+    file: File;
+    serviceType: number;
+    serviceId: number;
+    receiptNumber: string;
+    commentsChef?: string;
+  }): Promise<BaseResponseGeneric<number>> {
+    const formData = new FormData();
+    formData.append('file', params.file);
+    formData.append('serviceType', String(params.serviceType));
+    formData.append('serviceId', String(params.serviceId));
+    formData.append('receiptNumber', params.receiptNumber);
+    if (params.commentsChef) formData.append('commentsChef', params.commentsChef);
+
+    const token = this.getToken();
+    const headers: Record<string, string> = {
+      'X-Country-Id': String(GEO_CONFIG.COUNTRY_ID),
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+      const response = await fetch(`${this.baseUrl}chefReceipt/upload`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      const contentType = response.headers.get('content-type');
+      const data = contentType && contentType.includes('application/json')
+        ? await response.json()
+        : null;
+
+      if (!response.ok) {
+        if (response.status === 401) this.notifyAuthExpired();
+        return {
+          success: false,
+          errorMessage: data?.errorMessage
+            || (response.status === 401 ? 'Sesión expirada. Por favor inicia sesión nuevamente.' : null)
+            || (response.status === 403 ? 'No tienes permisos para subir recibos.' : null)
             || `Error: ${response.status}`,
           data: null,
         } as BaseResponseGeneric<number>;
