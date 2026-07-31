@@ -61,6 +61,8 @@ import {
   ChefDocumentationData,
   MenuData,
   MasterRecipeData,
+  MenuUtensilData,
+  RecipeTipData,
   RecipeFeedbackData,
   PendingReceipt,
   ChefReceiptData
@@ -1523,6 +1525,25 @@ class ApiService {
       `masterRecipe/ListMasterRecipeByMenuId?MenuId=${menuId}&Page=${page}&RecordsPerPage=${recordsPerPage}`,
       { method: 'GET' }
     );
+  }
+
+  /**
+   * GET /api/menuUtensil/byMenu/{menuId} — utensilios del plato.
+   * Van por menú, no por versión de receta.
+   */
+  async getUtensilsByMenuId(menuId: number): Promise<BaseResponseGeneric<MenuUtensilData[]>> {
+    return this.request<MenuUtensilData[]>(`menuUtensil/byMenu/${menuId}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * GET /api/recipeTip/byRecipe/{masterRecipeId} — consejos de la versión de receta.
+   */
+  async getTipsByRecipeId(masterRecipeId: number): Promise<BaseResponseGeneric<RecipeTipData[]>> {
+    return this.request<RecipeTipData[]>(`recipeTip/byRecipe/${masterRecipeId}`, {
+      method: 'GET',
+    });
   }
 
   /**

@@ -12,6 +12,19 @@ import { sortIngredientsAlphabetically } from '../../utils/ingredients';
  * otro layout y se usa en el detalle de servicio, donde cambiarlo rompería
  * pantallas en producción.
  */
+/**
+ * Utensilios y consejos vienen con `order` para respetar el orden del staff.
+ * Estos endpoints devuelven el arreglo plano en unos casos y envuelto en
+ * `data` en otros, así que se aceptan ambas formas.
+ */
+const sortByOrder = (response) => {
+  const rows = Array.isArray(response)
+    ? response
+    : (Array.isArray(response?.data) ? response.data : []);
+
+  return [...rows].sort((a, b) => Number(a?.order ?? a?.Order ?? 0) - Number(b?.order ?? b?.Order ?? 0));
+};
+
 const CatalogRecipeSheet = ({
   visible,
   onClose,
@@ -23,20 +36,28 @@ const CatalogRecipeSheet = ({
 }) => {
   const [recipe, setRecipe] = useState(null);
   const [ingredients, setIngredients] = useState([]);
+  const [utensils, setUtensils] = useState([]);
+  const [tips, setTips] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const menuId = Number(menu?.id || 0);
 
   const loadRecipe = useCallback(async () => {
     if (!selectedVersionId) {
       setRecipe(null);
       setIngredients([]);
+      setUtensils([]);
+      setTips([]);
       return;
     }
 
     setLoading(true);
     try {
-      const [recipeResponse, ingredientsResponse] = await Promise.all([
+      const [recipeResponse, ingredientsResponse, utensilsResponse, tipsResponse] = await Promise.all([
         apiService.getMasterRecipeById(selectedVersionId),
         apiService.getIngredientsByRecipeId(selectedVersionId),
+        menuId ? apiService.getUtensilsByMenuId(menuId) : Promise.resolve(null),
+        apiService.getTipsByRecipeId(selectedVersionId),
       ]);
 
       setRecipe(recipeResponse?.success ? recipeResponse.data : null);
@@ -45,14 +66,18 @@ const CatalogRecipeSheet = ({
           ? sortIngredientsAlphabetically(ingredientsResponse.data)
           : []
       );
+      setUtensils(sortByOrder(utensilsResponse));
+      setTips(sortByOrder(tipsResponse));
     } catch (error) {
       console.error('Error loading catalog recipe:', error);
       setRecipe(null);
       setIngredients([]);
+      setUtensils([]);
+      setTips([]);
     } finally {
       setLoading(false);
     }
-  }, [selectedVersionId]);
+  }, [selectedVersionId, menuId]);
 
   useEffect(() => {
     if (visible) void loadRecipe();
@@ -168,7 +193,39 @@ const CatalogRecipeSheet = ({
                   </>
                 )}
 
-                {ingredients.length === 0 && steps.length === 0 && (
+                {utensils.length > 0 && (
+                  <>
+                    <div style={styles.sectionTitle}>
+                      <span style={styles.sectionIcon}>🔎</span> Utensilios necesarios
+                    </div>
+                    <div style={styles.utensilsWrap}>
+                      {utensils.map((utensil, index) => (
+                        <span key={utensil.id ?? utensil.Id ?? index} style={styles.utensilChip}>
+                          {utensil.value ?? utensil.Value}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {tips.length > 0 && (
+                  <>
+                    <div style={styles.sectionTitle}>
+                      <span style={styles.sectionIcon}>💡</span> Consejos
+                    </div>
+                    <div style={styles.tipsCard}>
+                      {tips.map((tip, index) => (
+                        <div key={tip.id ?? tip.Id ?? index} style={styles.tipRow}>
+                          <span style={styles.tipBullet}>✦</span>
+                          <span style={styles.tipText}>{tip.tip ?? tip.Tip}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {ingredients.length === 0 && steps.length === 0
+                  && utensils.length === 0 && tips.length === 0 && (
                   <div style={styles.stateText}>Esta versión todavía no tiene receta cargada.</div>
                 )}
 
@@ -429,6 +486,49 @@ const styles = {
     color: '#3B4658',
     lineHeight: 1.5,
     paddingTop: 3,
+  },
+  utensilsWrap: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 9,
+    marginBottom: 26,
+    marginTop: 8,
+  },
+  utensilChip: {
+    background: '#fff',
+    border: '1px solid #EAE3D9',
+    borderRadius: 999,
+    padding: '8px 14px',
+    fontSize: 13.5,
+    color: '#3B4658',
+    boxShadow: '0 2px 8px rgba(27,52,92,.05)',
+  },
+  tipsCard: {
+    background: '#FFF9F2',
+    border: '1px solid #F3E3CE',
+    borderRadius: 18,
+    padding: '14px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    marginBottom: 26,
+    marginTop: 8,
+  },
+  tipRow: {
+    display: 'flex',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  tipBullet: {
+    color: '#E8912F',
+    fontSize: 12,
+    lineHeight: 1.6,
+    flex: 'none',
+  },
+  tipText: {
+    fontSize: 13.5,
+    color: '#5A5044',
+    lineHeight: 1.5,
   },
   reportButton: {
     width: '100%',

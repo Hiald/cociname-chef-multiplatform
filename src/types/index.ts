@@ -397,6 +397,29 @@ export interface MenuData {
   status: boolean;
 }
 
+// ═══════════════════════════════════════════════════════════════
+// UTENSILIOS Y CONSEJOS DE RECETA
+// GET /api/menuUtensil/byMenu/{menuId}
+// GET /api/recipeTip/byRecipe/{masterRecipeId}
+// ═══════════════════════════════════════════════════════════════
+
+/** Utensilio de un plato. `value` es el nombre a mostrar; `code` es el id del maestro. */
+export interface MenuUtensilData {
+  id: number;
+  menuId: number;
+  masterDetailId: number;
+  code: string;
+  value: string;
+  order: number;
+}
+
+export interface RecipeTipData {
+  id: number;
+  masterRecipeId: number;
+  tip: string;
+  order: number;
+}
+
 /** Motivos del reporte de receta (mismo orden que el API). */
 export const RecipeFeedbackReason = {
   IngredienteIncorrecto: 1,
