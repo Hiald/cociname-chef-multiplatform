@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
@@ -25,6 +25,9 @@ const formatDateKey = (date) => {
 
 const formatDayLabel = (date) => `${date.getDate()} ${date.toLocaleString('es-PE', { month: 'short' })}`;
 
+const DEFAULT_START_TIME = '07:00';
+const DEFAULT_END_TIME = '20:00';
+
 const buildDefaultDays = (weekStartDate) => {
 	return DAY_NAMES.map((name, index) => {
 		const currentDate = new Date(weekStartDate);
@@ -34,8 +37,54 @@ const buildDefaultDays = (weekStartDate) => {
 			id: formatDateKey(currentDate),
 			name,
 			label: formatDayLabel(currentDate),
+			enabled: false,
+			startTime: DEFAULT_START_TIME,
+			endTime: DEFAULT_END_TIME,
 		};
 	});
+};
+
+const normalizeTimeValue = (value, fallback) => {
+	if (typeof value !== 'string') return fallback;
+	const trimmed = value.trim();
+	if (!/^\d{2}:\d{2}$/.test(trimmed)) return fallback;
+	return trimmed;
+};
+
+const timeToMinutes = (value) => {
+	const [hours, minutes] = value.split(':').map(Number);
+	return hours * 60 + minutes;
+};
+
+const validateDaysBeforeSave = (days) => {
+	for (const day of days) {
+		if (!day.enabled) continue;
+
+		const startTime = normalizeTimeValue(day.startTime, '');
+		const endTime = normalizeTimeValue(day.endTime, '');
+
+		if (!startTime || !endTime) {
+			return `Completa el horario de ${day.name}`;
+		}
+
+		if (timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+			return `En ${day.name}, la hora de inicio debe ser menor que la de fin`;
+		}
+	}
+
+	return null;
+};
+
+const extractAvailabilityId = (response) => {
+	const data = response?.data;
+	if (data == null) return null;
+	if (typeof data === 'number' && Number.isFinite(data)) return data;
+	if (typeof data === 'object') {
+		const rawId = data.id ?? data.Id ?? data.availabilityId;
+		const parsed = Number(rawId);
+		return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+	}
+	return null;
 };
 
 const getWeekStorageKey = (weekStartDate) => `availability-week-${formatDateKey(weekStartDate)}`;
@@ -67,18 +116,20 @@ const getWeekNumber = (date) => {
 
 const parseHourRange = (hourRange) => {
 	if (!hourRange || typeof hourRange !== 'string') {
-		return { enabled: false, startTime: '07:00', endTime: '20:00' };
+		return { enabled: false, startTime: DEFAULT_START_TIME, endTime: DEFAULT_END_TIME };
 	}
 
 	const [start, end] = hourRange.split(',');
-	if (!start || !end) {
-		return { enabled: false, startTime: '07:00', endTime: '20:00' };
+	const startTime = normalizeTimeValue(start, '');
+	const endTime = normalizeTimeValue(end, '');
+	if (!startTime || !endTime) {
+		return { enabled: false, startTime: DEFAULT_START_TIME, endTime: DEFAULT_END_TIME };
 	}
 
 	return {
 		enabled: true,
-		startTime: start.trim(),
-		endTime: end.trim(),
+		startTime,
+		endTime,
 	};
 };
 
@@ -112,8 +163,13 @@ const applyAvailabilityToDays = (weekStartDate, availabilityRow) => {
 	});
 };
 
-const getPayloadFromDays = ({ days, weekStartDate, chefId, workShift, currentAvailabilityId, chefData }) => {
-	const hours = days.map(day => day.enabled ? `${day.startTime},${day.endTime}` : null);
+const getPayloadFromDays = ({ days, weekStartDate, chefId, workShift, currentAvailabilityId, chefData, createdAt }) => {
+	const hours = days.map(day => {
+		if (!day.enabled) return null;
+		const startTime = normalizeTimeValue(day.startTime, DEFAULT_START_TIME);
+		const endTime = normalizeTimeValue(day.endTime, DEFAULT_END_TIME);
+		return `${startTime},${endTime}`;
+	});
 	const weekEndDate = new Date(weekStartDate);
 	weekEndDate.setDate(weekStartDate.getDate() + 6);
 
@@ -140,7 +196,7 @@ const getPayloadFromDays = ({ days, weekStartDate, chefId, workShift, currentAva
 		id: currentAvailabilityId || 0,
 		status: true,
 		createdById: String(chefId),
-		createdAt: formatDateTimeForApi(new Date()),
+		createdAt: createdAt || formatDateTimeForApi(new Date()),
 	};
 };
 
@@ -154,10 +210,16 @@ const getDaysForWeek = (weekStartDate) => {
 
 	try {
 		const savedData = JSON.parse(savedRaw);
-		return baseDays.map(day => ({
-			...day,
-			...(savedData[day.id] || {}),
-		}));
+		return baseDays.map(day => {
+			const savedDay = savedData[day.id] || {};
+			return {
+				...day,
+				...savedDay,
+				enabled: Boolean(savedDay.enabled),
+				startTime: normalizeTimeValue(savedDay.startTime, DEFAULT_START_TIME),
+				endTime: normalizeTimeValue(savedDay.endTime, DEFAULT_END_TIME),
+			};
+		});
 	} catch (error) {
 		console.error('No se pudo leer disponibilidad guardada', error);
 		return baseDays;
@@ -171,22 +233,35 @@ const AvailabilityScreen = () => {
 	const [weekStartDate, setWeekStartDate] = useState(() => getStartOfWeek(new Date()));
 	const [days, setDays] = useState(() => getDaysForWeek(getStartOfWeek(new Date())));
 	const [savedMessage, setSavedMessage] = useState('');
+	const [isErrorMessage, setIsErrorMessage] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [submitting, setSubmitting] = useState(false);
 	const [availabilityId, setAvailabilityId] = useState(null);
+	const [createdAt, setCreatedAt] = useState(null);
+	const loadRequestIdRef = useRef(0);
 
 	const workShift = useMemo(() => getWeekNumber(weekStartDate), [weekStartDate]);
+	const isBusy = loading || submitting;
 
-	const loadAvailabilityForWeek = useCallback(async (targetWeekStartDate) => {
+	const showMessage = useCallback((message, isError = false) => {
+		setSavedMessage(message);
+		setIsErrorMessage(isError);
+	}, []);
+
+	const loadAvailabilityForWeek = useCallback(async (targetWeekStartDate, options = {}) => {
+		const { preserveIdOnEmpty = false } = options;
+
 		if (!chefId) {
 			setDays(buildDefaultDays(targetWeekStartDate));
 			setAvailabilityId(null);
-			return;
+			setCreatedAt(null);
+			return { success: false, found: false };
 		}
 
 		const weekEndDate = new Date(targetWeekStartDate);
 		weekEndDate.setDate(targetWeekStartDate.getDate() + 6);
 		const targetShift = getWeekNumber(targetWeekStartDate);
+		const requestId = ++loadRequestIdRef.current;
 
 		setLoading(true);
 		try {
@@ -199,22 +274,39 @@ const AvailabilityScreen = () => {
 				RecordsPerPage: 10,
 			});
 
+			if (requestId !== loadRequestIdRef.current) {
+				return { success: false, found: false, stale: true };
+			}
+
 			if (response.success && response.data && response.data.length > 0) {
 				const row = response.data[0];
 				setDays(applyAvailabilityToDays(targetWeekStartDate, row));
 				setAvailabilityId(row.id || null);
-				setSavedMessage('');
-				return;
+				setCreatedAt(row.createdAt || null);
+				return { success: true, found: true, id: row.id || null };
 			}
 
 			setDays(getDaysForWeek(targetWeekStartDate));
-			setAvailabilityId(null);
+			if (!preserveIdOnEmpty) {
+				setAvailabilityId(null);
+				setCreatedAt(null);
+			}
+			return { success: Boolean(response.success), found: false };
 		} catch (error) {
 			console.error('Error loading availability:', error);
+			if (requestId !== loadRequestIdRef.current) {
+				return { success: false, found: false, stale: true };
+			}
 			setDays(getDaysForWeek(targetWeekStartDate));
-			setAvailabilityId(null);
+			if (!preserveIdOnEmpty) {
+				setAvailabilityId(null);
+				setCreatedAt(null);
+			}
+			return { success: false, found: false };
 		} finally {
-			setLoading(false);
+			if (requestId === loadRequestIdRef.current) {
+				setLoading(false);
+			}
 		}
 	}, [chefId]);
 
@@ -231,19 +323,29 @@ const AvailabilityScreen = () => {
 	}, [weekStartDate]);
 
 	const handleToggleDay = (id) => {
-		setDays(prev => prev.map(day => (
-			day.id === id ? { ...day, enabled: !day.enabled } : day
-		)));
+		if (isBusy) return;
+		setDays(prev => prev.map(day => {
+			if (day.id !== id) return day;
+			const nextEnabled = !day.enabled;
+			return {
+				...day,
+				enabled: nextEnabled,
+				startTime: normalizeTimeValue(day.startTime, DEFAULT_START_TIME),
+				endTime: normalizeTimeValue(day.endTime, DEFAULT_END_TIME),
+			};
+		}));
 	};
 
 	const handleTimeChange = (id, field, value) => {
+		if (isBusy) return;
 		setDays(prev => prev.map(day => (
 			day.id === id ? { ...day, [field]: value } : day
 		)));
 	};
 
 	const moveWeek = (direction) => {
-		setSavedMessage('');
+		if (isBusy) return;
+		showMessage('');
 		setWeekStartDate(prev => {
 			const next = new Date(prev);
 			next.setDate(prev.getDate() + (direction * 7));
@@ -252,11 +354,20 @@ const AvailabilityScreen = () => {
 	};
 
 	const handleSaveAvailability = async () => {
+		if (isBusy) return;
+
 		if (!chefId) {
-			setSavedMessage('No se pudo identificar la chef logeada');
+			showMessage('No se pudo identificar la chef logeada', true);
 			return;
 		}
 
+		const validationError = validateDaysBeforeSave(days);
+		if (validationError) {
+			showMessage(validationError, true);
+			return;
+		}
+
+		const wasUpdate = Boolean(availabilityId);
 		const payload = getPayloadFromDays({
 			days,
 			weekStartDate,
@@ -264,39 +375,51 @@ const AvailabilityScreen = () => {
 			workShift,
 			currentAvailabilityId: availabilityId,
 			chefData,
+			createdAt,
 		});
 
 		setSubmitting(true);
 		try {
-			const response = availabilityId
+			const response = wasUpdate
 				? await apiService.updateAvailability(availabilityId, payload)
 				: await apiService.createAvailability(payload);
 
 			if (response.success) {
-				const successText = availabilityId
+				const responseId = extractAvailabilityId(response);
+				if (responseId) {
+					setAvailabilityId(responseId);
+				}
+
+				const successText = wasUpdate
 					? 'Disponibilidad semanal actualizada correctamente'
 					: 'Disponibilidad semanal guardada correctamente';
-				setSavedMessage(successText);
-				await loadAvailabilityForWeek(weekStartDate);
+				showMessage(successText, false);
+
+				const reload = await loadAvailabilityForWeek(weekStartDate, { preserveIdOnEmpty: true });
+				if (!reload.found && !responseId && !wasUpdate) {
+					showMessage('Se guardó, pero no se pudo confirmar el registro. Intenta actualizar de nuevo.', true);
+				}
 			} else {
-				setSavedMessage(response.errorMessage || 'No se pudo guardar la disponibilidad');
+				showMessage(response.errorMessage || 'No se pudo guardar la disponibilidad', true);
 			}
 		} catch (error) {
 			console.error('Error saving availability:', error);
-			setSavedMessage('Error al guardar disponibilidad');
+			showMessage('Error al guardar disponibilidad. Revisa tu conexión e intenta de nuevo.', true);
 		} finally {
 			setSubmitting(false);
 		}
 	};
 
 	const handleCopyFromPreviousWeek = async () => {
+		if (isBusy) return;
+
 		if (!chefId) {
-			setSavedMessage('No se pudo identificar la chef logeada');
+			showMessage('No se pudo identificar la chef logeada', true);
 			return;
 		}
 
 		if (availabilityId) {
-			setSavedMessage('Esta semana ya tiene disponibilidad. Usa Actualizar disponibilidad.');
+			showMessage('Esta semana ya tiene disponibilidad. Usa Actualizar disponibilidad.', true);
 			return;
 		}
 
@@ -317,12 +440,18 @@ const AvailabilityScreen = () => {
 			});
 
 			if (!previousResponse.success || !previousResponse.data || previousResponse.data.length === 0) {
-				setSavedMessage('No existe disponibilidad en la semana anterior para copiar');
+				showMessage('No existe disponibilidad en la semana anterior para copiar', true);
 				return;
 			}
 
 			const previousRow = previousResponse.data[0];
 			const copiedDays = applyAvailabilityToDays(weekStartDate, previousRow);
+			const validationError = validateDaysBeforeSave(copiedDays);
+			if (validationError) {
+				showMessage(`No se pudo copiar: ${validationError}`, true);
+				return;
+			}
+
 			const payload = getPayloadFromDays({
 				days: copiedDays,
 				weekStartDate,
@@ -334,15 +463,19 @@ const AvailabilityScreen = () => {
 
 			const createResponse = await apiService.createAvailability(payload);
 			if (createResponse.success) {
-				setSavedMessage('Se copio la disponibilidad de la semana pasada');
+				const responseId = extractAvailabilityId(createResponse);
+				if (responseId) {
+					setAvailabilityId(responseId);
+				}
+				showMessage('Se copió la disponibilidad de la semana pasada', false);
 				setDays(copiedDays);
-				await loadAvailabilityForWeek(weekStartDate);
+				await loadAvailabilityForWeek(weekStartDate, { preserveIdOnEmpty: true });
 			} else {
-				setSavedMessage(createResponse.errorMessage || 'No se pudo copiar la semana pasada');
+				showMessage(createResponse.errorMessage || 'No se pudo copiar la semana pasada', true);
 			}
 		} catch (error) {
 			console.error('Error copying previous week availability:', error);
-			setSavedMessage('Error al copiar disponibilidad de la semana pasada');
+			showMessage('Error al copiar disponibilidad de la semana pasada', true);
 		} finally {
 			setSubmitting(false);
 		}
@@ -367,8 +500,8 @@ const AvailabilityScreen = () => {
 					</button>
 				</div>
 
-                <button style={{ ...styles.secondaryButton, ...(submitting ? styles.disabledButton : {}) }} onClick={handleCopyFromPreviousWeek} disabled={submitting || loading}>
-					Igual que la semana pasada
+                <button style={{ ...styles.secondaryButton, ...(isBusy ? styles.disabledButton : {}) }} onClick={handleCopyFromPreviousWeek} disabled={isBusy}>
+					{submitting ? 'Procesando...' : 'Igual que la semana pasada'}
 				</button>
 
 				{loading ? (
@@ -390,8 +523,11 @@ const AvailabilityScreen = () => {
 									style={{
 										...styles.switchTrack,
 										...(day.enabled ? styles.switchTrackOn : {}),
+										...(isBusy ? styles.disabledButton : {}),
 									}}
 									onClick={() => handleToggleDay(day.id)}
+									disabled={isBusy}
+									aria-label={`Disponibilidad ${day.name}`}
 								>
 									<span
 										style={{
@@ -406,16 +542,18 @@ const AvailabilityScreen = () => {
 								<div style={styles.timeRow}>
 									<input
 										type="time"
-										value={day.startTime}
+										value={day.startTime || DEFAULT_START_TIME}
 										onChange={(event) => handleTimeChange(day.id, 'startTime', event.target.value)}
 										style={styles.timeInput}
+										disabled={isBusy}
 									/>
 									<span style={styles.toLabel}>hasta</span>
 									<input
 										type="time"
-										value={day.endTime}
+										value={day.endTime || DEFAULT_END_TIME}
 										onChange={(event) => handleTimeChange(day.id, 'endTime', event.target.value)}
 										style={styles.timeInput}
+										disabled={isBusy}
 									/>
 								</div>
 							)}
@@ -423,12 +561,14 @@ const AvailabilityScreen = () => {
 					))}
 				</div>
 
-				<button style={{ ...styles.saveButton, ...(submitting ? styles.disabledButton : {}) }} onClick={handleSaveAvailability} disabled={submitting || loading}>
-					{availabilityId ? 'Actualizar disponibilidad' : 'Guardar disponibilidad'}
+				<button style={{ ...styles.saveButton, ...(isBusy ? styles.disabledButton : {}) }} onClick={handleSaveAvailability} disabled={isBusy}>
+					{submitting
+						? (availabilityId ? 'Actualizando...' : 'Guardando...')
+						: (availabilityId ? 'Actualizar disponibilidad' : 'Guardar disponibilidad')}
 				</button>
 
 				{savedMessage ? (
-					<p style={styles.savedText}>{savedMessage}</p>
+					<p style={{ ...styles.savedText, ...(isErrorMessage ? styles.errorText : {}) }}>{savedMessage}</p>
 				) : null}
 			</div>
 		</div>
@@ -614,6 +754,9 @@ const styles = {
 		color: '#059669',
 		fontSize: 14,
 		fontWeight: '600',
+	},
+	errorText: {
+		color: '#DC2626',
 	},
 };
 
