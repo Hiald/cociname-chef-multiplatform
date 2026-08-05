@@ -46,17 +46,15 @@ const CatalogRecipeSheet = ({
     if (!selectedVersionId) {
       setRecipe(null);
       setIngredients([]);
-      setUtensils([]);
       setTips([]);
       return;
     }
 
     setLoading(true);
     try {
-      const [recipeResponse, ingredientsResponse, utensilsResponse, tipsResponse] = await Promise.all([
+      const [recipeResponse, ingredientsResponse, tipsResponse] = await Promise.all([
         apiService.getMasterRecipeById(selectedVersionId),
         apiService.getIngredientsByRecipeId(selectedVersionId),
-        menuId ? apiService.getUtensilsByMenuId(menuId) : Promise.resolve(null),
         apiService.getTipsByRecipeId(selectedVersionId),
       ]);
 
@@ -66,22 +64,39 @@ const CatalogRecipeSheet = ({
           ? sortIngredientsAlphabetically(ingredientsResponse.data)
           : []
       );
-      setUtensils(sortByOrder(utensilsResponse));
       setTips(sortByOrder(tipsResponse));
     } catch (error) {
       console.error('Error loading catalog recipe:', error);
       setRecipe(null);
       setIngredients([]);
-      setUtensils([]);
       setTips([]);
     } finally {
       setLoading(false);
     }
-  }, [selectedVersionId, menuId]);
+  }, [selectedVersionId]);
+
+  const loadUtensils = useCallback(async () => {
+    if (!menuId) {
+      setUtensils([]);
+      return;
+    }
+
+    try {
+      const utensilsResponse = await apiService.getUtensilsByMenuId(menuId);
+      setUtensils(sortByOrder(utensilsResponse));
+    } catch (error) {
+      console.error('Error loading menu utensils:', error);
+      setUtensils([]);
+    }
+  }, [menuId]);
 
   useEffect(() => {
     if (visible) void loadRecipe();
   }, [visible, loadRecipe]);
+
+  useEffect(() => {
+    if (visible) void loadUtensils();
+  }, [visible, loadUtensils]);
 
   if (!visible || !menu) return null;
 
