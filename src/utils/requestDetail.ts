@@ -138,17 +138,31 @@ export const buildEventScheduleRows = (event) => buildScheduleRows([
     : null,
 ]);
 
-export const buildDietScheduleRows = (record, getDateValue, getHourValue) => buildScheduleRows([
-  { icon: 'calendar', label: formatPublicDate(getDateValue(record)) },
-  { icon: 'clock', label: formatPublicHour(getHourValue(record)) },
-  { icon: 'list', label: record.puchaseIngredients ? 'Con compras' : 'Sin compras' },
-  record.diner != null || record.Diner != null || record.personCount != null
-    ? {
+export const getDietModalityShortLabel = (value) => (
+  Number(value) === 2 ? 'Plan Nutricional' : 'Comida dietética'
+);
+
+export const getDietServicePreferenceLabel = (value) => (
+  Number(value) === 1 ? 'Cocinera a domicilio' : 'Comida ya preparada'
+);
+
+export const buildDietScheduleRows = (record, getDateValue, getHourValue) => {
+  const people = record.diner ?? record.Diner ?? record.personCount ?? record.PersonCount;
+  return buildScheduleRows([
+    { icon: 'calendar', label: formatPublicDate(getDateValue(record)) },
+    { icon: 'clock', label: formatPublicHour(getHourValue(record)) },
+    { icon: 'list', label: record.puchaseIngredients ? 'Con compras' : 'Sin compras' },
+    people != null ? { icon: 'chef', label: `${people} ${Number(people) === 1 ? 'persona' : 'personas'}` } : null,
+    {
+      icon: 'list',
+      label: `Modalidad: ${getDietModalityShortLabel(record.dietModality ?? record.DietModality)}`,
+    },
+    {
       icon: 'chef',
-      label: `${record.diner ?? record.Diner ?? record.personCount ?? record.PersonCount} personas`,
-    }
-    : null,
-]);
+      label: `Servicio: ${getDietServicePreferenceLabel(record.servicePreference ?? record.ServicePreference)}`,
+    },
+  ]);
+};
 
 export const buildTareaScheduleRows = (record, getDateValue, getHourValue, hours) => buildScheduleRows([
   { icon: 'calendar', label: formatPublicDate(getDateValue(record)) },
