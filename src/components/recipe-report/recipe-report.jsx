@@ -258,7 +258,12 @@ const styles = {
     padding: '13px 15px',
     fontFamily: theme.fontBody,
     fontSize: 14.5,
+    // Fondo claro explícito: con prefers-color-scheme: dark el navegador
+    // pinta el textarea oscuro y el texto (#1B2436) queda ilegible.
+    backgroundColor: '#FFFFFF',
     color: theme.textPrimary,
+    caretColor: theme.textPrimary,
+    colorScheme: 'light',
     outline: 'none',
     lineHeight: 1.5,
   },
