@@ -715,6 +715,7 @@ const ReservationSuscriptionDetailScreen = () => {
             onClose={handleCloseRecipeModal}
             recipeName={`${selectedRecipe.MenuNombre} - ${selectedRecipe.MasterRecipeNombre}`}
             masterRecipeId={parseInt(selectedRecipe.MasterRecipeId, 10)}
+            menuId={parseInt(selectedRecipe.MenuId, 10)}
             portions={selectedRecipe.iCantidadPlatos}
             recipeSteps={selectedRecipe.sPasos}
           />
@@ -1018,6 +1019,7 @@ const ReservationSuscriptionDetailScreen = () => {
           onClose={handleCloseRecipeModal}
           recipeName={`${selectedRecipe.MenuNombre} - ${selectedRecipe.MasterRecipeNombre}`}
           masterRecipeId={parseInt(selectedRecipe.MasterRecipeId)}
+          menuId={parseInt(selectedRecipe.MenuId, 10)}
           portions={selectedRecipe.iCantidadPlatos}
           recipeSteps={selectedRecipe.sPasos}
         />

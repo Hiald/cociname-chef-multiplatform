@@ -154,9 +154,8 @@ const styles = {
   overlay: {
     position: 'fixed',
     inset: 0,
-    // Por encima del sheet de receta (z-index 95): antes quedaba detrás y no se
-    // podía escribir sin cerrar la receta primero.
-    zIndex: 9999,
+    // Por encima del sheet del catálogo (95) y del modal de reservas (9999/10000).
+    zIndex: 11000,
     display: 'flex',
     justifyContent: 'center',
   },

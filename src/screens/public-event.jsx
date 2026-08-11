@@ -240,6 +240,7 @@ export const PublicEventScreen = ({ token }) => {
           onClose={handleCloseRecipeModal}
           recipeName={`${selectedRecipe.MenuNombre} - ${selectedRecipe.MasterRecipeNombre}`}
           masterRecipeId={parseInt(selectedRecipe.MasterRecipeId, 10)}
+          menuId={parseInt(selectedRecipe.MenuId, 10)}
           portions={selectedRecipe.iCantidadPlatos}
           recipeSteps={selectedRecipe.sPasos}
         />

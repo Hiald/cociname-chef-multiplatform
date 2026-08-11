@@ -5,6 +5,7 @@ import { getCategoryName, formatIngredientQuantity } from '../../utils/formatter
 import { sortIngredientsAlphabetically } from '../../utils/ingredients';
 import { BuyingDetail, RedhatDetail } from '../../assets/svgs';
 import { spacing } from '../../styles';
+import { RecipeReport } from '../recipe-report';
 
 const RecipeModal = ({
   visible,
@@ -13,14 +14,18 @@ const RecipeModal = ({
   masterRecipeId,
   portions,
   recipeSteps,
+  menuId: menuIdProp,
 }) => {
   const [ingredients, setIngredients] = useState([]);
   const [recipeData, setRecipeData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
   const [isClosing, setIsClosing] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const isMobile = windowWidth <= 768;
+  const menuId = Number(recipeData?.menuId || menuIdProp || 0);
+  const canReport = Boolean(masterRecipeId && menuId);
 
   useEffect(() => {
     const handleResize = () => {
@@ -34,6 +39,7 @@ const RecipeModal = ({
     if (visible) {
       loadRecipeData();
       setIsClosing(false);
+      setReportOpen(false);
     }
   }, [visible]);
 
@@ -62,6 +68,7 @@ const RecipeModal = ({
   };
 
   const handleClose = () => {
+    setReportOpen(false);
     if (isMobile) {
       setIsClosing(true);
       setTimeout(() => onClose(), 250);
@@ -69,6 +76,26 @@ const RecipeModal = ({
       onClose();
     }
   };
+
+  const reportButton = canReport ? (
+    <button type="button" style={styles.reportButton} onClick={() => setReportOpen(true)}>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 9v4M12 17h.01" />
+        <path d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" />
+      </svg>
+      Corregir o mejorar
+    </button>
+  ) : null;
+
+  const reportDialog = (
+    <RecipeReport
+      visible={reportOpen}
+      onClose={() => setReportOpen(false)}
+      masterRecipeId={masterRecipeId}
+      menuId={menuId}
+      recipeName={recipeData ? `${recipeData.menuTitle} - ${recipeData.title}` : recipeName}
+    />
+  );
 
   if (!visible) return null;
 
@@ -161,9 +188,11 @@ const RecipeModal = ({
                 </div>
               )}
 
+              {reportButton}
               <div style={{ height: 40 }} />
             </div>
           </div>
+          {reportDialog}
         </div>
     );
   }
@@ -265,9 +294,11 @@ const RecipeModal = ({
             </div>
           )}
 
+          {reportButton}
           <div style={{ height: 40 }} />
         </div>
       </div>
+      {reportDialog}
     </div>
   );
 };
@@ -549,6 +580,26 @@ const styles = {
     textAlign: 'center',
     padding: `${spacing.medium}px 0`,
     margin: 0,
+  },
+
+  reportButton: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    marginTop: spacing.small,
+    marginBottom: spacing.small,
+    background: '#FFF0EC',
+    border: '1.5px solid #F5C0AE',
+    color: '#D8431F',
+    borderRadius: 14,
+    padding: 14,
+    fontFamily: 'inherit',
+    fontWeight: 700,
+    fontSize: 14,
+    cursor: 'pointer',
+    boxSizing: 'border-box',
   },
 };
 
