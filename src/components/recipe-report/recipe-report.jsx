@@ -124,6 +124,7 @@ const RecipeReport = ({ visible, onClose, masterRecipeId, menuId, recipeName }) 
               </div>
 
               <textarea
+                className="coci-textarea"
                 value={comment}
                 onChange={(event) => setComment(event.target.value)}
                 maxLength={1000}
@@ -258,12 +259,13 @@ const styles = {
     padding: '13px 15px',
     fontFamily: theme.fontBody,
     fontSize: 14.5,
-    // Fondo claro explícito: con prefers-color-scheme: dark el navegador
-    // pinta el textarea oscuro y el texto (#1B2436) queda ilegible.
+    // Fondo/texto claros: Android con tema oscuro fuerza textarea nativo
+    // oscuro; el contraste se refuerza también en index.css (.coci-textarea).
     backgroundColor: '#FFFFFF',
-    color: theme.textPrimary,
-    caretColor: theme.textPrimary,
-    colorScheme: 'light',
+    color: '#1B2436',
+    WebkitTextFillColor: '#1B2436',
+    caretColor: '#1B2436',
+    colorScheme: 'only light',
     outline: 'none',
     lineHeight: 1.5,
   },
