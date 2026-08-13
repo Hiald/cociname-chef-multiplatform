@@ -279,7 +279,9 @@ const CatalogScreen = () => {
                         if (value) void openMenuSheet(menu, value);
                       }}
                     >
-                      <option value="">Ver receta</option>
+                      {/* Placeholder del botón cerrado; hidden+disabled para que no
+                          aparezca como opción al abrir el dropdown. */}
+                      <option value="" disabled hidden>Ver receta</option>
                       {(versions || []).map((version) => (
                         <option key={version.id} value={version.id}>{version.title}</option>
                       ))}
