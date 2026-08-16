@@ -5,7 +5,6 @@ import { apiService } from '../services/api.service';
 import { ArrowLeftDetail, HelpDetail } from '../assets/svgs';
 import { useAuth } from '../hooks/useAuth';
 import {
-  formatCurrency,
   formatPublicDate,
   formatPublicHour,
   getChefDisplay,
@@ -184,7 +183,6 @@ const ReservationTareaDetailScreen = () => {
   const chef = getChefDisplay(record);
   const direction = record.direction || record.Direction || '-';
   const reference = record.reference || record.Reference || '';
-  const totalPrice = record.totalPrice ?? record.TotalPrice ?? 0;
   const activities = getTareaActivities(record);
   const hours = Number(record.estimatedHours ?? record.EstimatedHours ?? record.iaSuggestedHours ?? record.IaSuggestedHours ?? 0);
   const clientComment = getClientComment(record);
@@ -308,18 +306,6 @@ const ReservationTareaDetailScreen = () => {
         </section>
 
         <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Desglose de costos</h2>
-          <div style={styles.costRow}>
-            <span>Costo del servicio</span>
-            <strong>{formatCurrency(totalPrice)}</strong>
-          </div>
-          <div style={styles.totalBox}>
-            <span>Total</span>
-            <strong style={styles.totalValue}>{formatCurrency(totalPrice)}</strong>
-          </div>
-        </section>
-
-        <section style={styles.card}>
           <h2 style={styles.cardTitle}>Cocinera asignada</h2>
           <div style={styles.chefRow}>
             <div style={styles.chefAvatar}>{chef.initials}</div>
@@ -434,9 +420,6 @@ const styles = {
   activityTitle: { margin: 0, fontSize: 14, fontWeight: 600, color: '#1a2332' },
   activityMeta: { margin: '4px 0 0', fontSize: 12, color: '#6b7a90' },
   emptyText: { margin: 0, textAlign: 'center', color: '#6b7a90', padding: '12px 0' },
-  costRow: { display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f0f4f8', color: '#6b7a90' },
-  totalBox: { marginTop: 12, backgroundColor: '#f8f9fb', borderRadius: 8, padding: 16, display: 'flex', justifyContent: 'space-between' },
-  totalValue: { fontSize: 22, color: '#FF5136' },
   chefRow: { display: 'flex', alignItems: 'center', gap: 16 },
   chefAvatar: {
     width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, #FF5136 0%, #ff8e53 100%)',

@@ -222,7 +222,7 @@ export const PublicEventScreen = ({ token }) => {
               <div style={styles.divider} />
               <div style={styles.garantiaRow}>
                 <span style={styles.garantiaTotal}>Total</span>
-                <span style={styles.garantiaTotalValue}>S/ {Number(event.totalPrice || 0).toFixed(2)}</span>
+                <span style={styles.garantiaTotalValue}>S/ {Number(event.commissionToChef ?? event.CommissionToChef ?? 0).toFixed(2)}</span>
               </div>
             </div>
           </div>

@@ -214,7 +214,7 @@ const ReservationDietDetailScreen = () => {
   const customerName = getCustomerFullName(record);
   const direction = record.direction || record.Direction || '-';
   const reference = record.reference || record.Reference || '';
-  const totalPrice = Number(record.totalPrice ?? record.TotalPrice ?? record.commissiontoChef ?? record.commissionToChef ?? 0);
+  const totalPrice = Number(record.commissiontoChef ?? record.commissionToChef ?? record.totalPrice ?? record.TotalPrice ?? 0);
   const modality = Number(record.dietModality ?? record.DietModality ?? 1);
   const planUrl = record.nutritionalPlanUrl || record.NutritionalPlanUrl || '';
   const planName = record.nutritionalPlanFileName || record.NutritionalPlanFileName || 'Plan nutricional';

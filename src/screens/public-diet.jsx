@@ -5,7 +5,6 @@ import { useAuth } from '../hooks/useAuth';
 import { StatusReservation } from '../types';
 import { PUBLIC_LINK_TYPES, resolvePublicLinkToken } from '../utils/linkToken';
 import {
-  formatCurrency,
   formatPublicDate,
   formatPublicHour,
   getChefDisplay,
@@ -200,7 +199,6 @@ export const PublicDietScreen = ({ token }) => {
   const phone = record.contactPhone || record.ContactPhone || record.numberClient || record.NumberClient || '-';
   const direction = record.direction || record.Direction || '-';
   const reference = record.reference || record.Reference || '';
-  const totalPrice = record.totalPrice ?? record.TotalPrice ?? 0;
   const modality = Number(record.dietModality ?? record.DietModality ?? 1);
   const planUrl = record.nutritionalPlanUrl || record.NutritionalPlanUrl || '';
   const planName = record.nutritionalPlanFileName || record.NutritionalPlanFileName || 'Plan nutricional';
@@ -248,18 +246,6 @@ export const PublicDietScreen = ({ token }) => {
               ) : (
                 <p style={styles.emptyText}>Plan en revisión por nuestro equipo.</p>
               )}
-            </section>
-
-            <section style={styles.card}>
-              <h2 style={styles.cardTitle}>Desglose de costos</h2>
-              <div style={styles.costRow}>
-                <span>Costo del servicio</span>
-                <strong>{formatCurrency(totalPrice)}</strong>
-              </div>
-              <div style={styles.totalBox}>
-                <span>Total</span>
-                <strong style={styles.totalValue}>{formatCurrency(totalPrice)}</strong>
-              </div>
             </section>
 
             {isAuthenticated && clientComment && (
@@ -457,26 +443,6 @@ const styles = {
     fontSize: 14,
     fontWeight: 600,
     color: '#1a2332',
-  },
-  costRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '12px 0',
-    borderBottom: '1px solid #f0f4f8',
-    color: '#6b7a90',
-  },
-  totalBox: {
-    marginTop: 12,
-    backgroundColor: '#f8f9fb',
-    borderRadius: 8,
-    padding: 16,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalValue: {
-    fontSize: 24,
-    color: '#FF5136',
   },
   textarea: {
     width: '100%',
