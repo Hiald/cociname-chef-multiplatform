@@ -7,14 +7,35 @@ import { PUBLIC_LINK_TYPES, resolvePublicLinkToken } from '../utils/linkToken';
 import {
   formatPublicDate,
   formatPublicHour,
-  getChefDisplay,
   getCustomerFullName,
   getClientComment,
 } from '../utils/formatters';
+import {
+  DetalleContainer,
+  DetalleContent,
+  DetalleHeader,
+  StatusBadge,
+  CustomerHeader,
+  InfoCard,
+  Seccion,
+  UbicacionContenido,
+  ComentariosCliente,
+  HelpSection,
+  LoadingScreen,
+  ErrorScreen,
+  CARD_SHADOW,
+} from '../components/detalle-reserva/DetalleReservaKit';
+import dayIcon from '../assets/images/detalle/dia.png';
+import hourIcon from '../assets/images/detalle/hora.png';
+import listIcon from '../assets/images/detalle/lista.png';
+import menuIcon from '../assets/images/detalle/menu.png';
+import chefIcon from '../assets/images/detalle/chef.png';
+import mapIcon from '../assets/images/detalle/map.png';
 
 /**
  * Vista pública de dieta nutricional - accesible sin login mediante token
  * URL: /dieta/:token
+ * Mismo diseño que el detalle asignado (reservationDietDetail.jsx) vía DetalleReservaKit.
  */
 
 const pendingStatuses = new Set([
@@ -23,8 +44,8 @@ const pendingStatuses = new Set([
   StatusReservation.ReasignacionCocinera,
 ]);
 
-function getDietModalityLabel(value) {
-  return Number(value) === 2 ? 'Tengo un plan nutricional' : 'Quiero comida dietética';
+function getDietModalityShortLabel(value) {
+  return Number(value) === 2 ? 'Plan nutricional' : 'Comida dietética';
 }
 
 function getServicePreferenceLabel(value) {
@@ -176,27 +197,14 @@ export const PublicDietScreen = ({ token }) => {
   };
 
   if (loading) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.loadingBox}>Cargando detalle...</div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (error || !record) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.errorBox}>
-          <p style={styles.errorTitle}>No se pudo cargar el detalle</p>
-          <p style={styles.errorText}>{error || 'Enlace inválido o expirado'}</p>
-        </div>
-      </div>
-    );
+    return <ErrorScreen mensaje={error || 'Enlace inválido o expirado'} />;
   }
 
-  const chef = getChefDisplay(record);
   const customerName = getCustomerFullName(record);
-  const phone = record.contactPhone || record.ContactPhone || record.numberClient || record.NumberClient || '-';
   const direction = record.direction || record.Direction || '-';
   const reference = record.reference || record.Reference || '';
   const modality = Number(record.dietModality ?? record.DietModality ?? 1);
@@ -204,121 +212,90 @@ export const PublicDietScreen = ({ token }) => {
   const planName = record.nutritionalPlanFileName || record.NutritionalPlanFileName || 'Plan nutricional';
   const menus = getDietMenus(record);
   const clientComment = getClientComment(record);
+  const peopleCount = record.diner ?? record.Diner ?? record.personCount ?? record.PersonCount;
+  const peopleLabel = peopleCount != null
+    ? `${peopleCount} ${Number(peopleCount) === 1 ? 'persona' : 'personas'}`
+    : null;
+  const purchasesLabel = record.puchaseIngredients ? 'Con compras' : 'Sin compras';
 
   return (
-    <div style={styles.page}>
-      <div style={styles.container}>
-        <h1 style={styles.mainTitle}>Detalle de dieta nutricional</h1>
-        <p style={styles.subtitle}>Dieta #{recordId}</p>
+    <DetalleContainer>
+      <DetalleHeader>
+        <span style={styles.headerTitle}>Detalle de dieta nutricional</span>
+        <StatusBadge text="VISTA PÚBLICA" bgColor="#FFF0E6" color="#FF5136" />
+      </DetalleHeader>
 
-        <div style={styles.grid}>
-          <div style={styles.leftColumn}>
-            <section style={styles.card}>
-              <h2 style={styles.cardTitle}>Información general</h2>
-              <div style={styles.infoGrid}>
-                <InfoItem label="Nombre" value={customerName || '-'} />
-                <InfoItem label="Teléfono" value={phone} />
-                <InfoItem label="Ubicación" value={`${direction}${reference ? `, ${reference}` : ''}`} />
-                <InfoItem
-                  label="Personas"
-                  value={`${record.diner ?? record.Diner ?? record.personCount ?? record.PersonCount ?? '-'} personas`}
-                />
-                <InfoItem label="Modalidad" value={getDietModalityLabel(record.dietModality ?? record.DietModality)} />
-                <InfoItem label="Servicio" value={getServicePreferenceLabel(record.servicePreference ?? record.ServicePreference)} />
-              </div>
-            </section>
+      <DetalleContent>
+        <CustomerHeader nombre={customerName || 'Cliente'} subtitulo={`Dieta #${recordId}`} />
 
-            <section style={styles.card}>
-              <h2 style={styles.cardTitle}>Tu plan</h2>
-              {modality === 2 && planUrl ? (
-                <a href={planUrl} target="_blank" rel="noopener noreferrer" style={styles.planLink}>{planName}</a>
-              ) : menus.length > 0 ? (
-                menus.map((item, index) => {
-                  const name = item.menuName || item.MenuName || item.menuNombre || item.MenuNombre || `Plato ${item.menuId || item.MenuId || index + 1}`;
-                  const portions = item.portions ?? item.Portions ?? record.diner ?? record.Diner ?? 1;
-                  return (
-                    <div key={`${name}-${index}`} style={styles.menuItem}>
-                      <span style={styles.menuName}>{name}</span>
-                      <span style={styles.menuPortions}>{portions}</span>
-                    </div>
-                  );
-                })
-              ) : (
-                <p style={styles.emptyText}>Plan en revisión por nuestro equipo.</p>
-              )}
-            </section>
+        <InfoCard
+          rows={[
+            { icon: dayIcon, label: formatPublicDate(getDateValue(record)) },
+            { icon: hourIcon, label: formatPublicHour(getHourValue(record)) },
+            { icon: listIcon, label: purchasesLabel },
+            peopleLabel ? { icon: menuIcon, label: peopleLabel } : null,
+            { icon: listIcon, label: `Modalidad: ${getDietModalityShortLabel(record.dietModality ?? record.DietModality)}` },
+            { icon: chefIcon, label: `Servicio: ${getServicePreferenceLabel(record.servicePreference ?? record.ServicePreference)}` },
+          ].filter(Boolean)}
+        />
 
-            {isAuthenticated && clientComment && (
-              <section style={styles.card}>
-                <h2 style={styles.cardTitle}>Comentarios del cliente</h2>
-                <p style={styles.commentText}>{clientComment}</p>
-              </section>
-            )}
+        <ComentariosCliente texto={isAuthenticated ? clientComment : null} />
 
-            {canAcceptAsChef && (
-              <section style={styles.card}>
-                <h2 style={styles.cardTitle}>Acciones de cocinera</h2>
-                <div style={styles.actionRow}>
-                  <button type="button" style={styles.acceptButton} onClick={handleAccept} disabled={submittingAssignment}>
-                    {submittingAssignment ? 'Aceptando...' : 'Aceptar solicitud'}
-                  </button>
-                  <button type="button" style={styles.rejectButton} onClick={() => setRejectModalVisible(true)} disabled={submittingAssignment}>
-                    Rechazar
-                  </button>
+        <Seccion icon={mapIcon} titulo="Ubicación">
+          <UbicacionContenido direccion={direction} referencia={reference} />
+        </Seccion>
+
+        <Seccion icon={chefIcon} titulo="Tu plan">
+          {modality === 2 && planUrl ? (
+            <a href={planUrl} target="_blank" rel="noopener noreferrer" style={styles.planLink}>{planName}</a>
+          ) : menus.length > 0 ? (
+            menus.map((item, index) => {
+              const name = item.menuName || item.MenuName || item.menuNombre || item.MenuNombre
+                || `Plato ${item.menuId || item.MenuId || index + 1}`;
+              const portions = item.portions ?? item.Portions ?? peopleCount ?? 1;
+              return (
+                <div key={`${name}-${index}`} style={styles.dishCard}>
+                  <p style={styles.dishName}>{name}</p>
+                  <div style={styles.dishFooter}>
+                    <span style={styles.portionsText}>{portions} porciones</span>
+                  </div>
                 </div>
-              </section>
-            )}
+              );
+            })
+          ) : (
+            <p style={styles.emptyText}>Plan en revisión por nuestro equipo.</p>
+          )}
+        </Seccion>
 
-            {!isAuthenticated && (
-              <section style={styles.card}>
-                <h2 style={styles.cardTitle}>¿Tienes algún comentario?</h2>
-                <textarea
-                  style={styles.textarea}
-                  placeholder="Escríbelo aquí..."
-                  value={comments}
-                  onChange={(event) => setComments(event.target.value)}
-                />
-                <button type="button" style={styles.primaryButton} onClick={handleSendComments} disabled={submittingComment}>
-                  {submittingComment ? 'Enviando...' : 'Enviar comentarios'}
-                </button>
-              </section>
-            )}
-          </div>
+        {canAcceptAsChef && (
+          <Seccion icon={chefIcon} titulo="Acciones de cocinera">
+            <div style={styles.actionRow}>
+              <button type="button" style={styles.acceptButton} onClick={handleAccept} disabled={submittingAssignment}>
+                {submittingAssignment ? 'Aceptando...' : 'Aceptar solicitud'}
+              </button>
+              <button type="button" style={styles.rejectButton} onClick={() => setRejectModalVisible(true)} disabled={submittingAssignment}>
+                Rechazar
+              </button>
+            </div>
+          </Seccion>
+        )}
 
-          <div style={styles.rightColumn}>
-            <section style={styles.sideCard}>
-              <h3 style={styles.sideTitle}>Fecha y hora</h3>
-              <SideItem label="Fecha" value={formatPublicDate(getDateValue(record))} />
-              <SideItem label="Hora" value={formatPublicHour(getHourValue(record))} />
-            </section>
+        {!isAuthenticated && (
+          <Seccion icon={listIcon} titulo="¿Tienes algún comentario?">
+            <textarea
+              style={styles.textarea}
+              placeholder="Escríbelo aquí..."
+              value={comments}
+              onChange={(event) => setComments(event.target.value)}
+            />
+            <button type="button" style={styles.primaryButton} onClick={handleSendComments} disabled={submittingComment}>
+              {submittingComment ? 'Enviando...' : 'Enviar comentarios'}
+            </button>
+          </Seccion>
+        )}
 
-            <section style={styles.sideCard}>
-              <h3 style={styles.sideTitle}>Cocinera asignada</h3>
-              <div style={styles.chefRow}>
-                <div style={styles.chefAvatar}>{chef.initials}</div>
-                <div>
-                  <p style={styles.chefName}>{chef.name}</p>
-                  <p style={styles.chefLastName}>{chef.lastName}</p>
-                </div>
-              </div>
-              <p style={styles.chefDescription}>
-                {chef.assigned
-                  ? 'Cocinera profesional asignada a tu servicio.'
-                  : 'Tu cocinera será asignada pronto.'}
-              </p>
-            </section>
-
-            <a
-              href="https://wa.me/51963138202?text=Hola!%20Necesito%20ayuda%20con%20mi%20Dieta%20Nutricional"
-              style={styles.helpLink}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <button type="button" style={styles.helpButton}>Ayuda</button>
-            </a>
-          </div>
-        </div>
-      </div>
+        <HelpSection />
+      </DetalleContent>
 
       {acceptModalVisible && (
         <div style={styles.modalOverlay}>
@@ -349,308 +326,154 @@ export const PublicDietScreen = ({ token }) => {
           </div>
         </div>
       )}
-    </div>
+    </DetalleContainer>
   );
 };
 
-const InfoItem = ({ label, value }) => (
-  <div>
-    <p style={styles.infoLabel}>{label}</p>
-    <p style={styles.infoValue}>{value}</p>
-  </div>
-);
-
-const SideItem = ({ label, value }) => (
-  <div style={styles.sideItem}>
-    <p style={styles.sideLabel}>{label}</p>
-    <p style={styles.sideValue}>{value}</p>
-  </div>
-);
-
+// Solo estilos propios de esta pantalla — la estructura visual viene del kit.
 const styles = {
-  page: {
-    minHeight: '100vh',
-    backgroundColor: '#E7F6FD',
-    padding: `${spacing.medium}px`,
-  },
-  container: {
-    maxWidth: 1100,
-    margin: '0 auto',
-  },
-  mainTitle: {
-    margin: 0,
-    fontSize: 28,
-    fontWeight: 800,
-    color: '#1a2332',
-  },
-  subtitle: {
-    margin: '8px 0 20px',
-    color: '#6b7a90',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) 300px',
-    gap: 20,
-  },
-  leftColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-  },
-  rightColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    border: '1px solid #e8eef5',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  },
-  sideCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    border: '1px solid #e8eef5',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-  },
-  cardTitle: {
-    margin: '0 0 16px',
-    fontSize: 16,
+  headerTitle: {
+    fontSize: '16px',
     fontWeight: 700,
-    color: '#1a2332',
+    color: '#1A1F24',
   },
-  sideTitle: {
-    margin: '0 0 16px',
-    fontSize: 14,
+  dishCard: {
+    backgroundColor: '#EAF4FB',
+    borderRadius: '18px',
+    padding: `${spacing.medium}px`,
+    boxShadow: CARD_SHADOW,
+    marginBottom: `${spacing.medium}px`,
+  },
+  dishName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1A1F24',
+    marginBottom: '4px',
+  },
+  dishFooter: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  portionsText: {
+    fontSize: '13px',
+    color: '#6B7280',
+  },
+  emptyText: {
+    fontSize: '14px',
+    color: '#9CA3AF',
+    textAlign: 'center',
+    padding: `${spacing.medium}px 0`,
+  },
+  planLink: {
+    fontSize: '14px',
+    color: '#3B82F6',
     fontWeight: 600,
-    color: '#6b7a90',
+    textDecoration: 'none',
+    wordBreak: 'break-word',
   },
-  infoGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gap: 16,
+  actionRow: {
+    display: 'flex',
+    gap: `${spacing.small}px`,
   },
-  infoLabel: {
-    margin: '0 0 6px',
-    fontSize: 12,
-    color: '#6b7a90',
-  },
-  infoValue: {
-    margin: 0,
-    fontSize: 14,
+  acceptButton: {
+    flex: 1,
+    backgroundColor: '#2EBE60',
+    padding: '16px',
+    borderRadius: '30px',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '16px',
     fontWeight: 600,
-    color: '#1a2332',
+    color: '#FFFFFF',
+  },
+  rejectButton: {
+    flex: 1,
+    backgroundColor: '#FF51361A',
+    padding: '16px',
+    borderRadius: '30px',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: 600,
+    color: '#FF5136',
   },
   textarea: {
     width: '100%',
-    minHeight: 120,
-    padding: 16,
-    border: '2px solid #e8eef5',
-    borderRadius: 10,
-    fontSize: 14,
-    marginBottom: 12,
-    boxSizing: 'border-box',
+    minHeight: '110px',
+    padding: `${spacing.small}px`,
+    border: '1px solid #E5E7EB',
+    borderRadius: '12px',
+    fontSize: '14px',
     fontFamily: 'inherit',
+    marginBottom: `${spacing.small}px`,
+    boxSizing: 'border-box',
+    resize: 'vertical',
   },
   primaryButton: {
     width: '100%',
-    padding: 14,
+    padding: '14px',
     backgroundColor: '#FF5136',
     color: '#FFFFFF',
     border: 'none',
-    borderRadius: 8,
-    fontSize: 14,
+    borderRadius: '30px',
+    fontSize: '15px',
     fontWeight: 600,
     cursor: 'pointer',
   },
   secondaryButton: {
     width: '100%',
-    marginTop: 8,
-    padding: 12,
-    backgroundColor: 'transparent',
-    color: '#6b7a90',
+    padding: '12px',
+    background: 'transparent',
     border: 'none',
     cursor: 'pointer',
-  },
-  helpLink: {
-    textDecoration: 'none',
-  },
-  helpButton: {
-    width: '100%',
-    padding: 14,
-    backgroundColor: '#FF51361A',
-    color: '#FF5136',
-    border: 'none',
-    borderRadius: 20,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  sideItem: {
-    marginBottom: 16,
-  },
-  sideLabel: {
-    margin: '0 0 4px',
-    fontSize: 12,
-    color: '#6b7a90',
-  },
-  sideValue: {
-    margin: 0,
-    fontSize: 15,
-    fontWeight: 700,
-    color: '#1a2332',
-  },
-  chefRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 16,
-  },
-  chefAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #FF5136 0%, #ff8e53 100%)',
-    color: '#FFFFFF',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 28,
-    fontWeight: 700,
-  },
-  chefName: {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#1a2332',
-  },
-  chefLastName: {
-    margin: '4px 0 0',
-    fontSize: 14,
-    color: '#6b7a90',
-  },
-  chefDescription: {
-    margin: 0,
-    fontSize: 13,
-    color: '#6b7a90',
-    lineHeight: 1.6,
-  },
-  planLink: {
-    color: '#1391E2',
-    fontWeight: 600,
-    textDecoration: 'none',
-  },
-  menuItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 12,
-    padding: '13px 0',
-    borderBottom: '1px solid #eef2f6',
-  },
-  menuName: {
-    fontSize: 15,
-    fontWeight: 700,
-    color: '#1a2332',
-  },
-  menuPortions: {
-    border: '1px solid #e8eef5',
-    borderRadius: 999,
-    padding: '4px 12px',
-    fontWeight: 700,
-    color: '#1C2837',
-  },
-  actionRow: {
-    display: 'flex',
-    gap: 12,
-  },
-  acceptButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 30,
-    border: 'none',
-    backgroundColor: '#2EBE60',
-    color: '#FFFFFF',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  rejectButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 30,
-    border: 'none',
-    backgroundColor: '#FF51361A',
-    color: '#FF5136',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  loadingBox: {
-    textAlign: 'center',
-    padding: 40,
-    color: '#6b7a90',
-  },
-  errorBox: {
-    maxWidth: 480,
-    margin: '40px auto',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    textAlign: 'center',
-  },
-  errorTitle: {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#1a2332',
-  },
-  errorText: {
-    margin: '8px 0 0',
-    color: '#6b7a90',
-  },
-  emptyText: {
-    margin: 0,
-    textAlign: 'center',
-    color: '#6b7a90',
-    padding: '12px 0',
-  },
-  commentText: {
-    margin: 0,
-    fontSize: 14,
-    color: '#1a2332',
-    lineHeight: 1.6,
-    whiteSpace: 'pre-wrap',
+    fontSize: '14px',
+    fontWeight: 500,
+    color: '#6B7280',
   },
   modalOverlay: {
     position: 'fixed',
     inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.medium,
     zIndex: 1000,
+    padding: `${spacing.medium}px`,
   },
   modalContent: {
-    width: '100%',
-    maxWidth: 420,
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: spacing.large,
+    borderRadius: '20px',
+    padding: `${spacing.large}px`,
+    maxWidth: '400px',
+    width: '100%',
+    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
   },
   modalTitle: {
-    margin: '0 0 8px',
-    fontSize: 20,
+    fontSize: '20px',
     fontWeight: 700,
-    color: '#1a2332',
+    color: '#1A1F24',
     textAlign: 'center',
+    marginBottom: `${spacing.small}px`,
   },
   modalDescription: {
-    margin: '0 0 16px',
+    fontSize: '14px',
+    color: '#6B7280',
     textAlign: 'center',
-    color: '#6b7a90',
+    marginBottom: `${spacing.medium}px`,
+    lineHeight: '20px',
   },
 };
 
-export default PublicDietScreen;
+// Inyectar animación del loader
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+}

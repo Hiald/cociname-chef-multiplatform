@@ -4,6 +4,7 @@ import { apiService } from '../services/api.service';
 import { useAuth } from '../hooks/useAuth';
 import { StatusReservation } from '../types';
 import { PUBLIC_LINK_TYPES, resolvePublicLinkToken } from '../utils/linkToken';
+import { HelpDetail } from '../assets/svgs';
 import {
   formatPublicDate,
   formatPublicHour,
@@ -15,7 +16,11 @@ import {
 /**
  * Vista pública de tarea de servicio - accesible sin login mediante token
  * URL: /tarea/:token
+ * Mismo diseño que el detalle asignado (reservationTareaDetail.jsx): una sola
+ * columna con header blanco y tarjetas, sin las acciones privadas de la cocinera.
  */
+
+const SUPPORT_CONTACT_URL = 'https://api.whatsapp.com/send/?phone=51963138202&text=Hola%21+Vengo+de+la+plataforma+y+tengo+una+consulta';
 
 const pendingStatuses = new Set([
   StatusReservation.Creada,
@@ -173,17 +178,16 @@ export const PublicTareaScreen = ({ token }) => {
 
   if (loading) {
     return (
-      <div style={styles.page}>
-        <div style={styles.loadingBox}>Cargando detalle...</div>
+      <div style={styles.loadingContainer}>
+        <div style={styles.spinner} />
       </div>
     );
   }
 
   if (error || !record) {
     return (
-      <div style={styles.page}>
-        <div style={styles.errorBox}>
-          <p style={styles.errorTitle}>No se pudo cargar el detalle</p>
+      <div style={styles.container}>
+        <div style={styles.content}>
           <p style={styles.errorText}>{error || 'Enlace inválido o expirado'}</p>
         </div>
       </div>
@@ -200,121 +204,115 @@ export const PublicTareaScreen = ({ token }) => {
   const clientComment = getClientComment(record);
 
   return (
-    <div style={styles.page}>
-      <div style={styles.container}>
-        <h1 style={styles.mainTitle}>Aderezos, salsas y bases</h1>
-        <p style={styles.subtitle}>Servicio #{recordId}</p>
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Detalle de Actividad de Cocina</h1>
+        <span style={styles.publicBadge}>Vista pública</span>
+      </div>
 
-        <div style={styles.grid}>
-          <div style={styles.leftColumn}>
-            <section style={styles.card}>
-              <h2 style={styles.cardTitle}>Información general</h2>
-              <div style={styles.infoGrid}>
-                <InfoItem label="Nombre" value={customerName || '-'} />
-                <InfoItem label="Teléfono" value={phone} />
-                <InfoItem label="Ubicación" value={`${direction}${reference ? `, ${reference}` : ''}`} />
-                <InfoItem
-                  label="Personas"
-                  value={`${record.diner ?? record.Diner ?? record.personCount ?? record.PersonCount ?? '-'} personas`}
-                />
-                <InfoItem label="Servicio" value={getServiceModalityLabel(record.serviceModality ?? record.ServiceModality)} />
-              </div>
-            </section>
+      <div style={styles.content}>
+        <p style={styles.subtitle}>#{recordId}</p>
 
-            <section style={styles.card}>
-              <h2 style={styles.cardTitle}>Qué necesitas</h2>
-              <p style={styles.needsText}>{record.needsDescription || record.NeedsDescription || '-'}</p>
-            </section>
-
-            <section style={styles.card}>
-              <h2 style={styles.cardTitle}>Cotización estimada</h2>
-              <div style={styles.quoteBox}>
-                <p style={styles.quoteLabel}>Horas estimadas</p>
-                <p style={styles.quoteValue}>{hours > 0 ? `${hours} h` : 'Por confirmar'}</p>
-              </div>
-              {activities.length > 0 ? activities.map((item, index) => {
-                const description = item.activityDescription || item.ActivityDescription || item.description || item.Description || 'Actividad';
-                const minutes = Number(item.estimatedMinutes ?? item.EstimatedMinutes ?? 0);
-                return (
-                  <div key={`${description}-${index}`} style={styles.activityItem}>
-                    <p style={styles.activityTitle}>{description}</p>
-                    <p style={styles.activityMeta}>{minutes > 0 ? `${minutes} min estimados` : 'Tiempo por confirmar'}</p>
-                  </div>
-                );
-              }) : (
-                <p style={styles.emptyText}>Sin actividades detalladas.</p>
-              )}
-            </section>
-
-            {isAuthenticated && clientComment && (
-              <section style={styles.card}>
-                <h2 style={styles.cardTitle}>Comentarios del cliente</h2>
-                <p style={styles.commentText}>{clientComment}</p>
-              </section>
-            )}
-
-            {canAcceptAsChef && (
-              <section style={styles.card}>
-                <h2 style={styles.cardTitle}>Acciones de cocinera</h2>
-                <div style={styles.actionRow}>
-                  <button type="button" style={styles.acceptButton} onClick={handleAccept} disabled={submittingAssignment}>
-                    {submittingAssignment ? 'Aceptando...' : 'Aceptar solicitud'}
-                  </button>
-                  <button type="button" style={styles.rejectButton} onClick={() => setRejectModalVisible(true)} disabled={submittingAssignment}>
-                    Rechazar
-                  </button>
-                </div>
-              </section>
-            )}
-
-            {!isAuthenticated && (
-              <section style={styles.card}>
-                <h2 style={styles.cardTitle}>¿Tienes algún comentario?</h2>
-                <textarea
-                  style={styles.textarea}
-                  placeholder="Escríbelo aquí..."
-                  value={comments}
-                  onChange={(event) => setComments(event.target.value)}
-                />
-                <button type="button" style={styles.primaryButton} onClick={handleSendComments} disabled={submittingComment}>
-                  {submittingComment ? 'Enviando...' : 'Enviar comentarios'}
-                </button>
-              </section>
-            )}
+        <section style={styles.card}>
+          <h2 style={styles.cardTitle}>Información general</h2>
+          <div style={styles.infoGrid}>
+            <InfoItem label="Cliente" value={customerName || 'No especificado'} />
+            <InfoItem label="Teléfono" value={phone} />
+            <InfoItem label="Ubicación" value={`${direction}${reference ? `, ${reference}` : ''}`} />
+            <InfoItem
+              label="Personas"
+              value={`${record.diner ?? record.Diner ?? record.personCount ?? record.PersonCount ?? '-'} personas`}
+            />
+            <InfoItem label="Servicio" value={getServiceModalityLabel(record.serviceModality ?? record.ServiceModality)} />
+            <InfoItem label="Compras" value={record.puchaseIngredients ? 'Con compras' : 'Sin compras'} />
           </div>
+        </section>
 
-          <div style={styles.rightColumn}>
-            <section style={styles.sideCard}>
-              <h3 style={styles.sideTitle}>Fecha y hora</h3>
-              <SideItem label="Fecha" value={formatPublicDate(getDateValue(record))} />
-              <SideItem label="Hora" value={formatPublicHour(getHourValue(record))} />
-            </section>
+        <section style={styles.card}>
+          <h2 style={styles.cardTitle}>Qué necesitas</h2>
+          <p style={styles.needsText}>{record.needsDescription || record.NeedsDescription || '-'}</p>
+        </section>
 
-            <section style={styles.sideCard}>
-              <h3 style={styles.sideTitle}>Cocinera asignada</h3>
-              <div style={styles.chefRow}>
-                <div style={styles.chefAvatar}>{chef.initials}</div>
-                <div>
-                  <p style={styles.chefName}>{chef.name}</p>
-                  <p style={styles.chefLastName}>{chef.lastName}</p>
-                </div>
-              </div>
-              <p style={styles.chefDescription}>
-                {chef.assigned
-                  ? 'Cocinera profesional asignada a tu servicio.'
-                  : 'Tu cocinera será asignada pronto.'}
-              </p>
-            </section>
-
-            <a
-              href="https://wa.me/51963138202?text=Hola!%20Necesito%20ayuda%20con%20mi%20servicio%20de%20Aderezos"
-              style={styles.helpLink}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <button type="button" style={styles.helpButton}>Ayuda</button>
-            </a>
+        <section style={styles.card}>
+          <h2 style={styles.cardTitle}>Cotización estimada</h2>
+          <div style={styles.quoteBox}>
+            <p style={styles.quoteLabel}>Horas estimadas</p>
+            <p style={styles.quoteValue}>{hours > 0 ? `${hours} h` : 'Por confirmar'}</p>
           </div>
+          {activities.length > 0 ? activities.map((item, index) => {
+            const description = item.activityDescription || item.ActivityDescription || item.description || item.Description || 'Actividad';
+            const minutes = Number(item.estimatedMinutes ?? item.EstimatedMinutes ?? 0);
+            return (
+              <div key={`${description}-${index}`} style={styles.activityItem}>
+                <p style={styles.activityTitle}>{description}</p>
+                <p style={styles.activityMeta}>{minutes > 0 ? `${minutes} min estimados` : 'Tiempo por confirmar'}</p>
+              </div>
+            );
+          }) : (
+            <p style={styles.emptyText}>Sin actividades detalladas.</p>
+          )}
+        </section>
+
+        <section style={styles.card}>
+          <h2 style={styles.cardTitle}>Fecha y hora</h2>
+          <InfoItem label="Fecha" value={formatPublicDate(getDateValue(record))} />
+          <InfoItem label="Hora" value={formatPublicHour(getHourValue(record))} />
+        </section>
+
+        <section style={styles.card}>
+          <h2 style={styles.cardTitle}>Cocinera asignada</h2>
+          <div style={styles.chefRow}>
+            <div style={styles.chefAvatar}>{chef.initials}</div>
+            <div>
+              <p style={styles.chefName}>{chef.name}</p>
+              <p style={styles.chefLastName}>{chef.lastName}</p>
+            </div>
+          </div>
+        </section>
+
+        {isAuthenticated && clientComment ? (
+          <section style={styles.card}>
+            <h2 style={styles.cardTitle}>Comentarios del cliente</h2>
+            <p style={styles.commentText}>{clientComment}</p>
+          </section>
+        ) : null}
+
+        {canAcceptAsChef && (
+          <section style={styles.card}>
+            <h2 style={styles.cardTitle}>Acciones de cocinera</h2>
+            <div style={styles.actionButtonsContainer}>
+              <button type="button" style={styles.acceptButton} onClick={handleAccept} disabled={submittingAssignment}>
+                <span style={styles.acceptButtonText}>{submittingAssignment ? 'Aceptando...' : 'Aceptar solicitud'}</span>
+              </button>
+              <button type="button" style={styles.rejectButton} onClick={() => setRejectModalVisible(true)} disabled={submittingAssignment}>
+                <span style={styles.rejectButtonText}>Rechazar</span>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {!isAuthenticated && (
+          <section style={styles.card}>
+            <h2 style={styles.cardTitle}>¿Tienes algún comentario?</h2>
+            <textarea
+              style={styles.textarea}
+              placeholder="Escríbelo aquí..."
+              value={comments}
+              onChange={(event) => setComments(event.target.value)}
+            />
+            <button type="button" style={styles.primaryButton} onClick={handleSendComments} disabled={submittingComment}>
+              {submittingComment ? 'Enviando...' : 'Enviar comentarios'}
+            </button>
+          </section>
+        )}
+
+        <div style={styles.footer}>
+          <a href={SUPPORT_CONTACT_URL} style={styles.helpLink} target="_blank" rel="noopener noreferrer">
+            <button type="button" style={styles.helpButton}>
+              <HelpDetail />
+              <span style={styles.helpButtonText}>Necesito Ayuda</span>
+            </button>
+          </a>
         </div>
       </div>
 
@@ -333,12 +331,13 @@ export const PublicTareaScreen = ({ token }) => {
           <div style={styles.modalContent}>
             <h3 style={styles.modalTitle}>Rechazar solicitud</h3>
             <textarea
-              style={styles.textarea}
+              style={styles.modalTextarea}
               placeholder="Motivo de rechazo"
               value={rejectionReason}
               onChange={(event) => setRejectionReason(event.target.value)}
+              rows={4}
             />
-            <button type="button" style={styles.rejectButton} onClick={handleReject} disabled={submittingAssignment || !rejectionReason.trim()}>
+            <button type="button" style={styles.modalButtonDanger} onClick={handleReject} disabled={submittingAssignment || !rejectionReason.trim()}>
               {submittingAssignment ? 'Rechazando...' : 'Confirmar rechazo'}
             </button>
             <button type="button" style={styles.secondaryButton} onClick={() => setRejectModalVisible(false)}>
@@ -352,319 +351,103 @@ export const PublicTareaScreen = ({ token }) => {
 };
 
 const InfoItem = ({ label, value }) => (
-  <div>
+  <div style={styles.infoItem}>
     <p style={styles.infoLabel}>{label}</p>
     <p style={styles.infoValue}>{value}</p>
   </div>
 );
 
-const SideItem = ({ label, value }) => (
-  <div style={styles.sideItem}>
-    <p style={styles.sideLabel}>{label}</p>
-    <p style={styles.sideValue}>{value}</p>
-  </div>
-);
-
+// Estilos copiados 1:1 de reservationTareaDetail.jsx (diseño canónico de tarea).
 const styles = {
-  page: {
-    minHeight: '100vh',
-    backgroundColor: '#E7F6FD',
-    padding: `${spacing.medium}px`,
+  container: { minHeight: '100vh', backgroundColor: '#FAFAFA', display: 'flex', flexDirection: 'column' },
+  header: {
+    display: 'flex', alignItems: 'center', gap: 12, paddingTop: spacing.medium,
+    paddingLeft: spacing.medium, paddingRight: spacing.medium, paddingBottom: spacing.small,
+    backgroundColor: '#FFFFFF', borderBottom: '1px solid #E5E7EB',
   },
-  container: {
-    maxWidth: 1100,
-    margin: '0 auto',
-  },
-  mainTitle: {
-    margin: 0,
-    fontSize: 28,
-    fontWeight: 800,
-    color: '#1a2332',
-  },
-  subtitle: {
-    margin: '8px 0 20px',
-    color: '#6b7a90',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) 300px',
-    gap: 20,
-  },
-  leftColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-  },
-  rightColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-  },
+  title: { margin: 0, fontSize: 20, fontWeight: 800, color: '#1B2736', flex: 1 },
+  publicBadge: { fontSize: 12, color: '#6B7280', fontStyle: 'italic' },
+  content: { flex: 1, overflow: 'auto', padding: spacing.medium },
+  subtitle: { margin: '0 0 16px', color: '#6b7a90' },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 20,
-    border: '1px solid #e8eef5',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+    backgroundColor: '#FFFFFF', borderRadius: 12, padding: spacing.medium, marginBottom: spacing.medium,
+    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.05)',
   },
-  sideCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    border: '1px solid #e8eef5',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+  cardTitle: { margin: '0 0 12px', fontSize: 16, fontWeight: 700, color: '#1B2736' },
+  infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 },
+  infoItem: { marginBottom: 8 },
+  infoLabel: { margin: '0 0 4px', fontSize: 12, color: '#6B7280' },
+  infoValue: { margin: 0, fontSize: 14, fontWeight: 600, color: '#1B2736' },
+  needsText: { margin: 0, fontSize: 14, color: '#1a2332', lineHeight: 1.6, whiteSpace: 'pre-wrap' },
+  quoteBox: {
+    backgroundColor: '#f4f8fd', border: '1px solid #e0ebf6', borderRadius: 12, padding: 16, marginBottom: 12,
   },
-  cardTitle: {
-    margin: '0 0 16px',
-    fontSize: 16,
-    fontWeight: 700,
-    color: '#1a2332',
+  quoteLabel: { margin: '0 0 4px', fontSize: 12, color: '#6b7a90' },
+  quoteValue: { margin: 0, fontSize: 18, fontWeight: 700, color: '#1a2332' },
+  activityItem: { padding: '12px 0', borderBottom: '1px solid #eef2f6' },
+  activityTitle: { margin: 0, fontSize: 14, fontWeight: 600, color: '#1a2332' },
+  activityMeta: { margin: '4px 0 0', fontSize: 12, color: '#6b7a90' },
+  emptyText: { margin: 0, textAlign: 'center', color: '#6b7a90', padding: '12px 0' },
+  chefRow: { display: 'flex', alignItems: 'center', gap: 16 },
+  chefAvatar: {
+    width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, #FF5136 0%, #ff8e53 100%)',
+    color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700,
   },
-  sideTitle: {
-    margin: '0 0 16px',
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#6b7a90',
-  },
-  infoGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-    gap: 16,
-  },
-  infoLabel: {
-    margin: '0 0 6px',
-    fontSize: 12,
-    color: '#6b7a90',
-  },
-  infoValue: {
-    margin: 0,
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#1a2332',
-  },
+  chefName: { margin: 0, fontSize: 16, fontWeight: 700, color: '#1B2736' },
+  chefLastName: { margin: '4px 0 0', fontSize: 13, color: '#6B7280' },
+  commentText: { margin: 0, fontSize: 14, color: '#324154', lineHeight: 1.6, whiteSpace: 'pre-wrap' },
+  loadingContainer: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' },
+  spinner: { width: 40, height: 40, border: '4px solid #DDE6EE', borderTop: '4px solid #FF4336', borderRadius: '50%', animation: 'spin 1s linear infinite' },
+  errorText: { textAlign: 'center', color: '#EF4444', fontSize: 16 },
+  actionButtonsContainer: { display: 'flex', gap: spacing.small },
+  acceptButton: { flex: 1, backgroundColor: '#2EBE60', padding: 16, borderRadius: 30, border: 'none', cursor: 'pointer' },
+  acceptButtonText: { fontSize: 16, fontWeight: 600, color: '#FFFFFF' },
+  rejectButton: { flex: 1, backgroundColor: '#FF51361A', padding: 16, borderRadius: 30, border: 'none', cursor: 'pointer' },
+  rejectButtonText: { fontSize: 16, fontWeight: 600, color: '#FF5136' },
   textarea: {
-    width: '100%',
-    minHeight: 120,
-    padding: 16,
-    border: '2px solid #e8eef5',
-    borderRadius: 10,
-    fontSize: 14,
-    marginBottom: 12,
-    boxSizing: 'border-box',
-    fontFamily: 'inherit',
+    width: '100%', minHeight: 110, padding: spacing.small, borderRadius: 8, border: '1px solid #E5E7EB',
+    fontSize: 14, marginBottom: spacing.small, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
   },
   primaryButton: {
-    width: '100%',
-    padding: 14,
-    backgroundColor: '#FF5136',
-    color: '#FFFFFF',
-    border: 'none',
-    borderRadius: 8,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
+    width: '100%', padding: 14, backgroundColor: '#FF5136', color: '#FFFFFF', border: 'none',
+    borderRadius: 30, fontSize: 15, fontWeight: 600, cursor: 'pointer',
   },
   secondaryButton: {
-    width: '100%',
-    marginTop: 8,
-    padding: 12,
-    backgroundColor: 'transparent',
-    color: '#6b7a90',
-    border: 'none',
-    cursor: 'pointer',
+    width: '100%', padding: 12, background: 'transparent', border: 'none', cursor: 'pointer',
+    fontSize: 14, fontWeight: 500, color: '#6B7280',
   },
-  helpLink: {
-    textDecoration: 'none',
-  },
+  footer: { display: 'flex', justifyContent: 'center', marginTop: spacing.large, marginBottom: spacing.large },
+  helpLink: { textDecoration: 'none' },
   helpButton: {
-    width: '100%',
-    padding: 14,
-    backgroundColor: '#FF51361A',
-    color: '#FF5136',
-    border: 'none',
-    borderRadius: 20,
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: `${spacing.small}px ${spacing.medium}px`,
+    borderRadius: 20, backgroundColor: '#FCE9E8', border: 'none', cursor: 'pointer',
   },
-  sideItem: {
-    marginBottom: 16,
-  },
-  sideLabel: {
-    margin: '0 0 4px',
-    fontSize: 12,
-    color: '#6b7a90',
-  },
-  sideValue: {
-    margin: 0,
-    fontSize: 15,
-    fontWeight: 700,
-    color: '#1a2332',
-  },
-  chefRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 16,
-  },
-  chefAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, #FF5136 0%, #ff8e53 100%)',
-    color: '#FFFFFF',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 28,
-    fontWeight: 700,
-  },
-  chefName: {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#1a2332',
-  },
-  chefLastName: {
-    margin: '4px 0 0',
-    fontSize: 14,
-    color: '#6b7a90',
-  },
-  chefDescription: {
-    margin: 0,
-    fontSize: 13,
-    color: '#6b7a90',
-    lineHeight: 1.6,
-  },
-  needsText: {
-    margin: 0,
-    fontSize: 14,
-    color: '#1a2332',
-    lineHeight: 1.6,
-    whiteSpace: 'pre-wrap',
-  },
-  commentText: {
-    margin: 0,
-    fontSize: 14,
-    color: '#1a2332',
-    lineHeight: 1.6,
-    whiteSpace: 'pre-wrap',
-  },
-  quoteBox: {
-    backgroundColor: '#f4f8fd',
-    border: '1px solid #e0ebf6',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  quoteLabel: {
-    margin: '0 0 4px',
-    fontSize: 12,
-    color: '#6b7a90',
-  },
-  quoteValue: {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#1a2332',
-  },
-  activityItem: {
-    padding: '12px 0',
-    borderBottom: '1px solid #eef2f6',
-  },
-  activityTitle: {
-    margin: 0,
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#1a2332',
-  },
-  activityMeta: {
-    margin: '4px 0 0',
-    fontSize: 12,
-    color: '#6b7a90',
-  },
-  actionRow: {
-    display: 'flex',
-    gap: 12,
-  },
-  acceptButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 30,
-    border: 'none',
-    backgroundColor: '#2EBE60',
-    color: '#FFFFFF',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  rejectButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 30,
-    border: 'none',
-    backgroundColor: '#FF51361A',
-    color: '#FF5136',
-    fontWeight: 600,
-    cursor: 'pointer',
-  },
-  loadingBox: {
-    textAlign: 'center',
-    padding: 40,
-    color: '#6b7a90',
-  },
-  errorBox: {
-    maxWidth: 480,
-    margin: '40px auto',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-    textAlign: 'center',
-  },
-  errorTitle: {
-    margin: 0,
-    fontSize: 18,
-    fontWeight: 700,
-    color: '#1a2332',
-  },
-  errorText: {
-    margin: '8px 0 0',
-    color: '#6b7a90',
-  },
-  emptyText: {
-    margin: 0,
-    textAlign: 'center',
-    color: '#6b7a90',
-    padding: '12px 0',
-  },
+  helpButtonText: { fontSize: 14, fontWeight: 600, color: '#FF4336' },
   modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.medium,
-    zIndex: 1000,
+    position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+    alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: spacing.medium,
   },
-  modalContent: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: spacing.large,
+  modalContent: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: spacing.large, maxWidth: 400, width: '100%' },
+  modalTitle: { margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: '#1A1F24', textAlign: 'center' },
+  modalDescription: { margin: '0 0 16px', textAlign: 'center', color: '#6B7280' },
+  modalTextarea: {
+    width: '100%', padding: spacing.small, borderRadius: 8, border: '1px solid #E5E7EB',
+    fontSize: 14, marginBottom: spacing.medium, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
   },
-  modalTitle: {
-    margin: '0 0 8px',
-    fontSize: 20,
-    fontWeight: 700,
-    color: '#1a2332',
-    textAlign: 'center',
-  },
-  modalDescription: {
-    margin: '0 0 16px',
-    textAlign: 'center',
-    color: '#6b7a90',
+  modalButtonDanger: {
+    width: '100%', padding: 16, borderRadius: 30, border: 'none', cursor: 'pointer',
+    backgroundColor: '#EF4444', color: '#FFFFFF', fontSize: 16, fontWeight: 600, marginBottom: spacing.small,
   },
 };
 
-export default PublicTareaScreen;
+// Inyectar animación del loader
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+}

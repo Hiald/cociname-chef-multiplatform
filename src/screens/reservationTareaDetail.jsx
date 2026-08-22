@@ -15,9 +15,7 @@ import { RequestDetailShell } from '../components/request-detail/RequestDetailSh
 import {
   buildTareaScheduleRows,
   getDistrictLabel,
-  getReferenceLabel,
   getRequestAllergies,
-  getRequestClientComment,
   getRequestCustomerName,
   getRequestServiceAmount,
   getRequestServiceTitle,

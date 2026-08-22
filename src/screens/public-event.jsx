@@ -1,13 +1,23 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiService } from '../services/api.service';
 import { spacing } from '../styles';
-import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail } from '../assets/svgs';
+import { HelpDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
 import { getClientComment } from '../utils/formatters';
+import mapIcon from '../assets/images/detalle/map.png';
+import profileIcon from '../assets/images/detalle/perfil.png';
+import menuIcon from '../assets/images/detalle/menu.png';
+import dayIcon from '../assets/images/detalle/dia.png';
+import gainIcon from '../assets/images/detalle/ganancia.png';
+import rightIcon from '../assets/images/detalle/right.png';
+
+const SUPPORT_CONTACT_URL = 'https://api.whatsapp.com/send/?phone=51963138202&text=Hola%21+Vengo+de+la+plataforma+y+tengo+una+consulta';
 
 /**
  * Vista pública de evento - accesible sin login mediante token encriptado
  * URL: /evento/:token
+ * Mismo diseño que el detalle asignado de evento (reservationEventDetail.jsx),
+ * sin las acciones privadas (aceptar/rechazar).
  */
 export const PublicEventScreen = ({ token }) => {
   const [loading, setLoading] = useState(true);
@@ -90,18 +100,17 @@ export const PublicEventScreen = ({ token }) => {
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
-        <div style={styles.loader} />
-        <p style={styles.loadingText}>Cargando evento...</p>
+        <div style={styles.spinner} />
       </div>
     );
   }
 
   if (error || !event) {
     return (
-      <div style={styles.errorContainer}>
-        <span style={styles.errorTitle}>⚠️</span>
-        <p style={styles.errorText}>{error || 'Evento no encontrado'}</p>
-        <p style={styles.errorHint}>El enlace puede ser inválido o haber expirado.</p>
+      <div style={styles.container}>
+        <div style={styles.content}>
+          <p style={styles.errorText}>{error || 'No se pudo cargar el detalle del evento'}</p>
+        </div>
       </div>
     );
   }
@@ -110,130 +119,138 @@ export const PublicEventScreen = ({ token }) => {
 
   return (
     <div style={styles.container}>
-      <div style={styles.scrollView}>
-        <div style={styles.contentContainer}>
-          <div style={styles.customerHeader}>
-            <h1 style={styles.customerName}>
-              {event.customerName || 'Cliente'}
-            </h1>
-            <p style={styles.publicBadge}>Vista pública • Evento</p>
-          </div>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Detalle del Evento</h1>
+        <span style={styles.publicBadge}>Vista pública</span>
+      </div>
 
-          <div style={styles.infoCardContainer}>
-            <div style={styles.infoRow}>
-              <ClockDetail />
-              <span style={styles.infoRowLabel}>Fecha y hora</span>
-              <span style={styles.infoRowValue}>{formatDate(event.dateEvent)} - {event.hourEvent || 'No especificada'}</span>
-            </div>
-            <div style={styles.infoRow}>
-              <ListDetail />
-              <span style={styles.infoRowLabel}>Asistentes</span>
-              <span style={styles.infoRowValue}>{event.attendeesCount || 0} personas</span>
-            </div>
-            <div style={styles.infoRow}>
-              <HatblueDetail />
-              <span style={styles.infoRowLabel}>Tipo</span>
-              <span style={styles.infoRowValue}>{event.attendeesType === 1 ? 'Formal' : 'Casual'}</span>
-            </div>
-            <div style={styles.infoRow}>
-              <OrderDetail />
-              <span style={styles.infoRowLabel}>Porciones</span>
-              <span style={styles.infoRowValue}>{event.totalPortion || 0} porciones</span>
-            </div>
+      <div style={styles.content}>
+        {/* Cliente */}
+        <div style={styles.section}>
+          <div style={styles.sectionLabel}>
+            <img src={profileIcon} alt="Cliente" style={styles.sectionIcon} />
+            <span style={styles.sectionTitle}>Cliente</span>
           </div>
+          <div style={styles.infoCard}>
+            <span style={styles.infoRowLabel}>{event.customerName || 'No especificado'}</span>
+          </div>
+        </div>
 
+        {/* Fecha y Hora */}
+        <div style={styles.section}>
+          <div style={styles.sectionLabel}>
+            <img src={dayIcon} alt="Fecha" style={styles.sectionIcon} />
+            <span style={styles.sectionTitle}>Fecha y Hora</span>
+          </div>
+          <div style={styles.infoCard}>
+            <span style={styles.infoRowLabel}>{formatDate(event.dateEvent)}</span>
+            <span style={styles.infoRowValue}>{event.hourEvent || 'No especificada'}</span>
+          </div>
+        </div>
+
+        {/* Asistentes */}
+        <div style={styles.section}>
+          <div style={styles.sectionLabel}>
+            <img src={menuIcon} alt="Asistentes" style={styles.sectionIcon} />
+            <span style={styles.sectionTitle}>Asistentes</span>
+          </div>
+          <div style={styles.infoCard}>
+            <span style={styles.infoRowLabel}>Cantidad: {event.attendeesCount || 0} personas</span>
+            <span style={styles.infoRowValue}>Tipo: {event.attendeesType === 1 ? 'Formal' : 'Casual'}</span>
+          </div>
+        </div>
+
+        {/* Ubicación */}
+        <div style={styles.section}>
+          <div style={styles.sectionLabel}>
+            <img src={mapIcon} alt="Ubicación" style={styles.sectionIcon} />
+            <span style={styles.sectionTitle}>Ubicación</span>
+          </div>
+          <div style={styles.infoCard}>
+            <span style={styles.infoRowLabel}>{event.direction || 'No especificada'}</span>
+            <span style={styles.infoRowValue}>{event.ubication || event.reference || ''}</span>
+          </div>
+        </div>
+
+        {/* Menú Personalizado */}
+        {event.customMenuRequest && (
           <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <UbicationDetail />
-              <h2 style={styles.sectionTitle}>Ubicación</h2>
+            <div style={styles.sectionLabel}>
+              <img src={menuIcon} alt="Menú" style={styles.sectionIcon} />
+              <span style={styles.sectionTitle}>Menú Personalizado</span>
             </div>
-            <div style={styles.card}>
-              <p style={styles.addressText}>{event.direction || 'No especificada'}</p>
-              {event.reference ? (
-                <p style={styles.referenceText}>{event.reference}</p>
-              ) : null}
-              {event.customMenuRequest ? (
-                <p style={styles.referenceText}>{event.customMenuRequest}</p>
-              ) : null}
+            <div style={styles.infoCard}>
+              <span style={styles.infoRowValue}>{event.customMenuRequest}</span>
             </div>
           </div>
+        )}
 
-          {event.customMenuRequest && (
-            <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <RedhatDetail />
-                <h2 style={styles.sectionTitle}>Menú personalizado</h2>
-              </div>
-              <div style={styles.card}>
-                <p style={styles.referenceText}>{event.customMenuRequest}</p>
-              </div>
-            </div>
-          )}
-
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <RedhatDetail />
-              <h2 style={styles.sectionTitle}>Platos elegidos</h2>
-            </div>
-            <div style={styles.card}>
-              {recipes.length > 0 ? (
-                recipes.map((recipe, index) => (
-                  <div key={recipe.key || index} style={styles.dishItem}>
-                    <p style={styles.dishName}>{recipe.MenuNombre} - {recipe.MasterRecipeNombre}</p>
-                    <div style={styles.dishFooter}>
-                      <span style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</span>
-                      <button style={styles.viewRecipeButton} onClick={() => handleViewRecipe(recipe)}>
-                        <span style={styles.viewRecipeText}>Ver receta</span>
-                        <div style={styles.arrowIcon}>
-                          <ArrowRightDetail />
-                        </div>
-                      </button>
-                    </div>
+        {/* Platos Elegidos */}
+        <div style={styles.section}>
+          <div style={styles.sectionLabel}>
+            <img src={menuIcon} alt="" style={styles.sectionIcon} />
+            <span style={styles.sectionTitle}>Platos elegidos</span>
+          </div>
+          <div style={styles.card}>
+            {recipes.length > 0 ? (
+              recipes.map((recipe, index) => (
+                <div key={recipe.key || index} style={styles.dishCard}>
+                  <p style={styles.dishName}>
+                    {recipe.MenuNombre} - {recipe.MasterRecipeNombre}
+                  </p>
+                  <div style={styles.dishFooter}>
+                    <span style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</span>
+                    <button style={styles.viewRecipeButton} onClick={() => handleViewRecipe(recipe)}>
+                      <span style={styles.viewRecipeText}>Ver receta</span>
+                      <img src={rightIcon} alt="" style={styles.recipeArrowIcon} />
+                    </button>
                   </div>
-                ))
-              ) : (
-                <p style={styles.emptyText}>No hay platos registrados</p>
-              )}
-            </div>
+                </div>
+              ))
+            ) : (
+              <p style={styles.emptyText}>No hay platos registrados</p>
+            )}
           </div>
+        </div>
 
-          {clientComment && (
-            <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <ListDetail />
-                <h2 style={styles.sectionTitle}>Comentarios del cliente</h2>
-              </div>
-              <div style={styles.card}>
-                <p style={styles.emptyText}>{clientComment}</p>
-              </div>
-            </div>
-          )}
-
+        {/* Comentarios del Cliente */}
+        {clientComment && (
           <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <MoneyDetail />
-              <h2 style={styles.sectionTitle}>Detalle del servicio</h2>
+            <div style={styles.sectionLabel}>
+              <span style={styles.sectionTitle}>Comentarios del Cliente</span>
             </div>
-            <div style={styles.card}>
-              <div style={styles.garantiaRow}>
-                <span style={styles.garantiaLabel}>Estado</span>
-                <span style={styles.garantiaValue}>Evento público</span>
-              </div>
-              <div style={styles.divider} />
-              <div style={styles.garantiaRow}>
-                <span style={styles.garantiaTotal}>Total</span>
-                <span style={styles.garantiaTotalValue}>S/ {Number(event.commissionToChef ?? event.CommissionToChef ?? 0).toFixed(2)}</span>
-              </div>
+            <div style={styles.infoCard}>
+              <span style={styles.infoRowValue}>{clientComment}</span>
             </div>
           </div>
+        )}
 
-          <div style={styles.helpSection}>
-            <p style={styles.helpTitle}>Vista de solo lectura</p>
-            <p style={styles.helpText}>Para modificaciones, contacta con el servicio al cliente.</p>
+        {/* Detalle del servicio — SIEMPRE la comisión de la cocinera, nunca el total del cliente */}
+        <div style={styles.section}>
+          <div style={styles.sectionLabel}>
+            <img src={gainIcon} alt="" style={styles.sectionIcon} />
+            <span style={styles.sectionTitle}>Detalle del servicio</span>
           </div>
+          <div style={styles.card}>
+            <div style={styles.garantiaRow}>
+              <span style={styles.garantiaTotal}>Total</span>
+              <span style={styles.garantiaTotalValue}>S/ {Number(event.commissionToChef ?? event.CommissionToChef ?? 0).toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Botón de Ayuda */}
+        <div style={styles.footer}>
+          <a href={SUPPORT_CONTACT_URL} style={styles.helpLink}>
+            <button style={styles.helpButton}>
+              <HelpDetail />
+              <span style={styles.helpButtonText}>Necesito Ayuda</span>
+            </button>
+          </a>
         </div>
       </div>
 
+      {/* Recipe Modal */}
       {selectedRecipe && (
         <RecipeModal
           visible={recipeModalVisible}
@@ -249,162 +266,117 @@ export const PublicEventScreen = ({ token }) => {
   );
 };
 
+// Estilos copiados 1:1 de reservationEventDetail.jsx (diseño canónico de evento).
 const styles = {
   container: {
-    minHeight: '100%',
-    backgroundColor: '#F5F7FA',
-    width: '100%',
-    maxWidth: '100%',
-    boxSizing: 'border-box',
-    overflowX: 'hidden',
-  },
-  loadingContainer: {
     minHeight: '100vh',
+    backgroundColor: '#FAFAFA',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F7FA',
   },
-  loader: {
-    width: 48,
-    height: 48,
-    border: '4px solid #FEE2E2',
-    borderTopColor: '#FF5136',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-    margin: '16px 0 0 0',
-  },
-  errorContainer: {
-    minHeight: '100vh',
+  header: {
     display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F7FA',
-    padding: spacing.large,
-  },
-  errorTitle: {
-    fontSize: 48,
-    marginBottom: spacing.medium,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#EF4444',
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: spacing.small,
-    margin: `0 0 ${spacing.small}px 0`,
-  },
-  errorHint: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    margin: 0,
-  },
-  scrollView: {
-    width: '100%',
-    overflowY: 'auto',
-  },
-  contentContainer: {
+    gap: 12,
     paddingTop: spacing.medium,
     paddingLeft: spacing.medium,
     paddingRight: spacing.medium,
-    paddingBottom: 100,
-  },
-  customerHeader: {
     paddingBottom: spacing.small,
-    marginBottom: spacing.small,
+    backgroundColor: '#FFFFFF',
+    borderBottom: '1px solid #E5E7EB',
   },
-  customerName: {
+  title: {
+    margin: 0,
     fontSize: 20,
-    fontWeight: '700',
-    color: '#FF5136',
-    marginBottom: 4,
-    margin: '0 0 4px 0',
+    fontWeight: 800,
+    color: '#1B2736',
+    flex: 1,
   },
   publicBadge: {
     fontSize: 12,
     color: '#6B7280',
     fontStyle: 'italic',
-    margin: 0,
   },
-  infoCardContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: spacing.medium,
-    marginBottom: spacing.medium,
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-  },
-  infoRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 8,
-    borderBottom: '1px solid #F3F4F6',
-    gap: 8,
-  },
-  infoRowLabel: {
-    fontSize: 13,
-    color: '#1A1F24',
-    fontWeight: '500',
+  content: {
     flex: 1,
+    overflow: 'auto',
+    padding: `${spacing.medium}px`,
   },
-  infoRowValue: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'right',
+  loadingContainer: {
+    height: '100vh',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+  },
+  spinner: {
+    width: 40,
+    height: 40,
+    border: '4px solid #DDE6EE',
+    borderTop: '4px solid #FF4336',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
   },
   section: {
     marginBottom: spacing.large,
   },
-  sectionHeader: {
+  sectionLabel: {
     display: 'flex',
-    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     marginBottom: spacing.small,
+  },
+  sectionIcon: {
+    width: 24,
+    height: 24,
+    objectFit: 'contain',
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1F24',
-    marginLeft: spacing.small,
-    margin: `0 0 0 ${spacing.small}px`,
+    fontWeight: 700,
+    color: '#1B2736',
+    margin: 0,
   },
-  card: {
+  infoCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: spacing.medium,
-    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
+    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.05)',
   },
-  addressText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1F24',
-    marginBottom: 4,
-    margin: '0 0 4px 0',
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: spacing.medium,
+    boxShadow: '0px 2px 4px 0px #289FDF0A, 0px 7px 7px 0px #289FDF0A, 0px 15px 9px 0px #289FDF05, 0px 26px 10px 0px #289FDF03, 0px 41px 11px 0px #289FDF00',
   },
-  referenceText: {
-    fontSize: 13,
+  infoRowLabel: {
+    display: 'block',
+    fontSize: 14,
+    fontWeight: 600,
     color: '#6B7280',
-    lineHeight: '20px',
-    margin: '0 0 8px 0',
+    marginBottom: 4,
   },
-  dishItem: {
+  infoRowValue: {
+    display: 'block',
+    fontSize: 15,
+    fontWeight: 500,
+    color: '#1B2736',
+    lineHeight: '22px',
+    wordBreak: 'break-word',
+  },
+  dishCard: {
+    backgroundColor: '#EAF4FB',
+    borderRadius: 18,
+    padding: spacing.medium,
     marginBottom: spacing.medium,
+    boxShadow: '0px 2px 4px 0px #289FDF0A',
   },
   dishName: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: 600,
     color: '#1A1F24',
     marginBottom: 4,
-    margin: '0 0 4px 0',
+    margin: 0,
   },
   dishFooter: {
     display: 'flex',
@@ -420,7 +392,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'row',
     alignItems: 'center',
-    background: 'none',
+    background: 'transparent',
     border: 'none',
     cursor: 'pointer',
     padding: 0,
@@ -429,31 +401,25 @@ const styles = {
   viewRecipeText: {
     fontSize: 13,
     color: '#3B82F6',
-    fontWeight: '500',
+    fontWeight: 500,
   },
-  arrowIcon: {
-    display: 'flex',
+  recipeArrowIcon: {
+    width: 16,
+    height: 16,
+    objectFit: 'contain',
+    display: 'block',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    padding: `${spacing.medium}px 0`,
   },
   garantiaRow: {
     display: 'flex',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  garantiaLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  garantiaValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1F24',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    margin: `${spacing.small}px 0`,
   },
   garantiaTotal: {
     fontSize: 16,
@@ -465,29 +431,50 @@ const styles = {
     fontWeight: '700',
     color: '#1A1F24',
   },
-  helpSection: {
+  footer: {
     display: 'flex',
-    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: spacing.small,
+    marginTop: spacing.large,
+    marginBottom: spacing.large,
+  },
+  helpLink: {
+    textDecoration: 'none',
+  },
+  helpButton: {
+    display: 'flex',
     alignItems: 'center',
-    marginTop: spacing.medium,
+    justifyContent: 'center',
+    gap: 8,
+    paddingLeft: spacing.medium,
+    paddingRight: spacing.medium,
+    paddingTop: spacing.small,
+    paddingBottom: spacing.small,
+    borderRadius: 20,
+    backgroundColor: '#FCE9E8',
+    border: 'none',
+    cursor: 'pointer',
   },
-  helpTitle: {
+  helpButtonText: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#FF4336',
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#EF4444',
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1F24',
-    marginBottom: 4,
-    margin: '0 0 4px 0',
-  },
-  helpText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    margin: 0,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    padding: `${spacing.medium}px 0`,
   },
 };
+
+// Inyectar animación del loader
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
+}

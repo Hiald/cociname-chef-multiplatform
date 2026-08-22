@@ -12,7 +12,6 @@ import {
   getDistrictLabel,
   getReferenceLabel,
   getRequestAllergies,
-  getRequestClientComment,
   getRequestCustomerName,
   getRequestServiceAmount,
   getRequestServiceTitle,

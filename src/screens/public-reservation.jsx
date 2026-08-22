@@ -1,15 +1,36 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { apiService } from '../services/api.service';
-import { spacing } from '../styles';
 import { getDistrictName, getConceptName } from '../utils';
-import { UbicationDetail, RedhatDetail, MoneyDetail, OrderDetail, ClockDetail, ListDetail, HatblueDetail, ArrowRightDetail, BuyingDetail } from '../assets/svgs';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
 import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 import { getClientComment } from '../utils/formatters';
+import {
+  DetalleContainer,
+  DetalleContent,
+  CustomerHeader,
+  InfoCard,
+  Seccion,
+  UbicacionContenido,
+  ListaPlatos,
+  ListaIngredientes,
+  BloqueMonto,
+  ComentariosCliente,
+  HelpSection,
+  LoadingScreen,
+  ErrorScreen,
+} from '../components/detalle-reserva/DetalleReservaKit';
+import dayIcon from '../assets/images/detalle/dia.png';
+import hourIcon from '../assets/images/detalle/hora.png';
+import listIcon from '../assets/images/detalle/lista.png';
+import chefIcon from '../assets/images/detalle/chef.png';
+import mapIcon from '../assets/images/detalle/map.png';
+import gainIcon from '../assets/images/detalle/ganancia.png';
 
 /**
  * Vista pública de reserva - accesible sin login mediante token encriptado
  * URL: /reserva/:token
+ * Mismo diseño que el detalle asignado (reservationDetail.jsx) vía DetalleReservaKit,
+ * sin las acciones privadas del flujo de la cocinera logueada.
  */
 export const PublicReservationScreen = ({ token }) => {
   const [loading, setLoading] = useState(true);
@@ -41,13 +62,13 @@ export const PublicReservationScreen = ({ token }) => {
   const formatQuantity = useCallback((size, unit) => {
     const kilo = 1000;
     let description = '';
-    
+
     // unit 1 = Unidad (mostrar solo el número)
     if (unit === 1) {
       const cantidad = Math.round(size);
       return `${cantidad} un`;
     }
-    
+
     // unit 2 = Kilogramos (aplicar lógica de fracciones para kg/gr)
     if (unit === 2) {
       if (size < 1) {
@@ -68,7 +89,7 @@ export const PublicReservationScreen = ({ token }) => {
       }
       return description;
     }
-    
+
     // unit 4 = Litros (aplicar lógica similar a kg)
     if (unit === 4) {
       if (size < 1) {
@@ -79,7 +100,7 @@ export const PublicReservationScreen = ({ token }) => {
         return size.toFixed(2) + " lt";
       }
     }
-    
+
     // Para otras unidades, retornar con formato estándar
     return size.toFixed(2) + ' ' + getUnitName(unit);
   }, []);
@@ -105,7 +126,7 @@ export const PublicReservationScreen = ({ token }) => {
           // Cargar ingredientes si tiene compras
           if (response.data.puchaseIngredients) {
             const ingredientsResponse = await apiService.getIngredientChecklistByReservation(id);
-            
+
             if (ingredientsResponse.success && ingredientsResponse.data && ingredientsResponse.data.length > 0) {
               const ingredientsDetails = await loadIngredientDetailsFromChecklist(
                 ingredientsResponse.data,
@@ -126,20 +147,20 @@ export const PublicReservationScreen = ({ token }) => {
               }
             }
           }
-          
+
           // Cargar recetas de la reserva
           const recipesResponse = await apiService.getReservationRecipes(id);
-          
+
           if (recipesResponse.success && recipesResponse.data && recipesResponse.data.length > 0) {
             const firstRecipe = recipesResponse.data[0];
             try {
               const requestedDishes = JSON.parse(firstRecipe.jsonRequest);
-              const optionalDishes = firstRecipe.jsonOptional 
-                ? JSON.parse(firstRecipe.jsonOptional) 
+              const optionalDishes = firstRecipe.jsonOptional
+                ? JSON.parse(firstRecipe.jsonOptional)
                 : [];
               const allRecipes = [...requestedDishes, ...optionalDishes];
               setRecipes(allRecipes);
-              
+
             } catch (e) {
               console.error('Error parsing recipes:', e);
             }
@@ -160,24 +181,11 @@ export const PublicReservationScreen = ({ token }) => {
   }, [token, formatQuantity]);
 
   if (loading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.loader}></div>
-        <p style={styles.loadingText}>Cargando reserva...</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (error || !reservation) {
-    return (
-      <div style={styles.errorContainer}>
-        <span style={styles.errorTitle}>⚠️</span>
-        <p style={styles.errorText}>{error || 'Reserva no encontrada'}</p>
-        <p style={styles.errorHint}>
-          El enlace puede ser inválido o haber expirado.
-        </p>
-      </div>
-    );
+    return <ErrorScreen mensaje={error || 'Reserva no encontrada. El enlace puede ser inválido o haber expirado.'} />;
   }
 
   const formatDate = (date) => {
@@ -202,7 +210,7 @@ export const PublicReservationScreen = ({ token }) => {
       [ingredientId]: !checkedIngredients[ingredientId]
     };
     setCheckedIngredients(newChecked);
-    
+
     // Guardar en localStorage
     if (reservation?.id) {
       const storageKey = `ingredients_reservation_${reservation.id}`;
@@ -210,175 +218,92 @@ export const PublicReservationScreen = ({ token }) => {
     }
   };
 
+  const handleOpenMaps = () => {
+    if (reservation && reservation.latitude && reservation.longitude) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${reservation.latitude},${reservation.longitude}`;
+      window.open(url, '_blank');
+    }
+  };
+
   const clientComment = getClientComment(reservation);
+  const tieneCoordenadas = Boolean(reservation.latitude && reservation.longitude
+    && reservation.latitude !== '-' && reservation.longitude !== '-'
+    && Number(reservation.latitude) !== 0);
+
+  // Conceptos del desglose "Detalle del servicio" — SIEMPRE sobre la comisión
+  // de la cocinera, nunca el total que pagó el cliente.
+  const comision = Number(reservation.commissionToChef ?? 0);
+  let conceptos;
+  try {
+    const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
+    conceptos = paymentConcepts.length > 0
+      ? paymentConcepts.map(c => ({
+          label: getConceptName(parseInt(c.Concepto)),
+          valor: `S/ ${parseFloat(c.Monto).toFixed(2)}`,
+        }))
+      : [{ label: 'Servicio', valor: `S/ ${comision.toFixed(2)}` }];
+  } catch {
+    conceptos = [{ label: 'Servicio', valor: `S/ ${comision.toFixed(2)}` }];
+  }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.scrollView}>
-        <div style={styles.contentContainer}>
-          {/* Header */}
-          <div style={styles.customerHeader}>
-            <h1 style={styles.customerName}>
-              {reservation.customerName} {reservation.customerLastName}
-            </h1>
-            <p style={styles.publicBadge}>Vista pública</p>
-          </div>
+    <DetalleContainer>
+      <DetalleContent>
+        <CustomerHeader
+          nombre={`${reservation.customerName || 'Cliente'} ${reservation.customerLastName || ''}`.trim()}
+          subtitulo="Vista pública"
+        />
 
-          {/* Info Cards */}
-          <div style={styles.infoCardContainer}>
-            <div style={styles.infoRow}>
-              <OrderDetail />
-              <span style={styles.infoRowLabel}>{formatDate(reservation.dateReservation).split(',')[0]}</span>
-              <span style={styles.infoRowValue}>{formatDate(reservation.dateReservation).split(', ')[1]}</span>
-            </div>
-            <div style={styles.infoRow}>
-              <ClockDetail />
-              <span style={styles.infoRowLabel}>{reservation.hourReservation}</span>
-            </div>
-            <div style={styles.infoRow}>
-              <ListDetail />
-              <span style={styles.infoRowLabel}>{reservation.puchaseIngredients ? 'Con compras' : 'Sin compras'}</span>
-            </div>
-            <div style={styles.infoRow}>
-              <HatblueDetail />
-              <span style={styles.infoRowLabel}>{reservation.totalPortion} porciones totales</span>
-            </div>
-          </div>
+        <InfoCard
+          rows={[
+            { icon: dayIcon, label: formatDate(reservation.dateReservation) },
+            { icon: hourIcon, label: reservation.hourReservation },
+            { icon: listIcon, label: reservation.puchaseIngredients ? 'Con compras' : 'Sin compras' },
+            { icon: chefIcon, label: `${reservation.totalPortion} porciones totales` },
+          ]}
+        />
 
-          {clientComment && (
-            <div style={styles.section}>
-              <div style={styles.card}>
-                <div style={styles.clientCommentBox}>
-                  <p style={styles.commentBoxTitle}>Comentarios del cliente</p>
-                  <p style={styles.commentBoxText}>{clientComment}</p>
-                </div>
-              </div>
-            </div>
-          )}
+        <ComentariosCliente texto={clientComment} />
 
-          {/* Lista de compra */}
-          {reservation.puchaseIngredients && ingredients.length > 0 && (
-            <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <BuyingDetail />
-                <h2 style={styles.sectionTitle}>Lista de compra</h2>
-              </div>
-              <div style={styles.card}>
-                <p style={styles.shoppingListSubtitle}>Debes comprar todos estos ingredientes.</p>
-                {ingredients.map((ingredient) => (
-                  <div key={ingredient.id} style={styles.ingredientRow}>
-                    <input
-                      type="checkbox"
-                      checked={checkedIngredients[ingredient.id] || false}
-                      onChange={() => handleIngredientCheck(ingredient.id)}
-                      style={styles.checkbox}
-                    />
-                    <div style={styles.ingredientInfo}>
-                      <span style={styles.ingredientName}>{ingredient.ingredientName}</span>
-                      <span style={styles.ingredientQuantity}>
-                        {ingredient.quantity}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        {reservation.puchaseIngredients && ingredients.length > 0 && (
+          <Seccion icon={listIcon} titulo="Lista de compra">
+            <ListaIngredientes
+              ingredientes={ingredients}
+              checked={checkedIngredients}
+              onCheck={handleIngredientCheck}
+              subtitulo="Debes comprar todos estos ingredientes."
+            />
+          </Seccion>
+        )}
 
-          {/* Ubicación */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <UbicationDetail />
-              <h2 style={styles.sectionTitle}>Ubicación</h2>
-            </div>
-            <div style={styles.card}>
-              <p style={styles.addressText}>{reservation.direction}</p>
-              <p style={styles.districtText}>{getDistrictName(reservation.district)}</p>
-              {reservation.reference && (
-                <p style={styles.referenceText}>{reservation.reference}</p>
-              )}
-            </div>
-          </div>
+        <Seccion icon={mapIcon} titulo="Ubicación">
+          <UbicacionContenido
+            direccion={reservation.direction}
+            distrito={getDistrictName(reservation.district)}
+            referencia={reservation.reference}
+            onAbrirMaps={tieneCoordenadas ? handleOpenMaps : null}
+          />
+        </Seccion>
 
-          {/* Platos Elegidos */}
-          {recipes.length > 0 && (
-            <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <RedhatDetail />
-                <h2 style={styles.sectionTitle}>Platos elegidos</h2>
-              </div>
-              <div style={styles.card}>
-                {recipes.map((recipe, index) => (
-                  <div key={recipe.key || index} style={styles.dishItem}>
-                    <p style={styles.dishName}>
-                      {recipe.MenuNombre} - {recipe.MasterRecipeNombre}
-                    </p>
-                    <div style={styles.dishFooter}>
-                      <span style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</span>
-                      <button style={styles.viewRecipeButton} onClick={() => handleViewRecipe(recipe)}>
-                        <span style={styles.viewRecipeText}>Ver receta</span>
-                        <div style={styles.arrowIcon}>
-                          <ArrowRightDetail />
-                        </div>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        {recipes.length > 0 && (
+          <Seccion icon={chefIcon} titulo="Platos elegidos">
+            <ListaPlatos
+              platos={recipes.map((recipe, index) => ({
+                key: recipe.key || index,
+                nombre: `${recipe.MenuNombre} - ${recipe.MasterRecipeNombre}`,
+                porciones: `${recipe.iCantidadPlatos} porciones`,
+                onVerReceta: () => handleViewRecipe(recipe),
+              }))}
+            />
+          </Seccion>
+        )}
 
-          {/* Mi garantía */}
-          <div style={styles.section}>
-            <div style={styles.sectionHeader}>
-              <MoneyDetail />
-              <h2 style={styles.sectionTitle}>Detalle del servicio</h2>
-            </div>
-            <div style={styles.card}>
-              {(() => {
-                const total = Number(reservation.commissionToChef ?? reservation.totalPrice ?? 0);
-                try {
-                  const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
-                  if (paymentConcepts.length > 0) {
-                    return paymentConcepts.map((concept, index) => (
-                      <div key={index} style={styles.garantiaRow}>
-                        <span style={styles.garantiaLabel}>{getConceptName(parseInt(concept.Concepto))}</span>
-                        <span style={styles.garantiaValue}>S/ {parseFloat(concept.Monto).toFixed(2)}</span>
-                      </div>
-                    ));
-                  }
-                  return (
-                    <div style={styles.garantiaRow}>
-                      <span style={styles.garantiaLabel}>Servicio</span>
-                      <span style={styles.garantiaValue}>S/ {total.toFixed(2)}</span>
-                    </div>
-                  );
-                } catch {
-                  return (
-                    <div style={styles.garantiaRow}>
-                      <span style={styles.garantiaLabel}>Servicio</span>
-                      <span style={styles.garantiaValue}>S/ {total.toFixed(2)}</span>
-                    </div>
-                  );
-                }
-              })()}
-              <div style={styles.divider} />
-              <div style={styles.garantiaRow}>
-                <span style={styles.garantiaTotal}>Total</span>
-                <span style={styles.garantiaTotalValue}>S/ {Number(reservation.commissionToChef ?? reservation.totalPrice ?? 0).toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
+        <Seccion icon={gainIcon} titulo="Detalle del servicio">
+          <BloqueMonto conceptos={conceptos} totalValor={`S/ ${comision.toFixed(2)}`} />
+        </Seccion>
 
-          {/* Nota de Privacidad */}
-          <div style={styles.helpSection}>
-            <p style={styles.helpTitle}>Vista de solo lectura</p>
-            <p style={styles.helpText}>
-              Para modificaciones, contacte con el servicio al cliente.
-            </p>
-          </div>
-        </div>
-      </div>
+        <HelpSection />
+      </DetalleContent>
 
       {/* Recipe Modal */}
       {selectedRecipe && (
@@ -392,326 +317,8 @@ export const PublicReservationScreen = ({ token }) => {
           recipeSteps={selectedRecipe.sPasos}
         />
       )}
-    </div>
+    </DetalleContainer>
   );
-};
-
-const styles = {
-  container: {
-    minHeight: '100%',
-    backgroundColor: '#F5F7FA',
-    width: '100%',
-    maxWidth: '100%',
-    boxSizing: 'border-box',
-    overflowX: 'hidden',
-  },
-  loadingContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F7FA',
-  },
-  loader: {
-    width: 48,
-    height: 48,
-    border: '4px solid #FEE2E2',
-    borderTopColor: '#FF5136',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-    margin: '16px 0 0 0',
-  },
-  errorContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F7FA',
-    padding: spacing.large,
-  },
-  errorTitle: {
-    fontSize: 48,
-    marginBottom: spacing.medium,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#EF4444',
-    fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: spacing.small,
-    margin: `0 0 ${spacing.small}px 0`,
-  },
-  errorHint: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    margin: 0,
-  },
-  scrollView: {
-    width: '100%',
-    overflowY: 'auto',
-  },
-  contentContainer: {
-    paddingTop: spacing.medium,
-    paddingLeft: spacing.medium,
-    paddingRight: spacing.medium,
-    paddingBottom: 100,
-  },
-  customerHeader: {
-    paddingBottom: spacing.small,
-    marginBottom: spacing.small,
-  },
-  customerName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FF5136',
-    marginBottom: 4,
-    margin: '0 0 4px 0',
-  },
-  publicBadge: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
-    margin: 0,
-  },
-  infoCardContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: spacing.medium,
-    marginBottom: spacing.medium,
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
-  },
-  infoRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 8,
-    paddingBottom: 8,
-    borderBottom: '1px solid #F3F4F6',
-  },
-  infoRowLabel: {
-    fontSize: 13,
-    color: '#1A1F24',
-    marginLeft: spacing.small,
-    fontWeight: '500',
-    flex: 1,
-  },
-  infoRowValue: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  section: {
-    marginBottom: spacing.large,
-  },
-  sectionHeader: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.small,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1F24',
-    marginLeft: spacing.small,
-    margin: `0 0 0 ${spacing.small}px`,
-  },
-  sectionIcon: {
-    fontSize: 20,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: spacing.medium,
-    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
-  },
-  addressText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1A1F24',
-    marginBottom: 4,
-    margin: '0 0 4px 0',
-  },
-  districtText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: spacing.small,
-    margin: `0 0 ${spacing.small}px 0`,
-  },
-  referenceText: {
-    fontSize: 13,
-    color: '#6B7280',
-    lineHeight: '20px',
-    margin: 0,
-  },
-  dishItem: {
-    marginBottom: spacing.medium,
-  },
-  dishName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1F24',
-    marginBottom: 4,
-    margin: '0 0 4px 0',
-  },
-  dishFooter: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  portionsText: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  viewRecipeButton: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 0,
-  },
-  viewRecipeText: {
-    fontSize: 13,
-    color: '#3B82F6',
-    fontWeight: '500',
-    marginRight: 4,
-  },
-  arrowIcon: {
-    marginTop: 5,
-    display: 'flex',
-  },
-  garantiaRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  garantiaLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  garantiaValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1F24',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginTop: spacing.small,
-    marginBottom: spacing.small,
-  },
-  garantiaTotal: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1F24',
-  },
-  garantiaTotalValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1F24',
-  },
-  commentSection: {
-    marginBottom: spacing.medium,
-  },
-  commentLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-    margin: '0 0 4px 0',
-  },
-  commentText: {
-    fontSize: 14,
-    color: '#1A1F24',
-    lineHeight: '20px',
-    margin: 0,
-  },
-  helpSection: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    marginTop: spacing.medium,
-  },
-  helpTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1F24',
-    marginBottom: 4,
-    margin: '0 0 4px 0',
-  },
-  helpText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    margin: 0,
-  },
-  shoppingListSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: spacing.medium,
-    margin: `0 0 ${spacing.medium}px 0`,
-  },
-  ingredientRow: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderBottom: '1px solid #F3F4F6',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    marginRight: spacing.small,
-    cursor: 'pointer',
-    accentColor: '#FF5136',
-  },
-  ingredientInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    flex: 1,
-  },
-  ingredientName: {
-    fontSize: 14,
-    color: '#1A1F24',
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  ingredientQuantity: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  clientCommentBox: {
-    marginTop: spacing.medium,
-    padding: spacing.small,
-    backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    borderLeft: '3px solid #F59E0B',
-  },
-  commentBoxTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#92400E',
-    marginBottom: 4,
-    margin: '0 0 4px 0',
-  },
-  commentBoxText: {
-    fontSize: 13,
-    color: '#78350F',
-    lineHeight: '18px',
-    margin: 0,
-  },
 };
 
 // Inyectar animación del loader
@@ -725,5 +332,3 @@ if (typeof document !== 'undefined') {
   `;
   document.head.appendChild(style);
 }
-
-
