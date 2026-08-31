@@ -7,7 +7,7 @@ import {
   getClientComment,
   getSubscriptionVisitsPerMonth,
   getPerVisitPortions,
-  getSubscriptionChefCommission,
+  parseSubscriptionPaymentConcepts,
 } from './formatters';
 
 export const REQUEST_TYPE_LABELS = {
@@ -20,13 +20,16 @@ export const REQUEST_TYPE_LABELS = {
 
 export const getRequestServiceTitle = (tipo) => REQUEST_TYPE_LABELS[tipo] || 'Solicitud de servicio';
 
+// Devuelve SOLO la comisión de la cocinera. Antes caía a totalPrice, que es lo
+// que paga el CLIENTE: mostrárselo a ella es una fuga de costos. Ojo que esta
+// función es la primera línea de getRequestServiceAmount, así que mientras el
+// respaldo vivió aquí, quitarlo allá abajo no tenía ningún efecto.
+// Las claves difieren por typos históricos del modelo: `commissiontoChef` (t
+// minúscula) en reserva, suscripción y evento; `commissionToChef` en tarea.
+// monthlyPrice/MonthlyPrice no existen en ningún DTO del API — eran código
+// muerto, y de existir serían también un monto del cliente.
 export const getRequestPriceText = (item) => {
-  const raw = item.commissiontoChef
-    ?? item.commissionToChef
-    ?? item.totalPrice
-    ?? item.TotalPrice
-    ?? item.monthlyPrice
-    ?? item.MonthlyPrice;
+  const raw = item.commissiontoChef ?? item.commissionToChef;
   if (raw === null || raw === undefined || raw === '') return null;
   const value = Number(raw);
   if (Number.isNaN(value) || value <= 0) return null;
@@ -80,7 +83,8 @@ export const getReferenceLabel = (data) => {
 export const mapRecipesToDishes = (recipes, onViewRecipe) => (recipes || []).map((recipe) => ({
   title: [recipe.MenuNombre, recipe.MasterRecipeNombre].filter(Boolean).join(' - ') || 'Plato solicitado',
   portionsText: recipe.iCantidadPlatos ? `${recipe.iCantidadPlatos} porciones` : '',
-  onRecipe: onViewRecipe ? () => onViewRecipe(recipe) : undefined,
+  // Sin MasterRecipeId el modal de receta abre vacio, asi que no se ofrece.
+  onRecipe: onViewRecipe && recipe.MasterRecipeId ? () => onViewRecipe(recipe) : undefined,
 }));
 
 export const mapDietMenusToDishes = (menus, record) => (menus || []).map((item, index) => {
@@ -172,21 +176,48 @@ export const buildTareaScheduleRows = (record, getDateValue, getHourValue, hours
 ]);
 
 export const getRequestServiceAmount = (data, suscriptionInfo = null) => {
+  // getRequestPriceText ya resuelve la comisión de los dos typos de clave y
+  // devuelve null si no hay. NO se cae a totalPrice: ese es el precio que paga
+  // el CLIENTE, y mostrárselo a la cocinera como monto de su servicio es una
+  // fuga de costos. Si no hay comisión informada se devuelve vacío: mejor no
+  // mostrar nada que un número que la haría aceptar por una expectativa falsa.
   const price = getRequestPriceText({ ...data, tipo: data.tipo });
   if (price) return price;
 
-  const commission = data.commissiontoChef ?? data.commissionToChef;
-  if (commission != null && Number(commission) > 0) return formatCurrency(Number(commission));
-
-  const total = data.totalPrice ?? data.TotalPrice;
-  if (total != null && Number(total) > 0) return formatCurrency(Number(total));
-
   if (suscriptionInfo || data.tipo === 'suscripcion') {
-    const perVisit = getSubscriptionChefCommission(data, suscriptionInfo);
+    const perVisit = getSubscriptionChefAmount(data, suscriptionInfo);
     if (perVisit > 0) return formatCurrency(perVisit);
   }
 
   return '';
+};
+
+// Monto de la cocinera por visita de suscripción, sin respaldo a totalPrice.
+// No se usa getSubscriptionChefCommission de formatters porque esa sí termina
+// cayendo al total del cliente; aquí preferimos no mostrar nada.
+// El DTO del listado (ReservationSuscriptionResponseDto) ya trae JsonPaymentChef,
+// así que no hace falta tocar el API.
+const getSubscriptionChefAmount = (data, suscriptionInfo = null) => {
+  const paymentJson = String(
+    data?.jsonPaymentChef
+    ?? data?.JsonPaymentChef
+    ?? suscriptionInfo?.jsonPaymentChef
+    ?? suscriptionInfo?.JsonPaymentChef
+    ?? ''
+  );
+
+  const concepts = parseSubscriptionPaymentConcepts(paymentJson);
+  if (concepts.length > 0) {
+    return concepts.reduce((sum, concept) => sum + concept.amount, 0);
+  }
+
+  return Number(
+    suscriptionInfo?.commissiontoChef
+    ?? suscriptionInfo?.CommissiontoChef
+    ?? data?.commissiontoChef
+    ?? data?.CommissiontoChef
+    ?? 0
+  );
 };
 
 export const getRequestAllergies = (data) => parseAllergies(

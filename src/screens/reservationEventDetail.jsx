@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { spacing } from '../styles';
 import { apiService } from '../services/api.service';
-import { ArrowLeftDetail, UbicationDetail, RedhatDetail, MoneyDetail, ClockDetail, HelpDetail, OrderDetail, ListDetail } from '../assets/svgs';
-import { formatearFechaConDia, getClientComment } from '../utils/formatters';
+import { ArrowLeftDetail } from '../assets/svgs';
+import {
+  formatearFechaConDia,
+  formatIngredientQuantity,
+  getClientComment,
+  getChefPaymentBreakdown,
+  getDistrictName,
+} from '../utils/formatters';
+import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 import { useAuth } from '../hooks/useAuth';
 import { RecipeModal } from '../components/recipe-modal';
 import { RequestDetailShell } from '../components/request-detail/RequestDetailShell';
@@ -17,11 +23,44 @@ import {
   getRequestServiceTitle,
   mapRecipesToDishes,
 } from '../utils/requestDetail';
+import {
+  DetalleContainer,
+  DetalleContent,
+  DetalleHeader,
+  StatusBadge,
+  CustomerHeader,
+  InfoCard,
+  Seccion,
+  UbicacionContenido,
+  ListaPlatos,
+  ListaIngredientes,
+  BloqueMonto,
+  ComentariosCliente,
+  HelpSection,
+  LoadingScreen,
+} from '../components/detalle-reserva/DetalleReservaKit';
 import mapIcon from '../assets/images/detalle/map.png';
-import profileIcon from '../assets/images/detalle/perfil.png';
 import menuIcon from '../assets/images/detalle/menu.png';
 import dayIcon from '../assets/images/detalle/dia.png';
-import upIcon from '../assets/images/detalle/up.png';
+import hourIcon from '../assets/images/detalle/hora.png';
+import listIcon from '../assets/images/detalle/lista.png';
+import chefIcon from '../assets/images/detalle/chef.png';
+import gainIcon from '../assets/images/detalle/ganancia.png';
+
+// Badge de estado del evento. StatusEvent: 0 Draft, 1 En revisión, 2 Confirmado,
+// 3 Activo, 4 Completado, 5 Cancelado (ver specs/reservation-event.yaml).
+const getEventStatusInfo = (statusEvent) => {
+  switch (Number(statusEvent)) {
+    case 3:
+      return { text: 'EN CURSO', color: '#2EBE60', bgColor: '#2EBE601A' };
+    case 4:
+      return { text: 'COMPLETADO', color: '#6B7280', bgColor: '#E5E7EB' };
+    case 5:
+      return { text: 'CANCELADO', color: '#FF5136', bgColor: '#FF51361A' };
+    default:
+      return { text: 'PROXIMA', color: '#1763C9', bgColor: '#EAF4FB' };
+  }
+};
 
 const ReservationEventDetailScreen = () => {
   const [event, setEvent] = useState(null);
@@ -29,9 +68,8 @@ const ReservationEventDetailScreen = () => {
   const [recipes, setRecipes] = useState([]);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [recipeModalVisible, setRecipeModalVisible] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState({
-    dishes: false,
-  });
+  const [ingredients, setIngredients] = useState([]);
+  const [checkedIngredients, setCheckedIngredients] = useState({});
   const [acceptModalVisible, setAcceptModalVisible] = useState(false);
   const [rejectModalVisible, setRejectModalVisible] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -61,6 +99,39 @@ const ReservationEventDetailScreen = () => {
 
         setEvent(eventData);
 
+        // Lista de compra: igual que en la reserva independiente, solo se pide
+        // cuando el evento lleva compras. El typo PuchaseIngredients es histórico.
+        if (eventData.puchaseIngredients) {
+          const ingredientsResponse = await apiService.getIngredientChecklistByReservationEvent(
+            parseInt(eventId, 10)
+          );
+
+          if (isMounted && ingredientsResponse.success && ingredientsResponse.data?.length > 0) {
+            const ingredientsDetails = await loadIngredientDetailsFromChecklist(
+              ingredientsResponse.data,
+              (ingredientId) => apiService.getIngredientById(ingredientId),
+              formatIngredientQuantity
+            );
+
+            if (isMounted) {
+              setIngredients(ingredientsDetails);
+
+              const storageKey = `ingredients_event_${eventId}`;
+              const savedChecks = localStorage.getItem(storageKey);
+              if (savedChecks) {
+                try {
+                  setCheckedIngredients(JSON.parse(savedChecks));
+                } catch (savedChecksError) {
+                  console.error('Error parsing saved checks:', savedChecksError);
+                }
+              }
+            }
+          }
+        } else if (isMounted) {
+          setIngredients([]);
+          setCheckedIngredients({});
+        }
+
         // Mapear eventDetails directamente como platos
         if (eventData.eventDetails && Array.isArray(eventData.eventDetails) && eventData.eventDetails.length > 0) {
           const mappedRecipes = eventData.eventDetails.map((dish) => ({
@@ -68,6 +139,7 @@ const ReservationEventDetailScreen = () => {
             MasterRecipeNombre: dish.recipeNameSnapshot || 'original',
             iCantidadPlatos: dish.portions || 1,
             MasterRecipeId: dish.masterRecipeId,
+            MenuId: dish.menuId,
             id: dish.id,
             key: dish.id,
           }));
@@ -110,11 +182,19 @@ const ReservationEventDetailScreen = () => {
     setTimeout(() => setSelectedRecipe(null), 300);
   };
 
-  const toggleSection = (sectionKey) => {
-    setCollapsedSections(prev => ({
-      ...prev,
-      [sectionKey]: !prev[sectionKey],
-    }));
+  const handleIngredientCheck = (ingredientId) => {
+    const newChecked = { ...checkedIngredients, [ingredientId]: !checkedIngredients[ingredientId] };
+    setCheckedIngredients(newChecked);
+    localStorage.setItem(`ingredients_event_${eventId}`, JSON.stringify(newChecked));
+  };
+
+  const handleOpenMaps = () => {
+    if (event?.latitude && event?.longitude) {
+      window.open(
+        `https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`,
+        '_blank'
+      );
+    }
   };
 
   const handleAcceptReservation = async () => {
@@ -188,25 +268,21 @@ const ReservationEventDetailScreen = () => {
   };
 
   if (loading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner} />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!event) {
     return (
-      <div style={styles.container}>
-        <div style={styles.header}>
-          <button style={styles.backButton} onClick={handleGoBack}>
+      <DetalleContainer>
+        <DetalleHeader>
+          <button style={styles.backButton} onClick={handleGoBack} type="button">
             <ArrowLeftDetail />
           </button>
-        </div>
-        <div style={styles.content}>
+        </DetalleHeader>
+        <DetalleContent>
           <p style={styles.errorText}>No se pudo cargar el detalle del evento</p>
-        </div>
-      </div>
+        </DetalleContent>
+      </DetalleContainer>
     );
   }
 
@@ -285,501 +361,120 @@ const ReservationEventDetailScreen = () => {
     );
   }
 
+  const statusInfo = getEventStatusInfo(event.statusEvent);
+  const tipoAsistentes = event.attendeesType === 1 ? 'Formal' : 'Casual';
+  const tieneCoordenadas = Boolean(
+    event.latitude && event.longitude
+    && event.latitude !== '-' && event.longitude !== '-'
+    && Number(event.latitude) !== 0
+  );
+
+  // El total es la SUMA de los conceptos, no el campo suelto de comisión.
+  // Ver getChefPaymentBreakdown en utils/formatters.
+  const { conceptos, totalTexto } = getChefPaymentBreakdown(event);
+
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <button style={styles.backButton} onClick={handleGoBack}>
+    <DetalleContainer>
+      <DetalleHeader>
+        <button style={styles.backButton} onClick={handleGoBack} type="button">
           <ArrowLeftDetail />
         </button>
-        <h1 style={styles.title}>Detalle del Evento</h1>
-      </div>
+        <StatusBadge text={statusInfo.text} color={statusInfo.color} bgColor={statusInfo.bgColor} />
+      </DetalleHeader>
 
-      <div style={styles.content}>
-        {/* Cliente */}
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>
-            <img src={profileIcon} alt="Cliente" style={styles.sectionIcon} />
-            <span style={styles.sectionTitle}>Cliente</span>
-          </div>
-          <div style={styles.infoCard}>
-            <span style={styles.infoRowLabel}>{event.customerName || 'No especificado'}</span>
-          </div>
-        </div>
+      <DetalleContent>
+        <CustomerHeader
+          nombre={`${event.customerName || 'Cliente'} ${event.customerLastName || ''}`.trim()}
+        />
 
-        {/* Fecha y Hora */}
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>
-            <img src={dayIcon} alt="Fecha" style={styles.sectionIcon} />
-            <span style={styles.sectionTitle}>Fecha y Hora</span>
-          </div>
-          <div style={styles.infoCard}>
-            <span style={styles.infoRowLabel}>{formatDate(event.dateEvent)}</span>
-            <span style={styles.infoRowValue}>{event.hourEvent || 'No especificada'}</span>
-          </div>
-        </div>
+        <InfoCard
+          rows={[
+            { icon: dayIcon, label: formatDate(event.dateEvent) },
+            { icon: hourIcon, label: event.hourEvent || 'Hora no especificada' },
+            { icon: listIcon, label: event.puchaseIngredients ? 'Con compras' : 'Sin compras' },
+            { icon: chefIcon, label: `${event.attendeesCount || 0} asistentes · ${tipoAsistentes}` },
+          ]}
+        />
 
-        {/* Asistentes */}
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>
-            <img src={menuIcon} alt="Asistentes" style={styles.sectionIcon} />
-            <span style={styles.sectionTitle}>Asistentes</span>
-          </div>
-          <div style={styles.infoCard}>
-            <span style={styles.infoRowLabel}>Cantidad: {event.attendeesCount || 0} personas</span>
-            <span style={styles.infoRowValue}>Tipo: {event.attendeesType === 1 ? 'Formal' : 'Casual'}</span>
-          </div>
-        </div>
+        <ComentariosCliente texto={clientComment} />
 
-        {/* Ubicación */}
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>
-            <img src={mapIcon} alt="Ubicación" style={styles.sectionIcon} />
-            <span style={styles.sectionTitle}>Ubicación</span>
-          </div>
-          <div style={styles.infoCard}>
-            <span style={styles.infoRowLabel}>{event.direction || 'No especificada'}</span>
-            <span style={styles.infoRowValue}>{event.ubication || event.reference || ''}</span>
-          </div>
-        </div>
-
-        {/* Menú Personalizado */}
-        {event.customMenuRequest && (
-          <div style={styles.section}>
-            <div style={styles.sectionLabel}>
-              <img src={menuIcon} alt="Menú" style={styles.sectionIcon} />
-              <span style={styles.sectionTitle}>Menú Personalizado</span>
-            </div>
-            <div style={styles.infoCard}>
-              <span style={styles.infoRowValue}>{event.customMenuRequest}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Platos Elegidos */}
-        <div style={styles.section}>
-          <button style={styles.sectionHeaderButton} onClick={() => toggleSection('dishes')} type="button">
-            <div style={styles.sectionHeaderLeft}>
-              <img src={menuIcon} alt="" style={styles.sectionHeaderIcon} />
-              <h3 style={styles.sectionTitle}>Platos elegidos</h3>
-            </div>
-            <img
-              src={upIcon}
-              alt=""
-              style={collapsedSections.dishes ? {...styles.sectionToggleIcon, ...styles.sectionToggleIconCollapsed} : styles.sectionToggleIcon}
+        {event.puchaseIngredients && ingredients.length > 0 && (
+          <Seccion icon={listIcon} titulo="Lista de compra">
+            <ListaIngredientes
+              ingredientes={ingredients}
+              checked={checkedIngredients}
+              onCheck={handleIngredientCheck}
+              subtitulo="Debes comprar todos estos ingredientes."
             />
-          </button>
-          {!collapsedSections.dishes && (
-            <div style={styles.card}>
-              {recipes.length > 0 ? (
-                recipes.map((recipe, index) => (
-                  <div key={recipe.key || index} style={styles.dishCard}>
-                    <p style={styles.dishName}>
-                      {recipe.MenuNombre} - {recipe.MasterRecipeNombre}
-                    </p>
-                    <div style={styles.dishFooter}>
-                      <span style={styles.portionsText}>{recipe.iCantidadPlatos} porciones</span>
-                      <button style={styles.viewRecipeButton} onClick={() => handleViewRecipe(recipe)}>
-                        <span style={styles.viewRecipeText}>Ver receta</span>
-                        <img src={upIcon} alt="" style={styles.recipeArrowIcon} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p style={styles.emptyText}>No hay platos registrados</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Comentarios del Cliente */}
-        {clientComment && (
-          <div style={styles.section}>
-            <div style={styles.sectionLabel}>
-              <span style={styles.sectionTitle}>Comentarios del Cliente</span>
-            </div>
-            <div style={styles.infoCard}>
-              <span style={styles.infoRowValue}>{clientComment}</span>
-            </div>
-          </div>
+          </Seccion>
         )}
 
-        {/* Action Buttons for Pending Requests - Solo si es solicitud pendiente */}
-        {isRequest && (
-          <div style={styles.actionButtonsContainer}>
-            <button 
-              style={styles.acceptButton}
-              onClick={handleAcceptReservation}
-              disabled={submitting}
-            >
-              <span style={styles.acceptButtonText}>
-                {submitting ? 'Aceptando...' : 'Aceptar'}
-              </span>
-            </button>
-            <button 
-              style={styles.rejectButton}
-              onClick={() => setRejectModalVisible(true)}
-              disabled={submitting}
-            >
-              <span style={styles.rejectButtonText}>Rechazar</span>
-            </button>
-          </div>
+        <Seccion icon={mapIcon} titulo="Ubicación">
+          <UbicacionContenido
+            direccion={event.direction}
+            distrito={getDistrictName(event.district)}
+            referencia={event.reference || event.ubication}
+            onAbrirMaps={tieneCoordenadas ? handleOpenMaps : null}
+          />
+        </Seccion>
+
+        {event.customMenuRequest && (
+          <Seccion icon={menuIcon} titulo="Menú personalizado">
+            <ComentariosCliente texto={event.customMenuRequest} />
+          </Seccion>
         )}
 
-        {/* Botón de Ayuda */}
-        <div style={styles.footer}>
-          <a href="https://api.whatsapp.com/send/?phone=51963138202&text=Hola%21+Vengo+de+la+plataforma+y+tengo+una+consulta" style={styles.helpLink}>
-            <button style={styles.helpButton}>
-              <HelpDetail />
-              <span style={styles.helpButtonText}>Necesito Ayuda</span>
-            </button>
-          </a>
-        </div>
-      </div>
+        {recipes.length > 0 && (
+          <Seccion icon={chefIcon} titulo="Platos elegidos">
+            <ListaPlatos
+              platos={recipes.map((recipe, index) => ({
+                key: recipe.key || index,
+                nombre: `${recipe.MenuNombre} - ${recipe.MasterRecipeNombre}`,
+                porciones: `${recipe.iCantidadPlatos} porciones`,
+                // Sin MasterRecipeId el modal no puede cargar nada: mejor no
+                // ofrecer "Ver receta" que abrir una ficha vacía.
+                onVerReceta: recipe.MasterRecipeId ? () => handleViewRecipe(recipe) : null,
+              }))}
+            />
+          </Seccion>
+        )}
 
-      {/* Recipe Modal */}
+        <Seccion icon={gainIcon} titulo="Detalle del servicio">
+          <BloqueMonto conceptos={conceptos} totalValor={totalTexto} />
+        </Seccion>
+
+        <HelpSection />
+      </DetalleContent>
+
       {selectedRecipe && (
         <RecipeModal
           visible={recipeModalVisible}
           onClose={handleCloseRecipeModal}
           recipeName={`${selectedRecipe.MenuNombre} - ${selectedRecipe.MasterRecipeNombre}`}
-          masterRecipeId={parseInt(selectedRecipe.MasterRecipeId)}
+          masterRecipeId={parseInt(selectedRecipe.MasterRecipeId, 10)}
           menuId={parseInt(selectedRecipe.MenuId, 10)}
           portions={selectedRecipe.iCantidadPlatos}
           recipeSteps={selectedRecipe.sPasos}
         />
       )}
-
-      {/* Accept Modal */}
-      {acceptModalVisible && (
-        <div style={styles.modalOverlay} onClick={() => !submitting && handleCloseAcceptModal}>
-          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalIconContainer}>
-              <div style={styles.checkIconCircle}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                  <path d="M9 12l2 2 4-4" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-            </div>
-            <h3 style={styles.modalTitle}>¿Evento aceptado?</h3>
-            <p style={styles.modalDescription}>
-              Lo verás en tus eventos confirmados.
-            </p>
-            <button 
-              style={{...styles.modalButton, ...styles.modalButtonPrimary}} 
-              onClick={handleCloseAcceptModal}
-            >
-              <span style={styles.modalButtonText}>Ver Eventos</span>
-            </button>
-            <button 
-              style={styles.modalButtonSecondary}
-              onClick={handleCloseAcceptModal}
-            >
-              <span style={styles.modalButtonSecondaryText}>Volver al inicio</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Reject Modal */}
-      {rejectModalVisible && (
-        <div style={styles.modalOverlay} onClick={() => !submitting && setRejectModalVisible(false)}>
-          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalIconContainer}>
-              <div style={styles.closeIconCircle}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
-                  <path d="M6 18L18 6M6 6l12 12" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-            </div>
-            <h3 style={styles.modalTitle}>Evento rechazado</h3>
-            <p style={styles.modalDescription}>
-              Gracias por contestar.
-            </p>
-            <textarea
-              style={styles.modalTextarea}
-              placeholder="Motivo de rechazo"
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              disabled={submitting}
-              rows={4}
-            />
-            <button 
-              style={{...styles.modalButton, ...styles.modalButtonDanger}} 
-              onClick={handleRejectReservation}
-              disabled={submitting || !rejectionReason.trim()}
-            >
-              <span style={styles.modalButtonText}>
-                {submitting ? 'Rechazando...' : 'Volver al inicio'}
-              </span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+    </DetalleContainer>
   );
 };
 
+// Solo quedan los estilos que el kit no cubre: el botón "Volver", el texto de
+// error y los modales de aceptar/rechazar de la vista de solicitud.
 const styles = {
-  container: {
-    minHeight: '100vh',
-    backgroundColor: '#FAFAFA',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    paddingTop: spacing.medium,
-    paddingLeft: spacing.medium,
-    paddingRight: spacing.medium,
-    paddingBottom: spacing.small,
-    backgroundColor: '#FFFFFF',
-    borderBottom: '1px solid #E5E7EB',
-  },
   backButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: 0,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    margin: 0,
-    fontSize: 20,
-    fontWeight: 800,
-    color: '#1B2736',
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    overflow: 'auto',
-    padding: `${spacing.medium}px`,
-  },
-  loadingContainer: {
-    height: '100vh',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FAFAFA',
-  },
-  spinner: {
-    width: 40,
-    height: 40,
-    border: '4px solid #DDE6EE',
-    borderTop: '4px solid #FF4336',
-    borderRadius: '50%',
-    animation: 'spin 1s linear infinite',
-  },
-  section: {
-    marginBottom: spacing.large,
-  },
-  sectionLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: spacing.small,
-  },
-  sectionIcon: {
-    width: 24,
-    height: 24,
-    objectFit: 'contain',
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 700,
-    color: '#1B2736',
-    margin: 0,
-  },
-  sectionHeaderButton: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    background: 'transparent',
-    border: 'none',
-    padding: 0,
-    marginBottom: spacing.small,
-    cursor: 'pointer',
-  },
-  sectionHeaderLeft: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  sectionHeaderIcon: {
-    width: 20,
-    height: 20,
-    objectFit: 'contain',
-    flexShrink: 0,
-  },
-  sectionToggleIcon: {
-    width: 18,
-    height: 18,
-    objectFit: 'contain',
-    display: 'block',
-    transform: 'rotate(0deg)',
-    transition: 'transform 0.2s ease',
-  },
-  sectionToggleIconCollapsed: {
-    transform: 'rotate(180deg)',
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: spacing.medium,
-    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.05)',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: spacing.medium,
-    boxShadow: '0px 2px 4px 0px #289FDF0A, 0px 7px 7px 0px #289FDF0A, 0px 15px 9px 0px #289FDF05, 0px 26px 10px 0px #289FDF03, 0px 41px 11px 0px #289FDF00',
-  },
-  infoRowLabel: {
-    display: 'block',
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  infoRowValue: {
-    display: 'block',
-    fontSize: 15,
-    fontWeight: 500,
-    color: '#1B2736',
-    lineHeight: '22px',
-    wordBreak: 'break-word',
-  },
-  dishCard: {
-    backgroundColor: '#EAF4FB',
-    borderRadius: 18,
-    padding: spacing.medium,
-    marginBottom: spacing.medium,
-    boxShadow: '0px 2px 4px 0px #289FDF0A',
-  },
-  dishName: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#1A1F24',
-    marginBottom: 4,
-    margin: 0,
-  },
-  dishFooter: {
-    display: 'flex',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  portionsText: {
-    fontSize: 13,
-    color: '#6B7280',
-  },
-  viewRecipeButton: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: '8px 0',
     background: 'transparent',
     border: 'none',
     cursor: 'pointer',
-    padding: 0,
-    gap: 4,
-  },
-  viewRecipeText: {
-    fontSize: 13,
-    color: '#3B82F6',
-    fontWeight: 500,
-  },
-  recipeArrowIcon: {
-    width: 16,
-    height: 16,
-    objectFit: 'contain',
-    transform: 'rotate(90deg)',
-    display: 'block',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    padding: `${spacing.medium}px 0`,
-  },
-  footer: {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: spacing.small,
-    marginTop: spacing.large,
-    marginBottom: spacing.large,
-  },
-  helpLink: {
-    textDecoration: 'none',
-  },
-  helpButton: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingLeft: spacing.medium,
-    paddingRight: spacing.medium,
-    paddingTop: spacing.small,
-    paddingBottom: spacing.small,
-    borderRadius: 20,
-    backgroundColor: '#FCE9E8',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  helpButtonText: {
-    fontSize: 14,
-    fontWeight: 600,
-    color: '#FF4336',
   },
   errorText: {
+    fontSize: '14px',
+    color: '#6B7280',
     textAlign: 'center',
-    color: '#EF4444',
-    fontSize: 16,
-  },
-  actionButtonsContainer: {
-    display: 'flex',
-    flexDirection: 'row',
-    gap: spacing.small,
-    marginBottom: spacing.medium,
-    width: '100%',
-  },
-  acceptButton: {
-    flex: 1,
-    backgroundColor: '#2EBE60',
-    padding: '16px',
-    borderRadius: '30px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  acceptButtonText: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  rejectButton: {
-    flex: 1,
-    backgroundColor: '#FF51361A',
-    padding: '16px',
-    borderRadius: '30px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  rejectButtonText: {
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#FF5136',
+    margin: 0,
   },
   modalOverlay: {
     position: 'fixed',
@@ -787,100 +482,67 @@ const styles = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(26, 31, 36, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    padding: '16px',
     zIndex: 1000,
-    padding: spacing.medium,
   },
   modalContent: {
     backgroundColor: '#FFFFFF',
-    borderRadius: '20px',
-    padding: spacing.large,
-    maxWidth: '400px',
+    borderRadius: '16px',
+    padding: '24px',
     width: '100%',
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-  },
-  modalIconContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: spacing.medium,
-  },
-  checkIconCircle: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '50%',
-    backgroundColor: '#D1FAE5',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeIconCircle: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '50%',
-    backgroundColor: '#FEE2E2',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    maxWidth: '360px',
+    boxSizing: 'border-box',
   },
   modalTitle: {
-    fontSize: '20px',
+    fontSize: '18px',
     fontWeight: '700',
     color: '#1A1F24',
+    margin: '0 0 8px',
     textAlign: 'center',
-    marginBottom: spacing.small,
   },
   modalDescription: {
     fontSize: '14px',
     color: '#6B7280',
+    margin: '0 0 20px',
     textAlign: 'center',
-    marginBottom: spacing.medium,
-    lineHeight: '20px',
-  },
-  modalTextarea: {
-    width: '100%',
-    padding: spacing.small,
-    borderRadius: '8px',
-    border: '1px solid #E5E7EB',
-    fontSize: '14px',
-    color: '#1A1F24',
-    marginBottom: spacing.medium,
-    resize: 'vertical',
-    fontFamily: 'inherit',
-    boxSizing: 'border-box',
   },
   modalButton: {
     width: '100%',
-    padding: '16px',
-    borderRadius: '30px',
+    padding: '14px',
+    borderRadius: '12px',
     border: 'none',
-    cursor: 'pointer',
-    marginBottom: spacing.small,
-  },
-  modalButtonPrimary: {
-    backgroundColor: '#FF5136',
-  },
-  modalButtonDanger: {
-    backgroundColor: '#EF4444',
-  },
-  modalButtonText: {
-    fontSize: '16px',
-    fontWeight: '600',
+    backgroundColor: '#1763C9',
     color: '#FFFFFF',
+    fontSize: '15px',
+    fontWeight: '600',
+    cursor: 'pointer',
   },
-  modalButtonSecondary: {
+  modalTextarea: {
     width: '100%',
     padding: '12px',
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-  },
-  modalButtonSecondaryText: {
+    borderRadius: '12px',
+    border: '1px solid #E5E7EB',
     fontSize: '14px',
-    fontWeight: '500',
-    color: '#6B7280',
+    color: '#1A1F24',
+    fontFamily: 'inherit',
+    resize: 'vertical',
+    marginBottom: '16px',
+    boxSizing: 'border-box',
+  },
+  modalButtonDanger: {
+    width: '100%',
+    padding: '14px',
+    borderRadius: '12px',
+    border: 'none',
+    backgroundColor: '#FF5136',
+    color: '#FFFFFF',
+    fontSize: '15px',
+    fontWeight: '600',
+    cursor: 'pointer',
   },
 };
 

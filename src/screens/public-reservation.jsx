@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { apiService } from '../services/api.service';
-import { getDistrictName, getConceptName } from '../utils';
+import { getDistrictName, getChefPaymentBreakdown } from '../utils';
 import RecipeModal from '../components/recipe-modal/recipe-modal';
 import { loadIngredientDetailsFromChecklist } from '../utils/ingredients';
 import { getClientComment } from '../utils/formatters';
@@ -230,21 +230,10 @@ export const PublicReservationScreen = ({ token }) => {
     && reservation.latitude !== '-' && reservation.longitude !== '-'
     && Number(reservation.latitude) !== 0);
 
-  // Conceptos del desglose "Detalle del servicio" — SIEMPRE sobre la comisión
-  // de la cocinera, nunca el total que pagó el cliente.
-  const comision = Number(reservation.commissionToChef ?? 0);
-  let conceptos;
-  try {
-    const paymentConcepts = JSON.parse(reservation.jsonPaymentChef || '[]');
-    conceptos = paymentConcepts.length > 0
-      ? paymentConcepts.map(c => ({
-          label: getConceptName(parseInt(c.Concepto)),
-          valor: `S/ ${parseFloat(c.Monto).toFixed(2)}`,
-        }))
-      : [{ label: 'Servicio', valor: `S/ ${comision.toFixed(2)}` }];
-  } catch {
-    conceptos = [{ label: 'Servicio', valor: `S/ ${comision.toFixed(2)}` }];
-  }
+  // El total es la SUMA de los conceptos, no el campo de comisión suelto: la
+  // clave cambia de grafía según el DTO y leía undefined -> S/ 0.00.
+  // Ver getChefPaymentBreakdown en utils/formatters.
+  const { conceptos, totalTexto } = getChefPaymentBreakdown(reservation);
 
   return (
     <DetalleContainer>
@@ -299,7 +288,7 @@ export const PublicReservationScreen = ({ token }) => {
         )}
 
         <Seccion icon={gainIcon} titulo="Detalle del servicio">
-          <BloqueMonto conceptos={conceptos} totalValor={`S/ ${comision.toFixed(2)}`} />
+          <BloqueMonto conceptos={conceptos} totalValor={totalTexto} />
         </Seccion>
 
         <HelpSection />

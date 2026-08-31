@@ -4,7 +4,21 @@ import { apiService } from '../services/api.service';
 import { useAuth } from '../hooks/useAuth';
 import { StatusReservation } from '../types';
 import { PUBLIC_LINK_TYPES, resolvePublicLinkToken } from '../utils/linkToken';
-import { HelpDetail } from '../assets/svgs';
+import { getDistrictName, getChefPaymentBreakdown } from '../utils';
+import {
+  DetalleContainer,
+  DetalleContent,
+  CustomerHeader,
+  InfoCard,
+  Seccion,
+  UbicacionContenido,
+  BloqueMonto,
+  ComentariosCliente,
+  HelpSection,
+  LoadingScreen,
+  ErrorScreen,
+  CARD_SHADOW,
+} from '../components/detalle-reserva/DetalleReservaKit';
 import {
   formatPublicDate,
   formatPublicHour,
@@ -12,15 +26,27 @@ import {
   getCustomerFullName,
   getClientComment,
 } from '../utils/formatters';
+import dayIcon from '../assets/images/detalle/dia.png';
+import hourIcon from '../assets/images/detalle/hora.png';
+import listIcon from '../assets/images/detalle/lista.png';
+import chefIcon from '../assets/images/detalle/chef.png';
+import menuIcon from '../assets/images/detalle/menu.png';
+import mapIcon from '../assets/images/detalle/map.png';
+import gainIcon from '../assets/images/detalle/ganancia.png';
 
 /**
- * Vista pública de tarea de servicio - accesible sin login mediante token
+ * Vista pública de tarea de servicio - accesible sin login mediante token.
  * URL: /tarea/:token
- * Mismo diseño que el detalle asignado (reservationTareaDetail.jsx): una sola
- * columna con header blanco y tarjetas, sin las acciones privadas de la cocinera.
+ *
+ * Usa DetalleReservaKit para verse igual que la reserva independiente, con su
+ * blindaje mobile-first (maxWidth, overflowX, boxSizing) que antes faltaba.
+ *
+ * Diferencias propias del tipo, no del diseño:
+ *  · No hay "Platos elegidos": una tarea tiene ACTIVIDADES con minutos, no platos.
+ *  · No hay "Lista de compra": esa lista la arma el cliente desde la webapp a
+ *    partir de las recetas, y una tarea no tiene recetas. El flag de compras
+ *    solo afecta al costo.
  */
-
-const SUPPORT_CONTACT_URL = 'https://api.whatsapp.com/send/?phone=51963138202&text=Hola%21+Vengo+de+la+plataforma+y+tengo+una+consulta';
 
 const pendingStatuses = new Set([
   StatusReservation.Creada,
@@ -177,270 +203,252 @@ export const PublicTareaScreen = ({ token }) => {
   };
 
   if (loading) {
-    return (
-      <div style={styles.loadingContainer}>
-        <div style={styles.spinner} />
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (error || !record) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.content}>
-          <p style={styles.errorText}>{error || 'Enlace inválido o expirado'}</p>
-        </div>
-      </div>
-    );
+    return <ErrorScreen mensaje={error || 'Enlace inválido o expirado'} />;
   }
 
   const chef = getChefDisplay(record);
   const customerName = getCustomerFullName(record);
-  const phone = record.contactPhone || record.ContactPhone || record.numberClient || record.NumberClient || '-';
   const direction = record.direction || record.Direction || '-';
   const reference = record.reference || record.Reference || '';
   const activities = getTareaActivities(record);
   const hours = Number(record.estimatedHours ?? record.EstimatedHours ?? record.iaSuggestedHours ?? record.IaSuggestedHours ?? 0);
   const clientComment = getClientComment(record);
+  const personas = record.diner ?? record.Diner ?? record.personCount ?? record.PersonCount ?? '-';
+
+  // OJO: en ReservationServiceTask el campo está bien escrito (PurchaseIngredients),
+  // a diferencia de Reservation y Evento que arrastran el typo PuchaseIngredients.
+  // Leerlo con el typo devolvía undefined y siempre decía "Sin compras".
+  const conCompras = Boolean(record.purchaseIngredients ?? record.PurchaseIngredients);
+
+  const latitude = record.latitude ?? record.Latitude;
+  const longitude = record.longitude ?? record.Longitude;
+  const tieneCoordenadas = Boolean(latitude && longitude && latitude !== '-' && longitude !== '-' && Number(latitude) !== 0);
+
+  const handleOpenMaps = () => {
+    if (tieneCoordenadas) {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`, '_blank');
+    }
+  };
+
+  // El total es la SUMA de los conceptos, no el campo de comisión suelto: la
+  // clave cambia de grafía según el DTO y leía undefined -> S/ 0.00.
+  // Ver getChefPaymentBreakdown en utils/formatters.
+  const { conceptos, totalTexto } = getChefPaymentBreakdown(record);
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>Detalle de Actividad de Cocina</h1>
-        <span style={styles.publicBadge}>Vista pública</span>
-      </div>
+    <DetalleContainer>
+      <DetalleContent>
+        <CustomerHeader
+          nombre={customerName || 'Cliente'}
+          subtitulo="Vista pública"
+        />
 
-      <div style={styles.content}>
-        <p style={styles.subtitle}>#{recordId}</p>
+        <InfoCard
+          rows={[
+            { icon: dayIcon, label: formatPublicDate(getDateValue(record)) },
+            { icon: hourIcon, label: formatPublicHour(getHourValue(record)) },
+            { icon: listIcon, label: conCompras ? 'Con compras' : 'Sin compras' },
+            { icon: chefIcon, label: `${personas} personas · ${getServiceModalityLabel(record.serviceModality ?? record.ServiceModality)}` },
+          ]}
+        />
 
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Información general</h2>
-          <div style={styles.infoGrid}>
-            <InfoItem label="Cliente" value={customerName || 'No especificado'} />
-            <InfoItem label="Teléfono" value={phone} />
-            <InfoItem label="Ubicación" value={`${direction}${reference ? `, ${reference}` : ''}`} />
-            <InfoItem
-              label="Personas"
-              value={`${record.diner ?? record.Diner ?? record.personCount ?? record.PersonCount ?? '-'} personas`}
-            />
-            <InfoItem label="Servicio" value={getServiceModalityLabel(record.serviceModality ?? record.ServiceModality)} />
-            <InfoItem label="Compras" value={record.puchaseIngredients ? 'Con compras' : 'Sin compras'} />
+        <ComentariosCliente texto={clientComment} />
+
+        <Seccion icon={menuIcon} titulo="Qué necesitas">
+          <div style={estilos.card}>
+            <p style={estilos.textoLibre}>{record.needsDescription || record.NeedsDescription || '-'}</p>
           </div>
-        </section>
+        </Seccion>
 
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Qué necesitas</h2>
-          <p style={styles.needsText}>{record.needsDescription || record.NeedsDescription || '-'}</p>
-        </section>
+        {/* Las actividades hacen aquí el papel que en una reserva hacen los platos. */}
+        <Seccion icon={hourIcon} titulo="Actividades y tiempo estimado">
+          <div style={estilos.card}>
+            <div style={estilos.horasBox}>
+              <span style={estilos.horasLabel}>Horas estimadas</span>
+              <span style={estilos.horasValor}>{hours > 0 ? `${hours} h` : 'Por confirmar'}</span>
+            </div>
 
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Cotización estimada</h2>
-          <div style={styles.quoteBox}>
-            <p style={styles.quoteLabel}>Horas estimadas</p>
-            <p style={styles.quoteValue}>{hours > 0 ? `${hours} h` : 'Por confirmar'}</p>
+            {activities.length > 0 ? activities.map((item, index) => {
+              const description = item.activityDescription || item.ActivityDescription || item.description || item.Description || 'Actividad';
+              const minutes = Number(item.estimatedMinutes ?? item.EstimatedMinutes ?? 0);
+              return (
+                <div key={`${description}-${index}`} style={estilos.actividad}>
+                  <p style={estilos.actividadTitulo}>{description}</p>
+                  <p style={estilos.actividadMeta}>{minutes > 0 ? `${minutes} min estimados` : 'Tiempo por confirmar'}</p>
+                </div>
+              );
+            }) : (
+              <p style={estilos.vacio}>Sin actividades detalladas.</p>
+            )}
           </div>
-          {activities.length > 0 ? activities.map((item, index) => {
-            const description = item.activityDescription || item.ActivityDescription || item.description || item.Description || 'Actividad';
-            const minutes = Number(item.estimatedMinutes ?? item.EstimatedMinutes ?? 0);
-            return (
-              <div key={`${description}-${index}`} style={styles.activityItem}>
-                <p style={styles.activityTitle}>{description}</p>
-                <p style={styles.activityMeta}>{minutes > 0 ? `${minutes} min estimados` : 'Tiempo por confirmar'}</p>
+        </Seccion>
+
+        <Seccion icon={mapIcon} titulo="Ubicación">
+          <UbicacionContenido
+            direccion={direction}
+            distrito={getDistrictName(record.district ?? record.District)}
+            referencia={reference}
+            onAbrirMaps={tieneCoordenadas ? handleOpenMaps : null}
+          />
+        </Seccion>
+
+        <Seccion icon={chefIcon} titulo="Cocinera asignada">
+          <div style={estilos.card}>
+            <div style={estilos.chefRow}>
+              <div style={estilos.chefAvatar}>{chef.initials}</div>
+              <div>
+                <p style={estilos.chefNombre}>{chef.name}</p>
+                <p style={estilos.chefApellido}>{chef.lastName}</p>
               </div>
-            );
-          }) : (
-            <p style={styles.emptyText}>Sin actividades detalladas.</p>
-          )}
-        </section>
-
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Fecha y hora</h2>
-          <InfoItem label="Fecha" value={formatPublicDate(getDateValue(record))} />
-          <InfoItem label="Hora" value={formatPublicHour(getHourValue(record))} />
-        </section>
-
-        <section style={styles.card}>
-          <h2 style={styles.cardTitle}>Cocinera asignada</h2>
-          <div style={styles.chefRow}>
-            <div style={styles.chefAvatar}>{chef.initials}</div>
-            <div>
-              <p style={styles.chefName}>{chef.name}</p>
-              <p style={styles.chefLastName}>{chef.lastName}</p>
             </div>
           </div>
-        </section>
+        </Seccion>
 
-        {isAuthenticated && clientComment ? (
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>Comentarios del cliente</h2>
-            <p style={styles.commentText}>{clientComment}</p>
-          </section>
-        ) : null}
+        <Seccion icon={gainIcon} titulo="Detalle del servicio">
+          <BloqueMonto conceptos={conceptos} totalValor={totalTexto} />
+        </Seccion>
 
         {canAcceptAsChef && (
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>Acciones de cocinera</h2>
-            <div style={styles.actionButtonsContainer}>
-              <button type="button" style={styles.acceptButton} onClick={handleAccept} disabled={submittingAssignment}>
-                <span style={styles.acceptButtonText}>{submittingAssignment ? 'Aceptando...' : 'Aceptar solicitud'}</span>
-              </button>
-              <button type="button" style={styles.rejectButton} onClick={() => setRejectModalVisible(true)} disabled={submittingAssignment}>
-                <span style={styles.rejectButtonText}>Rechazar</span>
-              </button>
+          <Seccion icon={chefIcon} titulo="Acciones de cocinera">
+            <div style={estilos.card}>
+              <div style={estilos.acciones}>
+                <button type="button" style={estilos.botonAceptar} onClick={handleAccept} disabled={submittingAssignment}>
+                  {submittingAssignment ? 'Aceptando...' : 'Aceptar solicitud'}
+                </button>
+                <button type="button" style={estilos.botonRechazar} onClick={() => setRejectModalVisible(true)} disabled={submittingAssignment}>
+                  Rechazar
+                </button>
+              </div>
             </div>
-          </section>
+          </Seccion>
         )}
 
         {!isAuthenticated && (
-          <section style={styles.card}>
-            <h2 style={styles.cardTitle}>¿Tienes algún comentario?</h2>
-            <textarea
-              style={styles.textarea}
-              placeholder="Escríbelo aquí..."
-              value={comments}
-              onChange={(event) => setComments(event.target.value)}
-            />
-            <button type="button" style={styles.primaryButton} onClick={handleSendComments} disabled={submittingComment}>
-              {submittingComment ? 'Enviando...' : 'Enviar comentarios'}
-            </button>
-          </section>
+          <Seccion icon={menuIcon} titulo="¿Tienes algún comentario?">
+            <div style={estilos.card}>
+              <textarea
+                style={estilos.textarea}
+                placeholder="Escríbelo aquí..."
+                value={comments}
+                onChange={(event) => setComments(event.target.value)}
+              />
+              <button type="button" style={estilos.botonPrimario} onClick={handleSendComments} disabled={submittingComment}>
+                {submittingComment ? 'Enviando...' : 'Enviar comentarios'}
+              </button>
+            </div>
+          </Seccion>
         )}
 
-        <div style={styles.footer}>
-          <a href={SUPPORT_CONTACT_URL} style={styles.helpLink} target="_blank" rel="noopener noreferrer">
-            <button type="button" style={styles.helpButton}>
-              <HelpDetail />
-              <span style={styles.helpButtonText}>Necesito Ayuda</span>
-            </button>
-          </a>
-        </div>
-      </div>
+        <HelpSection />
+      </DetalleContent>
 
       {acceptModalVisible && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <h3 style={styles.modalTitle}>Solicitud aceptada</h3>
-            <p style={styles.modalDescription}>La solicitud fue aceptada correctamente.</p>
-            <button type="button" style={styles.primaryButton} onClick={() => setAcceptModalVisible(false)}>Cerrar</button>
+        <div style={estilos.modalOverlay}>
+          <div style={estilos.modalContent}>
+            <h3 style={estilos.modalTitulo}>Solicitud aceptada</h3>
+            <p style={estilos.modalTexto}>La solicitud fue aceptada correctamente.</p>
+            <button type="button" style={estilos.botonPrimario} onClick={() => setAcceptModalVisible(false)}>Cerrar</button>
           </div>
         </div>
       )}
 
       {rejectModalVisible && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <h3 style={styles.modalTitle}>Rechazar solicitud</h3>
+        <div style={estilos.modalOverlay}>
+          <div style={estilos.modalContent}>
+            <h3 style={estilos.modalTitulo}>Rechazar solicitud</h3>
             <textarea
-              style={styles.modalTextarea}
+              style={estilos.textarea}
               placeholder="Motivo de rechazo"
               value={rejectionReason}
               onChange={(event) => setRejectionReason(event.target.value)}
               rows={4}
             />
-            <button type="button" style={styles.modalButtonDanger} onClick={handleReject} disabled={submittingAssignment || !rejectionReason.trim()}>
+            <button type="button" style={estilos.botonRechazar} onClick={handleReject} disabled={submittingAssignment || !rejectionReason.trim()}>
               {submittingAssignment ? 'Rechazando...' : 'Confirmar rechazo'}
             </button>
-            <button type="button" style={styles.secondaryButton} onClick={() => setRejectModalVisible(false)}>
+            <button type="button" style={estilos.botonSecundario} onClick={() => setRejectModalVisible(false)}>
               Cancelar
             </button>
           </div>
         </div>
       )}
-    </div>
+    </DetalleContainer>
   );
 };
 
-const InfoItem = ({ label, value }) => (
-  <div style={styles.infoItem}>
-    <p style={styles.infoLabel}>{label}</p>
-    <p style={styles.infoValue}>{value}</p>
-  </div>
-);
-
-// Estilos copiados 1:1 de reservationTareaDetail.jsx (diseño canónico de tarea).
-const styles = {
-  container: { minHeight: '100vh', backgroundColor: '#FAFAFA', display: 'flex', flexDirection: 'column' },
-  header: {
-    display: 'flex', alignItems: 'center', gap: 12, paddingTop: spacing.medium,
-    paddingLeft: spacing.medium, paddingRight: spacing.medium, paddingBottom: spacing.small,
-    backgroundColor: '#FFFFFF', borderBottom: '1px solid #E5E7EB',
-  },
-  title: { margin: 0, fontSize: 20, fontWeight: 800, color: '#1B2736', flex: 1 },
-  publicBadge: { fontSize: 12, color: '#6B7280', fontStyle: 'italic' },
-  content: { flex: 1, overflow: 'auto', padding: spacing.medium },
-  subtitle: { margin: '0 0 16px', color: '#6b7a90' },
+// Solo lo que el kit no cubre: actividades, ficha de cocinera, acciones y
+// modales. Todo lo demás (contenedor, secciones, ubicación, montos) sale del kit
+// para que el diseño no se vuelva a separar.
+const estilos = {
   card: {
-    backgroundColor: '#FFFFFF', borderRadius: 12, padding: spacing.medium, marginBottom: spacing.medium,
-    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.05)',
+    backgroundColor: '#FFFFFF',
+    borderRadius: '20px',
+    padding: `${spacing.medium}px`,
+    boxShadow: CARD_SHADOW,
   },
-  cardTitle: { margin: '0 0 12px', fontSize: 16, fontWeight: 700, color: '#1B2736' },
-  infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 },
-  infoItem: { marginBottom: 8 },
-  infoLabel: { margin: '0 0 4px', fontSize: 12, color: '#6B7280' },
-  infoValue: { margin: 0, fontSize: 14, fontWeight: 600, color: '#1B2736' },
-  needsText: { margin: 0, fontSize: 14, color: '#1a2332', lineHeight: 1.6, whiteSpace: 'pre-wrap' },
-  quoteBox: {
-    backgroundColor: '#f4f8fd', border: '1px solid #e0ebf6', borderRadius: 12, padding: 16, marginBottom: 12,
+  textoLibre: { margin: 0, fontSize: '15px', color: '#6B7280', lineHeight: 1.5, wordBreak: 'break-word' },
+  horasBox: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    paddingBottom: '12px', marginBottom: '12px', borderBottom: '1px solid #E5E7EB',
   },
-  quoteLabel: { margin: '0 0 4px', fontSize: 12, color: '#6b7a90' },
-  quoteValue: { margin: 0, fontSize: 18, fontWeight: 700, color: '#1a2332' },
-  activityItem: { padding: '12px 0', borderBottom: '1px solid #eef2f6' },
-  activityTitle: { margin: 0, fontSize: 14, fontWeight: 600, color: '#1a2332' },
-  activityMeta: { margin: '4px 0 0', fontSize: 12, color: '#6b7a90' },
-  emptyText: { margin: 0, textAlign: 'center', color: '#6b7a90', padding: '12px 0' },
-  chefRow: { display: 'flex', alignItems: 'center', gap: 16 },
+  horasLabel: { fontSize: '14px', color: '#6B7280' },
+  horasValor: { fontSize: '16px', fontWeight: 700, color: '#1A1F24' },
+  actividad: { padding: '10px 0', borderBottom: '1px solid #E5E7EB' },
+  actividadTitulo: { margin: 0, fontSize: '14px', fontWeight: 600, color: '#1A1F24', wordBreak: 'break-word' },
+  actividadMeta: { margin: '2px 0 0', fontSize: '12.5px', color: '#6B7280' },
+  vacio: { margin: 0, fontSize: '14px', color: '#9CA3AF' },
+  chefRow: { display: 'flex', alignItems: 'center', gap: '12px' },
   chefAvatar: {
-    width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg, #FF5136 0%, #ff8e53 100%)',
-    color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700,
+    width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0,
+    backgroundColor: '#EAF4FB', color: '#1763C9',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: '15px', fontWeight: 700,
   },
-  chefName: { margin: 0, fontSize: 16, fontWeight: 700, color: '#1B2736' },
-  chefLastName: { margin: '4px 0 0', fontSize: 13, color: '#6B7280' },
-  commentText: { margin: 0, fontSize: 14, color: '#324154', lineHeight: 1.6, whiteSpace: 'pre-wrap' },
-  loadingContainer: { height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAFAFA' },
-  spinner: { width: 40, height: 40, border: '4px solid #DDE6EE', borderTop: '4px solid #FF4336', borderRadius: '50%', animation: 'spin 1s linear infinite' },
-  errorText: { textAlign: 'center', color: '#EF4444', fontSize: 16 },
-  actionButtonsContainer: { display: 'flex', gap: spacing.small },
-  acceptButton: { flex: 1, backgroundColor: '#2EBE60', padding: 16, borderRadius: 30, border: 'none', cursor: 'pointer' },
-  acceptButtonText: { fontSize: 16, fontWeight: 600, color: '#FFFFFF' },
-  rejectButton: { flex: 1, backgroundColor: '#FF51361A', padding: 16, borderRadius: 30, border: 'none', cursor: 'pointer' },
-  rejectButtonText: { fontSize: 16, fontWeight: 600, color: '#FF5136' },
+  chefNombre: { margin: 0, fontSize: '15px', fontWeight: 700, color: '#1A1F24' },
+  chefApellido: { margin: 0, fontSize: '13px', color: '#6B7280' },
+  acciones: { display: 'flex', flexDirection: 'column', gap: '10px' },
+  botonPrimario: {
+    width: '100%', padding: '13px', borderRadius: '12px', border: 'none',
+    backgroundColor: '#FF5136', color: '#FFFFFF', fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+  },
+  botonAceptar: {
+    width: '100%', padding: '13px', borderRadius: '12px', border: 'none',
+    backgroundColor: '#2EBE60', color: '#FFFFFF', fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+  },
+  botonRechazar: {
+    width: '100%', padding: '13px', borderRadius: '12px', border: 'none',
+    backgroundColor: '#FF51361A', color: '#FF5136',
+    fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+  },
+  botonSecundario: {
+    width: '100%', padding: '13px', borderRadius: '12px',
+    border: '1px solid #E5E7EB', backgroundColor: '#FFFFFF',
+    color: '#6B7280', fontSize: '15px', fontWeight: 600, cursor: 'pointer', marginTop: '8px',
+  },
   textarea: {
-    width: '100%', minHeight: 110, padding: spacing.small, borderRadius: 8, border: '1px solid #E5E7EB',
-    fontSize: 14, marginBottom: spacing.small, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
+    width: '100%', minHeight: '96px', padding: '12px', borderRadius: '12px',
+    border: '1px solid #E5E7EB', fontSize: '14px', fontFamily: 'inherit',
+    resize: 'vertical', boxSizing: 'border-box', marginBottom: '10px',
   },
-  primaryButton: {
-    width: '100%', padding: 14, backgroundColor: '#FF5136', color: '#FFFFFF', border: 'none',
-    borderRadius: 30, fontSize: 15, fontWeight: 600, cursor: 'pointer',
-  },
-  secondaryButton: {
-    width: '100%', padding: 12, background: 'transparent', border: 'none', cursor: 'pointer',
-    fontSize: 14, fontWeight: 500, color: '#6B7280',
-  },
-  footer: { display: 'flex', justifyContent: 'center', marginTop: spacing.large, marginBottom: spacing.large },
-  helpLink: { textDecoration: 'none' },
-  helpButton: {
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: `${spacing.small}px ${spacing.medium}px`,
-    borderRadius: 20, backgroundColor: '#FCE9E8', border: 'none', cursor: 'pointer',
-  },
-  helpButtonText: { fontSize: 14, fontWeight: 600, color: '#FF4336' },
   modalOverlay: {
-    position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
-    alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: spacing.medium,
+    position: 'fixed', inset: 0, backgroundColor: 'rgba(26,31,36,.5)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    padding: `${spacing.medium}px`, zIndex: 1000,
   },
-  modalContent: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: spacing.large, maxWidth: 400, width: '100%' },
-  modalTitle: { margin: '0 0 8px', fontSize: 20, fontWeight: 700, color: '#1A1F24', textAlign: 'center' },
-  modalDescription: { margin: '0 0 16px', textAlign: 'center', color: '#6B7280' },
-  modalTextarea: {
-    width: '100%', padding: spacing.small, borderRadius: 8, border: '1px solid #E5E7EB',
-    fontSize: 14, marginBottom: spacing.medium, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
+  modalContent: {
+    width: '100%', maxWidth: '420px', boxSizing: 'border-box',
+    backgroundColor: '#FFFFFF', borderRadius: '20px', padding: `${spacing.medium}px`,
+    boxShadow: CARD_SHADOW,
   },
-  modalButtonDanger: {
-    width: '100%', padding: 16, borderRadius: 30, border: 'none', cursor: 'pointer',
-    backgroundColor: '#EF4444', color: '#FFFFFF', fontSize: 16, fontWeight: 600, marginBottom: spacing.small,
-  },
+  modalTitulo: { margin: '0 0 6px', fontSize: '18px', fontWeight: 700, color: '#1A1F24' },
+  modalTexto: { margin: '0 0 16px', fontSize: '14px', color: '#6B7280' },
 };
 
-// Inyectar animación del loader
+// Animación del loader del kit.
 if (typeof document !== 'undefined') {
   const style = document.createElement('style');
   style.innerHTML = `

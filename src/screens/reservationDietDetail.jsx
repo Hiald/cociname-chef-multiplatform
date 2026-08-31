@@ -214,7 +214,9 @@ const ReservationDietDetailScreen = () => {
   const customerName = getCustomerFullName(record);
   const direction = record.direction || record.Direction || '-';
   const reference = record.reference || record.Reference || '';
-  const totalPrice = Number(record.commissiontoChef ?? record.commissionToChef ?? record.totalPrice ?? record.TotalPrice ?? 0);
+  // Solo la comisión de la cocinera. NO se cae a totalPrice: ese es el precio
+  // que paga el cliente, y mostrarlo como "mi ganancia" es una fuga de costos.
+  const totalPrice = Number(record.commissiontoChef ?? record.commissionToChef ?? 0);
   const modality = Number(record.dietModality ?? record.DietModality ?? 1);
   const planUrl = record.nutritionalPlanUrl || record.NutritionalPlanUrl || '';
   const planName = record.nutritionalPlanFileName || record.NutritionalPlanFileName || 'Plan nutricional';

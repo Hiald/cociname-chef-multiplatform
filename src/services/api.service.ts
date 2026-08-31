@@ -1970,6 +1970,62 @@ class ApiService {
     }
   }
 
+  /**
+   * GET /api/reservationIngredientChecklist/filterbyReservationEvent
+   * Obtiene la lista de ingredientes para un evento.
+   * El endpoint del API y la carga desde la webapp del cliente ya existían;
+   * lo único que faltaba era que la app de la cocinera lo consumiera.
+   */
+  async getIngredientChecklistByReservationEvent(
+    idReservationEvent: number,
+    page: number = 1,
+    recordsPerPage: number = 100
+  ): Promise<IngredientChecklistResponse> {
+    const endpoint = `reservationIngredientChecklist/filterbyReservationEvent?IdReservationEvent=${idReservationEvent}&Page=${page}&RecordsPerPage=${recordsPerPage}`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      const token = this.getToken();
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          errorMessage: data.errorMessage || `HTTP error! status: ${response.status}`,
+          data: [],
+        };
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Error fetching ingredient checklist by reservation event:', error);
+      return {
+        success: false,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        data: [],
+      };
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // DISPONIBILIDAD
   // ═══════════════════════════════════════════════════════════════

@@ -183,6 +183,7 @@ export function getConceptName(conceptId: number): string {
     case 2: return "Compras";
     case 3: return "Movilidad";
     case 4: return "Otro";
+    case 5: return "Cocina, compra e ingredientes";
     default: return "-";
   }
 }
@@ -389,6 +390,49 @@ export function parseSubscriptionPaymentConcepts(
   } catch {
     return [];
   }
+}
+
+/**
+ * Desglose de pago a la cocinera, listo para <BloqueMonto>.
+ *
+ * El TOTAL es la suma de los conceptos de jsonPaymentChef, no el campo de
+ * comisión. Así lo documenta el propio API (ChefPaymentBreakdownHelper): "la suma
+ * de los Monto es lo que el admin guarda en CommissiontoChef, es la fuente
+ * correcta". El campo suelto queda solo como respaldo cuando no hay conceptos.
+ *
+ * Por qué hace falta: la clave cambia según el DTO. Los de la ficha pública
+ * (AppReservation*ResponseDto) usan `CommissionToChef` con T mayúscula; los del
+ * admin (Reservation*ResponseDto) arrastran el typo `CommissiontoChef` con t
+ * minúscula. Leer una sola grafia dejaba el total en S/ 0.00 en todos los tipos
+ * menos suscripción, que se salvaba justamente porque su DTO no trae el campo y
+ * no le quedaba más remedio que sumar los conceptos.
+ *
+ * NUNCA cae a totalPrice: ese es el precio que paga el cliente.
+ */
+export function getChefPaymentBreakdown(record?: Record<string, any> | null) {
+  const data = record ?? {};
+
+  const conceptos = parseSubscriptionPaymentConcepts(
+    data.jsonPaymentChef ?? data.JsonPaymentChef
+  ).filter((c) => Number.isFinite(c.amount) && c.amount > 0);
+
+  const comisionCampo = Number(
+    data.commissiontoChef
+    ?? data.CommissiontoChef
+    ?? data.commissionToChef
+    ?? data.CommissionToChef
+    ?? 0
+  );
+
+  const total = conceptos.length > 0
+    ? conceptos.reduce((sum, c) => sum + c.amount, 0)
+    : (Number.isFinite(comisionCampo) ? comisionCampo : 0);
+
+  const filas = conceptos.length > 0
+    ? conceptos.map((c) => ({ label: getConceptName(c.concept), valor: formatCurrency(c.amount) }))
+    : [{ label: 'Servicio', valor: formatCurrency(total) }];
+
+  return { conceptos: filas, total, totalTexto: formatCurrency(total) };
 }
 
 /** Comisión/pago de la sesión tal como viene del API (sin dividir entre visitas). */

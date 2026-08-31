@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { appScreenTheme as theme, mockup, getReservationEmoji, getReservationTileBg } from '../styles';
 import {
   getRequestServiceTitle,
-  getRequestPriceText,
+  getRequestServiceAmount,
   getRequestCardSubtitle,
   getRequestCustomerName,
 } from '../utils/requestDetail';
@@ -761,7 +761,10 @@ const ReservationScreen = () => {
   );
 
   const renderSolicitudCard = (reservation) => {
-    const price = getRequestPriceText(reservation);
+    // getRequestServiceAmount y no getRequestPriceText: para suscripcion el monto
+    // de la cocinera sale de jsonPaymentChef, que getRequestPriceText no mira.
+    // Antes esa tarjeta caia a totalPrice y mostraba el precio del CLIENTE.
+    const price = getRequestServiceAmount(reservation);
     const ctaColor = reservation.tipo === 'evento' ? '#7A4FD0' : '#1763C9';
 
     return (
