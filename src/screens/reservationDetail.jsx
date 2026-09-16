@@ -800,7 +800,10 @@ const ReservationDetailScreen = () => {
           </div>
           <div style={styles.infoRow}>
               <img src={chefIcon} alt="" style={styles.infoRowIcon} />
-            <span style={styles.infoRowLabel}>{reservation.totalPortion} porciones totales</span>
+            <span style={styles.infoRowLabel}>
+              {reservation.totalPortion} porciones totales
+              <span style={styles.infoRowNote}>{' '}a preparar en esta visita</span>
+            </span>
           </div>
         </div>
 
@@ -1225,7 +1228,7 @@ const styles = {
   infoRow: {
     display: 'flex',
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: '7px 0',
     gap: '10px',
   },
@@ -1240,6 +1243,10 @@ const styles = {
     color: '#1A1F24',
     fontWeight: '500',
     lineHeight: '18px',
+  },
+  infoRowNote: {
+    fontWeight: '400',
+    color: '#6B7280',
   },
   arriveButton: {
     backgroundColor: '#FF5136',

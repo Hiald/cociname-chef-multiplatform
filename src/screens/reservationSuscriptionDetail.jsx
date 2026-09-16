@@ -798,6 +798,9 @@ const ReservationSuscriptionDetailScreen = () => {
             <img src={chefIcon} alt="" style={styles.infoRowIcon} />
             <span style={styles.infoRowLabel}>
               {portionsPerVisit ? `${portionsPerVisit} porciones` : 'Porciones no disponibles'}
+              {portionsPerVisit
+                ? <span style={styles.infoRowNote}>{' '}a preparar en esta visita</span>
+                : null}
             </span>
           </div>
           {(reservation.suscriptionCount || reservation.visitsPerMonth) && (
@@ -1181,7 +1184,7 @@ const styles = {
   infoRow: {
     display: 'flex',
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: '7px 0',
     gap: '10px',
   },
@@ -1196,6 +1199,10 @@ const styles = {
     color: '#1A1F24',
     fontWeight: '500',
     lineHeight: '18px',
+  },
+  infoRowNote: {
+    fontWeight: '400',
+    color: '#6B7280',
   },
   section: {
     marginBottom: `${spacing.large}px`,

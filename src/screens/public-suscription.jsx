@@ -266,7 +266,11 @@ export const PublicSuscriptionScreen = ({ token }) => {
             { icon: dayIcon, label: formatDate(reservation.dateReservation) },
             { icon: hourIcon, label: reservation.hourReservation },
             { icon: listIcon, label: reservation.puchaseIngredients ? 'Con compras' : 'Sin compras' },
-            { icon: chefIcon, label: `${portionsPerVisit} porciones` },
+            {
+              icon: chefIcon,
+              label: `${portionsPerVisit} porciones`,
+              nota: 'a preparar en esta visita',
+            },
           ]}
         />
 

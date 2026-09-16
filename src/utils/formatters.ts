@@ -339,19 +339,36 @@ export function getSubscriptionVisitsPerMonth(
   return visits > 0 ? visits : 1;
 }
 
-/** Porciones tal como vienen del API (sin dividir entre visitas). */
 export function getPerVisitPortions(
   reservation?: SubscriptionRecord,
   suscriptionInfo?: SubscriptionRecord
 ): number {
-  return Number(
-    reservation?.totalPortion
-    ?? reservation?.TotalPortion
-    ?? reservation?.suscriptionTotalPortion
-    ?? reservation?.SuscriptionTotalPortion
-    ?? suscriptionInfo?.totalPortion
-    ?? suscriptionInfo?.TotalPortion
-    ?? 0
+  const leer = (...claves: string[]): number => {
+    for (const registro of [reservation, suscriptionInfo]) {
+      if (!registro) continue;
+      for (const clave of claves) {
+        const valor = registro[clave];
+        if (valor === null || valor === undefined || valor === '') continue;
+        const numero = Number(valor);
+        if (!Number.isNaN(numero) && numero > 0) return numero;
+      }
+    }
+    return 0;
+  };
+
+  const comensales = leer('diner', 'Diner', 'suscriptiondiner', 'Suscriptiondiner');
+  const tipo = leer('type', 'Type', 'suscriptionType', 'SuscriptionType');
+  const comidas = leer(
+    'portionperDay', 'PortionperDay', 'portionPerDay',
+    'suscriptionPortionperDay', 'SuscriptionPortionperDay'
+  );
+
+  const porVisita = comensales * (tipo || 1) * comidas;
+  if (porVisita > 0) return porVisita;
+
+  return leer(
+    'totalPortion', 'TotalPortion',
+    'suscriptionTotalPortion', 'SuscriptionTotalPortion'
   );
 }
 

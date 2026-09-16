@@ -115,7 +115,13 @@ export const buildReservationScheduleRows = (reservation) => buildScheduleRows([
     icon: 'chef',
     label: `${reservation.diner} personas, ${reservation.portionperDay ?? reservation.portionPerDay ?? '-'} comidas`,
   } : null,
-  reservation.totalPortion ? { icon: 'chef', label: `${reservation.totalPortion} porciones totales` } : null,
+  reservation.totalPortion
+    ? {
+      icon: 'chef',
+      label: `${reservation.totalPortion} porciones totales`,
+      nota: 'a preparar en esta visita',
+    }
+    : null,
 ]);
 
 export const buildSubscriptionScheduleRows = (reservation, suscriptionInfo) => {
@@ -126,7 +132,13 @@ export const buildSubscriptionScheduleRows = (reservation, suscriptionInfo) => {
     { icon: 'clock', label: formatPublicHour(reservation.hourReservation) },
     { icon: 'list', label: reservation.puchaseIngredients ? 'Con compras' : 'Sin compras' },
     reservation.diner != null ? { icon: 'chef', label: `${reservation.diner} personas` } : null,
-    portionsPerVisit ? { icon: 'chef', label: `${portionsPerVisit} porciones` } : null,
+    portionsPerVisit
+      ? {
+        icon: 'chef',
+        label: `${portionsPerVisit} porciones`,
+        nota: 'a preparar en esta visita',
+      }
+      : null,
     reservation.suscriptionCount && visitsPerMonth
       ? { icon: 'list', label: `Visita ${reservation.suscriptionCount} de ${visitsPerMonth}` }
       : null,

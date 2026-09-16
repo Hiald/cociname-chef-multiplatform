@@ -93,7 +93,10 @@ export const RequestDetailShell = ({
             }}
           >
             {rowIcons[row.icon] || rowIcons.calendar}
-            <span>{row.label}</span>
+            <span>
+              {row.label}
+              {row.nota ? <span style={styles.infoRowNote}>{' '}{row.nota}</span> : null}
+            </span>
           </div>
         ))}
       </div>
@@ -305,11 +308,15 @@ const styles = {
   },
   infoRow: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 13,
     padding: '16px 0',
     fontSize: 15.5,
     fontWeight: 600,
+  },
+  infoRowNote: {
+    fontWeight: 400,
+    color: theme.textSecondary,
   },
   infoRowBorder: {
     borderBottom: `1px solid ${theme.divider}`,

@@ -248,7 +248,11 @@ export const PublicReservationScreen = ({ token }) => {
             { icon: dayIcon, label: formatDate(reservation.dateReservation) },
             { icon: hourIcon, label: reservation.hourReservation },
             { icon: listIcon, label: reservation.puchaseIngredients ? 'Con compras' : 'Sin compras' },
-            { icon: chefIcon, label: `${reservation.totalPortion} porciones totales` },
+            {
+              icon: chefIcon,
+              label: `${reservation.totalPortion} porciones totales`,
+              nota: 'a preparar en esta visita',
+            },
           ]}
         />
 

@@ -58,7 +58,10 @@ export function CustomerHeader({ nombre, subtitulo }) {
 }
 
 // Tarjeta blanca de filas de información (fecha, hora, personas, etc.).
-// rows: [{ icon, label }] — icon es el import de la imagen (png).
+// rows: [{ icon, label, nota }] — icon es el import de la imagen (png).
+// Cada fila admite ademas una `nota`: una aclaracion en tipografia ligera que
+// va DENTRO del mismo <span> que el label, para que al envolver en pantallas
+// estrechas siga el flujo del texto en vez de saltar sola a la linea de abajo.
 export function InfoCard({ rows }) {
   const visibles = (rows || []).filter(r => r && r.label);
   if (!visibles.length) return null;
@@ -67,7 +70,10 @@ export function InfoCard({ rows }) {
       {visibles.map((row, index) => (
         <div key={index} style={kit.infoRow}>
           {row.icon ? <img src={row.icon} alt="" style={kit.infoRowIcon} /> : null}
-          <span style={kit.infoRowLabel}>{row.label}</span>
+          <span style={kit.infoRowLabel}>
+            {row.label}
+            {row.nota ? <span style={kit.infoRowNote}>{' '}{row.nota}</span> : null}
+          </span>
         </div>
       ))}
     </div>
@@ -297,7 +303,7 @@ const kit = {
   infoRow: {
     display: 'flex',
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: '7px 0',
     gap: '10px',
   },
@@ -312,6 +318,10 @@ const kit = {
     color: '#1A1F24',
     fontWeight: '500',
     lineHeight: '18px',
+  },
+  infoRowNote: {
+    fontWeight: '400',
+    color: '#6B7280',
   },
   section: {
     marginBottom: `${spacing.large}px`,
