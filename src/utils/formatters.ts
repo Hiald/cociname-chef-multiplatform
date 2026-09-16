@@ -355,7 +355,15 @@ export function getPerVisitPortions(
   );
 }
 
-export function getSubscriptionMonthlyChefTotal(
+/**
+ * Monto de la cocinera guardado en el campo CommissiontoChef.
+ *
+ * Se llamaba "MonthlyChefTotal" y el nombre mentía: la webapp guarda aquí el
+ * monto YA dividido por visita, y el admin no lo llena (queda en 0). Nunca fue
+ * un total mensual. Se renombró porque este tipo de nombre engañoso es justo lo
+ * que produjo la fuga que arreglamos el 2026-09-08.
+ */
+export function getSubscriptionChefFieldAmount(
   reservation?: SubscriptionRecord,
   suscriptionInfo?: SubscriptionRecord
 ): number {
@@ -435,7 +443,20 @@ export function getChefPaymentBreakdown(record?: Record<string, any> | null) {
   return { conceptos: filas, total, totalTexto: formatCurrency(total) };
 }
 
-/** Comisión/pago de la sesión tal como viene del API (sin dividir entre visitas). */
+/**
+ * Comisión/pago de la sesión tal como viene del API (sin dividir entre visitas).
+ *
+ * NUNCA cae a totalPrice. Ese es el precio que paga el CLIENTE y la cocinera no
+ * debe verlo en ninguna vista. Hasta 2026-09-08 sí caía, y en la ficha pública de
+ * una suscripción se mostraba el total MENSUAL del cliente bajo la etiqueta
+ * "Total por visita": se juntaban tres cosas — la webapp guarda jsonPaymentChef
+ * como "[]" en las sesiones 2..N, la ficha pública no puede leer el plan padre
+ * (ese endpoint exige JWT y ahí no hay sesión) y el DTO público sí trae TotalPrice.
+ *
+ * Si no hay conceptos, devuelve 0 a propósito. Un 0 se lee como "todavía no está
+ * informado" y lo corrige el admin poniendo el pago; un número del cliente la
+ * haría aceptar el servicio por una expectativa falsa.
+ */
 export function getSubscriptionChefCommission(
   reservation?: SubscriptionRecord,
   suscriptionInfo?: SubscriptionRecord
@@ -453,14 +474,12 @@ export function getSubscriptionChefCommission(
     return concepts.reduce((sum, concept) => sum + concept.amount, 0);
   }
 
-  const monthlyChefTotal = getSubscriptionMonthlyChefTotal(reservation, suscriptionInfo);
-  if (monthlyChefTotal > 0) return monthlyChefTotal;
+  // Solo aplica a suscripciones creadas desde la webapp, que sí guardan aquí el
+  // monto ya dividido por visita. Las creadas desde el admin traen 0 (verificado
+  // con la suscripción 120: commissiontoChef 0.00 y el pago real, 63, en el
+  // jsonPaymentChef de la sesión). En ese caso el 0 de abajo es la respuesta.
+  const chefAmount = getSubscriptionChefFieldAmount(reservation, suscriptionInfo);
+  if (chefAmount > 0) return chefAmount;
 
-  return Number(
-    reservation?.totalPrice
-    ?? reservation?.TotalPrice
-    ?? suscriptionInfo?.totalPrice
-    ?? suscriptionInfo?.TotalPrice
-    ?? 0
-  );
+  return 0;
 }

@@ -52,24 +52,27 @@ export function aggregateChecklistIngredients(items: ChecklistIngredientItem[]) 
   }));
 }
 
-export function collectChecklistIngredients(checklistRecords: IngredientChecklistRecord[] = []) {
-  const parsedItems: ChecklistIngredientItem[] = [];
 
-  checklistRecords.forEach((record) => {
+export function collectChecklistIngredients(checklistRecords: IngredientChecklistRecord[] = []) {
+  for (const record of checklistRecords) {
     const checklistJson = getChecklistJson(record);
-    if (!checklistJson) return;
+    if (!checklistJson) continue;
 
     try {
       const items = JSON.parse(checklistJson);
+      // Un registro con "[]" es una lista vacía válida y corta la búsqueda: es lo
+      // que el cliente guardó. Solo se salta el que no se puede leer.
       if (Array.isArray(items)) {
-        parsedItems.push(...items);
+        // Agrupa DENTRO de la fila, que sí corresponde: un mismo ingrediente
+        // aparece una vez por plato y hay que sumarlo.
+        return aggregateChecklistIngredients(items);
       }
     } catch {
-      // Ignorar registros con JSON inválido
+      // Ignorar registros con JSON inválido y probar con el siguiente
     }
-  });
+  }
 
-  return aggregateChecklistIngredients(parsedItems);
+  return aggregateChecklistIngredients([]);
 }
 
 export interface LoadedIngredientDetail {
