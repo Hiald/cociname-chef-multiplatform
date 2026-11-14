@@ -82,8 +82,9 @@ export const PublicDietScreen = ({ token }) => {
       try {
         setLoading(true);
         setError(null);
-        const { reservationId } = await resolvePublicLinkToken(token, PUBLIC_LINK_TYPES.DIET);
-        const response = await apiService.publicGetReservationDietByLink(reservationId);
+        // Se sigue resolviendo el token: confirma que es un link de DIETA antes de pedir el detalle.
+        await resolvePublicLinkToken(token, PUBLIC_LINK_TYPES.DIET);
+        const response = await apiService.publicGetReservationDietByToken(token);
 
         if (!isMounted) return;
 

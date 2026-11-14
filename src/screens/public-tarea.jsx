@@ -88,8 +88,9 @@ export const PublicTareaScreen = ({ token }) => {
       try {
         setLoading(true);
         setError(null);
-        const { reservationId } = await resolvePublicLinkToken(token, PUBLIC_LINK_TYPES.TAREA);
-        const response = await apiService.publicGetReservationServiceTaskByLink(reservationId);
+        // Se sigue resolviendo el token: confirma que es un link de TAREA antes de pedir el detalle.
+        await resolvePublicLinkToken(token, PUBLIC_LINK_TYPES.TAREA);
+        const response = await apiService.publicGetReservationServiceTaskByToken(token);
 
         if (!isMounted) return;
 

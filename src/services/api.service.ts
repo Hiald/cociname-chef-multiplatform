@@ -550,17 +550,6 @@ class ApiService {
     return this.publicRequest<any>(endpoint);
   }
 
-  /**
-   * GET public reservation by link token endpoint (legacy, uses integer ID)
-   * Endpoint: Reservation/ListReservationByLink?id={entityId}
-   * @deprecated Use publicGetReservationByToken instead
-   */
-  async publicGetReservationByLink(
-    entityId: number
-  ): Promise<any> {
-    const endpoint = `Reservation/ListReservationByLink?id=${entityId}`;
-    return this.publicRequest<any>(endpoint);
-  }
 
   /**
    * GET public reservation by GUID token — no expone IDs enteros en la red
@@ -573,17 +562,6 @@ class ApiService {
     return this.publicRequest<any>(endpoint);
   }
 
-  /**
-   * GET public subscription reservation by link token endpoint (legacy)
-   * Endpoint: reservationSuscription/ListReservationSuscriptionByIdLink?id={entityId}
-   * @deprecated Use publicGetReservationSuscriptionByToken instead
-   */
-  async publicGetReservationSuscriptionByLink(
-    entityId: number
-  ): Promise<any> {
-    const endpoint = `reservationSuscription/ListReservationSuscriptionByIdLink?id=${entityId}`;
-    return this.publicRequest<any>(endpoint);
-  }
 
   /**
    * GET /api/FichaPublica/resolve/{token}
@@ -594,17 +572,20 @@ class ApiService {
   }
 
   /**
-   * GET /api/AppReservationDiet/ListReservationDietByLink?id={id}
+   * GET /api/AppReservationDiet/ByToken/{token} — ficha pública de dieta por GUID.
+   * Reemplaza a ListReservationDietByLink?id= (anónimo y por id numérico: se podía
+   * recorrer). Mismo patrón que reserva, suscripción y evento.
    */
-  async publicGetReservationDietByLink(entityId: number): Promise<BaseResponseGeneric<AppPendingReservationData>> {
-    return this.publicRequest<AppPendingReservationData>(`AppReservationDiet/ListReservationDietByLink?id=${entityId}`);
+  async publicGetReservationDietByToken(token: string): Promise<BaseResponseGeneric<AppPendingReservationData>> {
+    return this.publicRequest<AppPendingReservationData>(`AppReservationDiet/ByToken/${token}`);
   }
 
   /**
-   * GET /api/AppReservationServiceTask/ListReservationTaskByLink?id={id}
+   * GET /api/AppReservationServiceTask/ByToken/{token} — ficha pública de tarea por GUID.
+   * Reemplaza a ListReservationTaskByLink?id= (anónimo y por id numérico).
    */
-  async publicGetReservationServiceTaskByLink(entityId: number): Promise<BaseResponseGeneric<AppPendingReservationData>> {
-    return this.publicRequest<AppPendingReservationData>(`AppReservationServiceTask/ListReservationTaskByLink?id=${entityId}`);
+  async publicGetReservationServiceTaskByToken(token: string): Promise<BaseResponseGeneric<AppPendingReservationData>> {
+    return this.publicRequest<AppPendingReservationData>(`AppReservationServiceTask/ByToken/${token}`);
   }
 
   /**
@@ -644,17 +625,6 @@ class ApiService {
     return this.publicRequest<any>(endpoint);
   }
 
-  /**
-   * GET public event reservation by link (legacy)
-   * Endpoint: reservationEvent/Link/{id}
-   * @deprecated Use publicGetReservationEventByToken instead
-   */
-  async publicGetReservationEventByLink(
-    entityId: number
-  ): Promise<any> {
-    const endpoint = `reservationEvent/Link/${entityId}`;
-    return this.publicRequest<any>(endpoint);
-  }
 
   /**
    * GET public event by GUID token — no expone IDs enteros en la red
@@ -2317,30 +2287,12 @@ class ApiService {
   }
 
   /**
-   * GET /api/AppReservationDiet/ListReservationDietByLink?id={id}
-   */
-  async getReservationDietByLink(
-    reservationDietId: number
-  ): Promise<BaseResponseGeneric<AppPendingReservationData>> {
-    return this.request<AppPendingReservationData>(`AppReservationDiet/ListReservationDietByLink?id=${reservationDietId}`);
-  }
-
-  /**
    * GET /api/AppReservationServiceTask/{id}
    */
   async getReservationServiceTaskById(
     reservationServiceTaskId: number
   ): Promise<BaseResponseGeneric<AppPendingReservationData>> {
     return this.request<AppPendingReservationData>(`AppReservationServiceTask/${reservationServiceTaskId}`);
-  }
-
-  /**
-   * GET /api/AppReservationServiceTask/ListReservationTaskByLink?id={id}
-   */
-  async getReservationServiceTaskByLink(
-    reservationServiceTaskId: number
-  ): Promise<BaseResponseGeneric<AppPendingReservationData>> {
-    return this.request<AppPendingReservationData>(`AppReservationServiceTask/ListReservationTaskByLink?id=${reservationServiceTaskId}`);
   }
 
   /**
